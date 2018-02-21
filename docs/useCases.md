@@ -1,16 +1,17 @@
-# Three Use Cases: 
+Three Use Cases: 
 1. Input your own battery cycling data, select and visualize 
 representative cycles to get nice plots.
 Components: 
 * GUI asking to load users cycling data, data type from a dropdown 
 menu (text, excel). 
 * read file into dataframe using pd.read_csv, pd.read_excel
-* Check for empty cells and delete those rows 
+* Check for empty cells and delete those rows. Also delete/consolidate 
+rows with repeat voltages for when dq/dv is calculated (dv /= 0). 
 * from raw data, create new column, calculate dq/dv for each point, put 
 in the new column.
 * Return to user number of cycles found, ask which representative cycles 
-to display or 'all'
-* plot dq/dv for selected cycle, show user 
+to display. 
+* plot dq/dv for selected cycles, show user in a nice formatted plot.  
 
   
 * 2. Look for trends in your own battery cycling data (freedom for user 

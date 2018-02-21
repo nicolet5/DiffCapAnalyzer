@@ -7,7 +7,20 @@ to select what trends to look for).
 Components: plots, peak deconvolution and identification, number of 
 peaks in a cycle, peak positions, peak widths, peak heights,  
 * 3. Input battery cycling data and classify battery as a certain type, 
-based off of peak descriptors.
-Components: peak deconvolution and identification, number of peaks in a 
-cycle, peak positions, peak widths, peak heights (all reused from use 
-case #2), ML algorithm. 
+based off of peak descriptors.  
+### Components: 
+- Load in Battery Cycling Data
+ - Separate cycles 
+ - For each cycle calculate; 
+	- deconvolute 
+	- positions 
+	- width 
+	- heights 
+	- count 
+ - Seperate Data 
+	- Test 
+	- Train 
+ - Train ML model (SVM)  
+ - Validate model with Test Data 
+ - Error Analysis 
+ 

@@ -1,5 +1,2 @@
-#System Requirements --> should move to __init__.py at some point  
-
-python v3 
-
+# Organization of the project
 

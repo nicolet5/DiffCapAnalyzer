@@ -1,8 +1,5 @@
-Nicole is dumb
-:) -Ted
+#System Requirements --> should move to __init__.py at some point  
 
-# chachies
-I love tacos <3 Nicole 
-hey guys! -sarah
+python v3 
 
-ayylmao -Robert
+

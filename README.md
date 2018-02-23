@@ -1,5 +1,6 @@
 # Organization of the project
-`docs/
+```
+docs/
     2-22_TechReview.pptx
     ChachiesFlowChart.PNG
     SEDS-HW5.ipynb
@@ -24,4 +25,4 @@ LICENSE
 README.md
 setup.py
 tests.md
-`
+```

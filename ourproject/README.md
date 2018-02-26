@@ -1,9 +1,9 @@
 # System Requirements 
 
-#Jupyter Notebooks 
+## Jupyter Notebooks 
 - written using Python3
 
-#Data Visualization 
+## Data Visualization 
 Install the following dash libraries 
 ```
 pip install dash==0.21.0  # The core dash backend

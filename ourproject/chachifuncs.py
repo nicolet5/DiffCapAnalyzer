@@ -4,6 +4,10 @@ import os
 import pandas as pd
 import requests
 
+#####################
+#Data Cleaning
+#####################
+
 def get_data(filepath): 
     """Imports all data in given path"""
     rootdir = filepath
@@ -20,6 +24,11 @@ def get_data(filepath):
         print "adding file", (count, name)
     return d
     # There are 23 files in the CS2 directory, so we should have 23 entries in the dictionary - TEST 
+
+#####################
+#DASH Functions 
+#***Beck said not to write unit tests so IM NOT GONNA 
+#####################
 
 def generate_table(data, maxrows=10):
     """Generates a table with Header and Body given a data set and number of rows to display in Dash format"""

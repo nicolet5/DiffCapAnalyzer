@@ -19,7 +19,7 @@ def get_data(filepath):
         d.update(new_set)
         print "adding file", (count, name)
     return d
-### There are 23 files in the CS2 directory, so we should have 23 entries in the dictionary - add unit test for this, super EASY check 
+    # There are 23 files in the CS2 directory, so we should have 23 entries in the dictionary - TEST 
 
 def generate_table(data, maxrows=10):
     """Generates a table with Header and Body given a data set and number of rows to display in Dash format"""

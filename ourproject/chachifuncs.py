@@ -102,24 +102,24 @@ def drop_0_dv(cycle_df_dv):
     cycle_df_dv['dv_close_to_zero'] = None
     
     for i in range(1, len(cycle_df_dv)):
-        if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3):
+        if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3.5):
             cycle_df_dv.loc[i,('dv_close_to_zero')] = False
         else:
             cycle_df_dv.loc[i,('dv_close_to_zero')]= True   
     
     
-    while (False in cycle_df_dv['dv_close_to_zero'].values or cycle_df_dv['dV'].max() > 0.3 or cycle_df_dv['dV'].min() < -0.3): 
+    while (False in cycle_df_dv['dv_close_to_zero'].values or cycle_df_dv['dV'].max() > 0.7 or cycle_df_dv['dV'].min() < -0.7): 
         
         cycle_df_dv = cycle_df_dv.reset_index(drop = True)
         
         for i in range(1, len(cycle_df_dv)):
-            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3): 
+            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3.5): 
                 cycle_df_dv = cycle_df_dv.drop(index = i)
                 
         cycle_df_dv = cycle_df_dv.reset_index(drop = True)
         
         for i in range(1, len(cycle_df_dv)):
-            if (cycle_df_dv.loc[i,('dV')] > 0.3 or cycle_df_dv.loc[i,('dV')] < -0.3):
+            if (cycle_df_dv.loc[i,('dV')] > 0.7 or cycle_df_dv.loc[i,('dV')] < -0.7):
                 cycle_df_dv = cycle_df_dv.drop(index = i)       
                 
         cycle_df_dv = cycle_df_dv.reset_index(drop = True)
@@ -127,7 +127,7 @@ def drop_0_dv(cycle_df_dv):
         for i in range(1, len(cycle_df_dv)): 
             cycle_df_dv.loc[i, ('dV')] = cycle_df_dv.loc[i, ('Voltage(V)')] - cycle_df_dv.loc[i-1, ('Voltage(V)')] 
             cycle_df_dv.loc[i, ('d(dq/dv)')] = cycle_df_dv.loc[i, ('dQ/dV')] - cycle_df_dv.loc[i-1, ('dQ/dV')]
-            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3):
+            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3.5):
                 cycle_df_dv.loc[i,('dv_close_to_zero')] = False
             else:
                 cycle_df_dv.loc[i,('dv_close_to_zero')]= True
@@ -171,6 +171,8 @@ def my_savgolay(dataframe, windowlength, polyorder):
     dataframe['Smoothed_dQ/dV'] = scipy.signal.savgol_filter(unfiltar, windowlength, polyorder)
     #had windowlength = 21 and polyorder = 3 before
     return dataframe
+
+
 
 
 

@@ -16,7 +16,7 @@ import scipy.signal
 ### Wrapper Functions below - load_sep_cycles and clean_calc_sep_smooth
 
 def load_sep_cycles(getdata_filepath, savedata_filepath):
-    """Get data from a specified filpath, separates out data into cycles and saves those cycles as .xlsx files in specified filepath (must be an existing folder)"""
+    """Get data from a specified filepath, separates out data into cycles and saves those cycles as .xlsx files in specified filepath (must be an existing folder)"""
     dfdict = get_data(getdata_filepath)
     for key in dfdict:
         all_cycles_df = dfdict[key]
@@ -77,7 +77,7 @@ def save_sep_cycles_xlsx(cycle_dict, battname, path_to_folder):
     for i in range(1, len(cycle_dict)):
          cycle_dict[i]['Battery_Label'] = battname
     for i in range(1,len(cycle_dict)):
-        writer = ExcelWriter(path_to_folder + battname + 'Cycle' + str(i) + '.xlsx')
+        writer = ExcelWriter(path_to_folder + battname + '-'+'Cycle' + str(i) + '.xlsx')
         cycle_dict[i].to_excel(writer)
         writer.save()
     return 

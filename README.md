@@ -1,3 +1,9 @@
+# TODO
+- create a virual environment 
+- make sure everything is installed to run
+- pip freeze #prints out all packages/versions needed to run 
+- Save in requirements.txt  
+
 # How to Install 
 ```
 Include all instructions from ourproject readme 

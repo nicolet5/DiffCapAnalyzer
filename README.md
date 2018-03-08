@@ -2,7 +2,7 @@
 ```
 Include all instructions from ourproject readme 
 ```
-#Preview of app 
+# Preview of app 
 - insert gif of app 
 
 # Organization of the project

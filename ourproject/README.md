@@ -1,4 +1,4 @@
-# System Requirements 
+#System Requirements 
 ## TODO 
 
 - update __init__.py with all imports 
@@ -7,7 +7,17 @@
 - get app running 
 
 ## Jupyter Notebooks 
-- written using Python3
+- Python3
+- Update below with versions used
+```
+pip install scipy
+pip install pandas
+pip install openpyxl
+pip install matplotlib
+pip install pyplot
+pip install requests
+pip install xlrd
+```
 
 ## Data Visualization 
 Install the following dash libraries 

@@ -3,8 +3,6 @@
 
 - update __init__.py with all imports 
 - unit tests (3/function) 
-- turn jupyter notebooks into cohesive functions 
-- get app running 
 
 ## Jupyter Notebooks 
 - Python3

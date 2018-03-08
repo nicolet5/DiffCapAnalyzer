@@ -13,7 +13,6 @@ import scipy.signal
 #Data Cleaning
 #####################
 
-
 ### Wrapper Functions below - load_sep_cycles and clean_calc_sep_smooth
 
 def load_sep_cycles(getdata_filepath, savedata_filepath):
@@ -33,8 +32,16 @@ def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
     df1 = calc_dv_dqdv(dataframe)
     df2 = drop_0_dv(df1)
     charge, discharge = sep_char_dis(df2)
-    smooth_charge = my_savgolay(charge, windowlength, polyorder)
-    smooth_discharge = my_savgolay(discharge, windowlength, polyorder)
+    if len(discharge) > windowlength:
+        smooth_discharge = my_savgolay(discharge, windowlength, polyorder)
+    else:
+        discharge['Smoothed_dQ/dV'] = discharge['dQ/dV']
+        smooth_discharge = discharge
+    if len(charge) > windowlength: 
+        smooth_charge = my_savgolay(charge, windowlength, polyorder)
+    else:
+        charge['Smoothed_dQ/dV'] = charge['dQ/dV']
+        smooth_charge = charge   
     return smooth_charge, smooth_discharge
 
 
@@ -90,29 +97,55 @@ def calc_dv_dqdv(cycle_df):
 def drop_0_dv(cycle_df_dv): 
     '''Drop rows where dv=0 (or about 0) in a dataframe that has already had dv calculated. Then recalculate dv and calculate dq/dv'''
     #this will clean up the data points around V = 4.2V (since they are holding it at 4.2V for a while).
-    
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
+   
+    cycle_df_dv['dv_close_to_zero'] = None
     
     for i in range(1, len(cycle_df_dv)):
         if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3):
-            cycle_df_dv = cycle_df_dv.drop(index = i)
-            
-    cycle_df_dv = cycle_df_dv.reset_index(drop = True)
+            cycle_df_dv.loc[i,('dv_close_to_zero')] = False
+        else:
+            cycle_df_dv.loc[i,('dv_close_to_zero')]= True   
     
-    while (cycle_df_dv['dV'].max() > 0.05 or cycle_df_dv['dV'].min() < -0.05):
-        for i in range(1, len(cycle_df_dv)):    
-            if (cycle_df_dv.loc[i,('dV')] > 0.05 or cycle_df_dv.loc[i,('dV')] < -0.05):
+    
+    while (False in cycle_df_dv['dv_close_to_zero'].values or cycle_df_dv['dV'].max() > 0.3 or cycle_df_dv['dV'].min() < -0.3): 
+        
+        cycle_df_dv = cycle_df_dv.reset_index(drop = True)
+        
+        for i in range(1, len(cycle_df_dv)):
+            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3): 
                 cycle_df_dv = cycle_df_dv.drop(index = i)
-                if i-1 in cycle_df_dv.index:
-                    cycle_df_dv = cycle_df_dv.drop(index = i-1)
-    cycle_df_dv = cycle_df_dv.reset_index(drop = True)            
+                
+        cycle_df_dv = cycle_df_dv.reset_index(drop = True)
+        
+        for i in range(1, len(cycle_df_dv)):
+            if (cycle_df_dv.loc[i,('dV')] > 0.3 or cycle_df_dv.loc[i,('dV')] < -0.3):
+                cycle_df_dv = cycle_df_dv.drop(index = i)       
+                
+        cycle_df_dv = cycle_df_dv.reset_index(drop = True)
+        
+        for i in range(1, len(cycle_df_dv)): 
+            cycle_df_dv.loc[i, ('dV')] = cycle_df_dv.loc[i, ('Voltage(V)')] - cycle_df_dv.loc[i-1, ('Voltage(V)')] 
+            cycle_df_dv.loc[i, ('d(dq/dv)')] = cycle_df_dv.loc[i, ('dQ/dV')] - cycle_df_dv.loc[i-1, ('dQ/dV')]
+            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3):
+                cycle_df_dv.loc[i,('dv_close_to_zero')] = False
+            else:
+                cycle_df_dv.loc[i,('dv_close_to_zero')]= True
+                
+        cycle_df_dv = cycle_df_dv.reset_index(drop = True)            
     
+    cycle_df_dv = cycle_df_dv.reset_index(drop = True)
+   
     #recalculating dv after dropping rows
     for i in range(1, len(cycle_df_dv)): 
         cycle_df_dv.loc[i, ('dV')] = cycle_df_dv.loc[i, ('Voltage(V)')] - cycle_df_dv.loc[i-1, ('Voltage(V)')]
+        
     #recalculate dq/dv  
     cycle_df_dv['dQ/dV'] = cycle_df_dv['Discharge_Capacity(Ah)']/cycle_df_dv['dV']
     cycle_df_dv = cycle_df_dv.dropna(subset=['dQ/dV'])
+    cycle_df_dv = cycle_df_dv.reset_index(drop = True)
+    cycle_df_dv = cycle_df_dv[:-1]
+   
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
     return cycle_df_dv  
 
@@ -120,8 +153,14 @@ def sep_char_dis(df_dqdv):
     '''Takes a dataframe of one cycle with calculated dq/dv and separates into charge and discharge differential capacity curves'''
     charge = df_dqdv[df_dqdv['dV'] < 0] 
     charge = charge.reset_index(drop = True)
+    charge = charge.iloc[6:]
+    charge = charge.reset_index(drop = True)
     discharge = df_dqdv[df_dqdv['dV'] > 0] 
     discharge = discharge.reset_index(drop = True)
+    discharge = discharge.iloc[:-2]
+    discharge = discharge.iloc[2:]
+    discharge = discharge.reset_index(drop = True)
+    
     return charge, discharge
     
 def my_savgolay(dataframe, windowlength, polyorder):
@@ -132,6 +171,8 @@ def my_savgolay(dataframe, windowlength, polyorder):
     dataframe['Smoothed_dQ/dV'] = scipy.signal.savgol_filter(unfiltar, windowlength, polyorder)
     #had windowlength = 21 and polyorder = 3 before
     return dataframe
+
+
 
 
 

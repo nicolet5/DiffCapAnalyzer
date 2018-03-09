@@ -42,7 +42,7 @@ def load_sep_cycles(getdata_filepath, savedata_filepath):
         cycle_dict = sep_cycles(all_cycles_df)
         battname = key 
         save_sep_cycles_xlsx(cycle_dict, battname, savedata_filepath) 
-    print('All data separated into cycles and saved')
+    print('All data separated into cycles and saved in folder "data/Separated_Cycles". ')
     return 
 
 def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
@@ -84,7 +84,7 @@ def get_clean_cycles(import_filepath, save_filepath):
         writer = ExcelWriter(save_filepath + cyclename + 'Clean'+ '.xlsx')
         clean_cycle_df.to_excel(writer)
         writer.save() 
-    print('All cycles cleaned and saved in folder.')
+    print('All cycles cleaned and saved in folder "data/Clean_Separated_Cycles".')
     return 
 
 def get_clean_sets(import_filepath, save_filepath): 
@@ -124,7 +124,7 @@ def get_clean_sets(import_filepath, save_filepath):
         value.to_excel(writer)
         writer.save() 
                 
-    print('All clean cycles recombined and saved in folder.')
+    print('All clean cycles recombined and saved in folder "data/Clean_Whole_Sets".')
     return
 ############################
 # Component Functions

@@ -1,11 +1,10 @@
 # Unit tests 
 
-- Test all cleaning functions 
-
+- Test all cleaning functions:  
 Results of unit tests:
 ```
 ```
-- Test all descriptor functions:
+- Test all descriptor functions:  
 Results of unit tests
 ```
 ```

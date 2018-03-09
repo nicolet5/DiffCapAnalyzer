@@ -7,8 +7,31 @@ import requests
 import scipy.io
 import scipy.signal
 
+################################
+### OVERALL Wrapper Function ###
+################################
+
+def get_all_data(path_to_raw_data_folder):
+    '''Gets all raw data from the specified folder (path_to_raw_data_folder), and then 
+    1. separates it into raw cycles and puts them in a folder (data/Separated_Cycles/)
+    2. cleans those separated cycles and puts them in a folder (data/Clean_Separated_Cycles/)
+    3. recombines the cleaned, separated cycles and saves those data sets in a folder (data/Clean_Whole_Sets/)
+    These folders do not have to have existed previously. '''
+    if not os.path.exists('data/'):
+        os.makedirs('data/')
+    if not os.path.exists('data/Separated_Cycles/'):
+        os.makedirs('data/Separated_Cycles/')
+    if not os.path.exists('data/Clean_Separated_Cycles/'):
+        os.makedirs('data/Clean_Separated_Cycles/')
+    if not os.path.exists('data/Clean_Whole_Sets/'):
+        os.makedirs('data/Clean_Whole_Sets/')
+    load_sep_cycles(path_to_raw_data_folder, 'data/Separated_Cycles/')
+    get_clean_cycles('data/Separated_Cycles/', 'data/Clean_Separated_Cycles/')
+    get_clean_sets('data/Clean_Separated_Cycles/', 'data/Clean_Whole_Sets/')
+    return 
+
 ############################
-### Wrapper Functions
+### Sub - Wrapper Functions
 ############################
 
 def load_sep_cycles(getdata_filepath, savedata_filepath):
@@ -54,14 +77,13 @@ def get_clean_cycles(import_filepath, save_filepath):
         clean_data = charge.append(discharge)
         clean_cycle = {name : clean_data}
         d.update(clean_cycle)
-        print("adding file to dictionary" + str(count) + ' ' + str(name))
+       # print("adding file to dictionary" + str(count) + ' ' + str(name))
     for key in d:
         clean_cycle_df = d[key]
         cyclename = key 
         writer = ExcelWriter(save_filepath + cyclename + 'Clean'+ '.xlsx')
         clean_cycle_df.to_excel(writer)
-        writer.save()
-       # save_sep_cycles_xlsx(d, cyclename, save_filepath) 
+        writer.save() 
     print('All cycles cleaned and saved in folder.')
     return 
 
@@ -102,7 +124,7 @@ def get_clean_sets(import_filepath, save_filepath):
         value.to_excel(writer)
         writer.save() 
                 
-    print('All clean cycles appended and saved in folder.')
+    print('All clean cycles recombined and saved in folder.')
     return
 ############################
 # Component Functions
@@ -122,7 +144,7 @@ def get_data(filepath):
         data = pd.read_excel(file,1)
         new_set = {name : data}
         d.update(new_set)
-        print("adding file " + str(count) + ' ' + str(name))
+       # print("adding file " + str(count) + ' ' + str(name))
     return d
 ### ADD UNIT TEST:There are 23 files in the CS2 directory, so we should have 23 entries in the dictionary - add unit test for this, super EASY check 
 

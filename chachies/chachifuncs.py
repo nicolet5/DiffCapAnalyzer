@@ -42,6 +42,70 @@ def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
         smooth_charge = charge   
     return smooth_charge, smooth_discharge
 
+def get_clean_cycles(import_filepath, save_filepath): 
+    """Imports all separated out cycles in given path and cleans them and saves them in the specified filepath"""
+    rootdir = import_filepath
+    file_list = [f for f in glob.glob(os.path.join(rootdir,'*.xlsx'))] #iterate through dir to get excel files 
+    d = {} #initiate dict for data storage
+    count = 0
+    for file in file_list:
+        count += 1
+        name = os.path.split(file)[1].split('.')[0]
+        data = pd.read_excel(file)
+        charge, discharge = clean_calc_sep_smooth(data, 21, 3)
+        clean_data = charge.append(discharge)
+        clean_cycle = {name : clean_data}
+        d.update(clean_cycle)
+        print("adding file to dictionary" + str(count) + ' ' + str(name))
+    for key in d:
+        clean_cycle_df = d[key]
+        cyclename = key 
+        writer = ExcelWriter(save_filepath + cyclename + 'Clean'+ '.xlsx')
+        clean_cycle_df.to_excel(writer)
+        writer.save()
+       # save_sep_cycles_xlsx(d, cyclename, save_filepath) 
+    print('All cycles cleaned and saved in folder.')
+    return 
+
+def get_clean_sets(import_filepath, save_filepath): 
+    """Imports all clean cycles of data from import path and appends them into complete sets of battery data, saved into save_filepath"""
+    rootdir = import_filepath
+    file_list = [f for f in glob.glob(os.path.join(rootdir,'*.xlsx'))] #iterate through dir to get excel files 
+    d = {} #initiate dict for data storage
+    count = 0
+    list_bats = [] 
+    for file in file_list:
+        count += 1
+        name = os.path.split(file)[1].split('.')[0]
+        batname = name.split('-')[0]
+        if batname not in list_bats:
+            list_bats.append(batname)
+        else: None  
+            
+    set_dict = {}
+    
+    for i in range(len(list_bats)): 
+        batID = list_bats[i] 
+        setdf = pd.DataFrame()
+        for file in file_list:
+            name = os.path.split(file)[1].split('.')[0]
+            batname = name.split('-')[0]
+            if batname == batID:
+                df = pd.read_excel(file)
+                setdf = setdf.append(df, ignore_index=True)
+            else:
+                None 
+        setdf = setdf.sort_values(['Data_Point'], ascending = True)
+        newset = {batID : setdf}
+        set_dict.update(newset) 
+        
+    for key, value in set_dict.items():
+        writer = ExcelWriter(save_filepath + key + '.xlsx')
+        value.to_excel(writer)
+        writer.save() 
+                
+    print('All clean cycles appended and saved in folder.')
+    return
 
 ### Component Functions
 

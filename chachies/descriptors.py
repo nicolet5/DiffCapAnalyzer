@@ -191,12 +191,15 @@ def imp_all(source):
 
 	return charge_descript, discharge_descript, name_dat
 
-def pd_create(charge_descript, discharge_descript, name_dat):
+def pd_create(charge_descript, name_dat, cd):
 	"""Creates a blank dataframe for a particular battery containing charge, discharge descriptors
 
 	"""
 	ncyc = len(charge_descript)
-
+	if cd == 'c':
+		prefix = 'ch_'
+	else:
+		prefix = 'dc_'
 	
 	ch_npeaks = []
 	for ch in charge_descript:
@@ -204,21 +207,9 @@ def pd_create(charge_descript, discharge_descript, name_dat):
 			ch_npeaks.append(len(ch['peakFWHM']))
 	ch_mxpeaks = max(ch_npeaks)
 
-	dc_npeaks = []
-	for dc in discharge_descript:
-		if 'peakFWHM' in dc.keys():
-			dc_npeaks.append(len(dc['peakFWHM']))
-
-	dc_mxpeaks = max(dc_npeaks)
-
 	desc = pd.DataFrame()
 	for ch in np.arange(ch_mxpeaks*3+4):
-		names = 'ch_' + str(int(ch))
-		par = pd.DataFrame({names: np.zeros(ncyc)})
-		desc = pd.concat([desc, par], axis=1)
-
-	for dc in np.arange(dc_mxpeaks*3+4):
-		names = 'dc_' + str(int(dc))
+		names = prefix + str(int(ch))
 		par = pd.DataFrame({names: np.zeros(ncyc)})
 		desc = pd.concat([desc, par], axis=1)
 
@@ -230,7 +221,7 @@ def dict_2_list(desc):
 	"""Converts a dictionary of descriptors into a list for pandas assignment
 
 	desc = pandas dataframe containing descriptors"""
-	desc_ls = desc['coefficients']
+	desc_ls = list(desc['coefficients'])
 	if 'peakFWHM' in desc.keys():
 		for i in np.arange(len(desc['peakFWHM'])):
 			desc_ls.append(desc['peakLocation(V)'][i])
@@ -239,8 +230,33 @@ def dict_2_list(desc):
 
 	return desc_ls
 
-def pd_update(desc, charge_descript, discharge_descript):
-	"""adds list to the series"""
+def pd_update(desc, charge_descript):
+	"""adds list to the series
+	desc = blank dataframe from pd_create
+	charge_descript = list of descriptor dictionaries"""
 
-	#for ch in charge_descript:
-	return
+	for index, row in desc.iterrows():
+		desc_ls = dict_2_list(charge_descript[index])
+
+		i = 0
+		for it in desc_ls:
+			row.iat[i] = it
+			i = i + 1
+
+	return desc
+
+def imp_and_combine(path):
+	"""imports separated charge, discharge spreadsheets from a specified path and generates a dataframe of descriptrs"""
+	
+	charge_descript, discharge_descript, name_dat = imp_all(path)
+
+	charge_df = pd_create(charge_descript, name_dat, 'c')
+	charge_df = pd_update(charge_df, charge_descript)
+
+	discharge_df = pd_create(discharge_descript, name_dat, 'd')
+	discharge_df = pd_update(discharge_df, discharge_descript)
+
+	df = pd.concat([charge_df, discharge_df], axis = 1)
+
+	return df
+

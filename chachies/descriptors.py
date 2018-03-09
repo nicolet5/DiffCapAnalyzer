@@ -123,23 +123,23 @@ cd = either 'c' for charge and 'd' for discharge."""
 
     model = model_eval(V_series,dQdV_series, cd, par, mod)
     
-    sigx, sigy = cd_dataframe(V_series, dQdV_series, cd)
-    if not i:
-    else:
-    	desc = {'peakLocation(V)': sigx[i], 'peakHeight(dQdV)': sigy[i]}
+    coefficients = []
+    
+
+    for k in np.arange(4):
+    	coef = 'c' + str(k)
+    	coefficients.append(model.best_values[coef])
+
+    desc = {'coefficients': coefficients}
+    if len(i) > 0:
+    	sigx, sigy = cd_dataframe(V_series, dQdV_series, cd)
+    	desc.update({'peakLocation(V)': sigx[i], 'peakHeight(dQdV)': sigy[i]})
     	FWHM = []
     	for index in i:
     		center, sigma, amplitude, fraction, comb = label_gen(index)
     		FWHM.append(model.best_values[sigma])
-
-    	coefficients = []
-
-    	for k in np.arange(4):
-    		coef = 'c' + str(k)
-    		coefficients.append(model.best_values[coef])
-
     	desc.update({'peakFWHM': FWHM, 'coefficients': coefficients})
-    
+
     return desc
 
 

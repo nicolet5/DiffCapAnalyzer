@@ -73,7 +73,7 @@ def get_clean_cycles(import_filepath, save_filepath):
         count += 1
         name = os.path.split(file)[1].split('.')[0]
         data = pd.read_excel(file)
-        charge, discharge = clean_calc_sep_smooth(data, 21, 3)
+        charge, discharge = clean_calc_sep_smooth(data, 15, 3)
         clean_data = charge.append(discharge)
         clean_cycle = {name : clean_data}
         d.update(clean_cycle)
@@ -245,7 +245,7 @@ def drop_0_dv(cycle_df_dv):
     cycle_df_dv = cycle_df_dv.dropna(subset=['Discharge_dQ/dV'])
     cycle_df_dv = cycle_df_dv.dropna(subset=['Charge_dQ/dV'])
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
-    cycle_df_dv = cycle_df_dv[:-1]
+   # cycle_df_dv = cycle_df_dv[:-1]
    
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
     return cycle_df_dv  

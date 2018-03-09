@@ -1,6 +1,6 @@
 # ChaChies 
-# Package for Battery Cycling Data Visualization and Interpretation`
-## TO-DO
+## Package for Battery Cycling Data Visualization and Interpretation`
+### TO-DO
 - Create Requirements 
 	- create a virual environment 
 	- make sure everything is installed to run
@@ -11,14 +11,14 @@
 - Make project pip installable 
 - update init.py with all imports
 
-## How to Install 
+### How to Install 
 ```
 pip install chachies  
 ```
-## Software Dependencies 
+### Software Dependencies 
 - Python3 
 - Python packages (see requirements.txt)
-### known packages  - make sure we catch them all 
+#### known packages  - make sure we catch them all 
 - *Update below with versions used*
 ```
 pip install scipy
@@ -30,7 +30,7 @@ pip install requests
 pip install xlrd
 ```
 
-# Organization of the project
+## Organization of the project
 ```
 docs/
     README.md

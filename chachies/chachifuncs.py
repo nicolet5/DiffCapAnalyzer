@@ -102,7 +102,7 @@ def get_clean_sets(import_filepath, save_filepath):
         set_dict.update(newset) 
         
     for key, value in set_dict.items():
-        writer = ExcelWriter(save_filepath + key + '.xlsx')
+        writer = ExcelWriter(save_filepath + key + 'CleanSet'+'.xlsx')
         value.to_excel(writer)
         writer.save() 
                 

@@ -1,5 +1,5 @@
 # ChaChies 
-## Package for Battery Cycling Data Visualization and Interpretation`
+## Package for Battery Cycling Data Visualization and Interpretation
 ### TO-DO
 - Create Requirements 
 	- create a virual environment 
@@ -10,6 +10,7 @@
 - Unit tests
 - Make project pip installable 
 - update init.py with all imports
+- add photo of chinchilla 
 
 ### How to Install 
 ```

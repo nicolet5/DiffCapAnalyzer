@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import peakutils
 from lmfit import models
+import chachifuncs
+import os
 
 #peak finding algorithm
 
@@ -109,6 +111,7 @@ def descriptor_func(V_series,dQdV_series, cd):
 V_series = Pandas series of voltage data
 dQdV_series = Pandas series of differential capacity data
 cd = either 'c' for charge and 'd' for discharge."""
+
     sigx_bot, sigy_bot = cd_dataframe(V_series, dQdV_series, cd)
     
     i = peak_finder(V_series, dQdV_series, cd)
@@ -135,5 +138,51 @@ cd = either 'c' for charge and 'd' for discharge."""
     desc.update({'peakFWHM': FWHM, 'coefficients': coefficients})
     
     return desc
-    
-    
+
+
+def imp_item(direct, pref, cyc, sgf_frame, sgf_order):
+	"""Function to import a set of charge, discharge pandas dataframes from a single file
+
+	direct = string containing directory with the excel sheets for individual cycle data
+	pref = text prior to the cycle number
+	cyc = cycle number (must be an integer)
+	sgf_frame = Savitzky-Golay filter frame width
+	sgf_order =Savitzsky-Golay filter order"""
+	pt = direct + pref + str(cyc)
+
+	testdf = pd.read_excel(pt)
+	#just picked a random one out of the separated out cycles
+
+	charge, discharge = chachifuncs.clean_calc_sep_smooth(testdf, sft_frame, sgf_order)
+
+
+	return charge, discharge
+
+def imp_all(direct, pref, sgf_frame, sgf_order):
+	"""Generates a list of dictionaries containing the fitting parameters
+
+	direct = string containing directory with the excel sheets for individual cycle data
+	pref = text prior to the cycle number
+	sgf_frame = Savitzky-Golay filter frame width
+	sgf_order =Savitzsky-Golay filter order"""
+
+	i = 1
+	pt = direct + pref + str(i) + '.xlsx'
+	charge_descript = []
+
+	# while excel spreadsheet with path exists
+	while os.path.isfile(pt) == True:
+
+		testdf = pd.read_excel(pt)
+		#just picked a random one out of the separated out cycles
+
+		charge, discharge = chachifuncs.clean_calc_sep_smooth(testdf, sgf_frame, sgf_order)
+		
+		d = descriptor_func(charge['Voltage(V)'], charge['Smoothed_dQ/dV'], 'c')
+		charge_descript.append(d)
+
+		i = i + 1
+		pt = direct + pref + str(i) + '.xlsx'
+
+
+	return charge_descript

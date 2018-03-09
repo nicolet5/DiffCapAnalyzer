@@ -133,12 +133,12 @@ cd = either 'c' for charge and 'd' for discharge."""
     desc = {'coefficients': coefficients}
     if len(i) > 0:
     	sigx, sigy = cd_dataframe(V_series, dQdV_series, cd)
-    	desc.update({'peakLocation(V)': sigx[i], 'peakHeight(dQdV)': sigy[i]})
+    	desc.update({'peakLocation(V)': sigx[i].tolist(), 'peakHeight(dQdV)': sigy[i].tolist()})
     	FWHM = []
     	for index in i:
     		center, sigma, amplitude, fraction, comb = label_gen(index)
     		FWHM.append(model.best_values[sigma])
-    	desc.update({'peakFWHM': FWHM, 'coefficients': coefficients})
+    	desc.update({'peakFWHM': FWHM})
     else:
     	print(file_val)
 
@@ -191,12 +191,15 @@ def imp_all(source):
 
 	return charge_descript, discharge_descript, name_dat
 
-def pd_create(charge_descript, discharge_descript, name_dat):
-	"""Creates two pandas dataframe containing charge and discharge descriptors
+def pd_create(charge_descript, name_dat, cd):
+	"""Creates a blank dataframe for a particular battery containing charge, discharge descriptors
 
 	"""
 	ncyc = len(charge_descript)
-
+	if cd == 'c':
+		prefix = 'ch_'
+	else:
+		prefix = 'dc_'
 	
 	ch_npeaks = []
 	for ch in charge_descript:
@@ -204,16 +207,56 @@ def pd_create(charge_descript, discharge_descript, name_dat):
 			ch_npeaks.append(len(ch['peakFWHM']))
 	ch_mxpeaks = max(ch_npeaks)
 
-	dc_npeaks = []
-	for dc in discharge_descript:
-		if 'peakFWHM' in dc.keys():
-			dc_npeaks.append(len(dc['peakFWHM']))
-
-	dc_mxpeaks = max(dc_npeaks)
-
 	desc = pd.DataFrame()
 	for ch in np.arange(ch_mxpeaks*3+4):
-		names = 'ch_' + str(int(ch))
-		desc.append({names: np.zeros(ncyc)})
+		names = prefix + str(int(ch))
+		par = pd.DataFrame({names: np.zeros(ncyc)})
+		desc = pd.concat([desc, par], axis=1)
+
+	desc.index.names = [name_dat]
 
 	return desc
+
+def dict_2_list(desc):
+	"""Converts a dictionary of descriptors into a list for pandas assignment
+
+	desc = pandas dataframe containing descriptors"""
+	desc_ls = list(desc['coefficients'])
+	if 'peakFWHM' in desc.keys():
+		for i in np.arange(len(desc['peakFWHM'])):
+			desc_ls.append(desc['peakLocation(V)'][i])
+			desc_ls.append(desc['peakHeight(dQdV)'][i])
+			desc_ls.append(desc['peakFWHM'][i])
+
+	return desc_ls
+
+def pd_update(desc, charge_descript):
+	"""adds list to the series
+	desc = blank dataframe from pd_create
+	charge_descript = list of descriptor dictionaries"""
+
+	for index, row in desc.iterrows():
+		desc_ls = dict_2_list(charge_descript[index])
+
+		i = 0
+		for it in desc_ls:
+			row.iat[i] = it
+			i = i + 1
+
+	return desc
+
+def imp_and_combine(path):
+	"""imports separated charge, discharge spreadsheets from a specified path and generates a dataframe of descriptrs"""
+	
+	charge_descript, discharge_descript, name_dat = imp_all(path)
+
+	charge_df = pd_create(charge_descript, name_dat, 'c')
+	charge_df = pd_update(charge_df, charge_descript)
+
+	discharge_df = pd_create(discharge_descript, name_dat, 'd')
+	discharge_df = pd_update(discharge_df, discharge_descript)
+
+	df = pd.concat([charge_df, discharge_df], axis = 1)
+
+	return df
+

@@ -1,5 +1,6 @@
 import glob 
 from math import isclose 
+import numpy as np
 import os 
 import pandas as pd
 from pandas import ExcelWriter
@@ -194,14 +195,24 @@ def drop_0_dv(cycle_df_dv):
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
    
     cycle_df_dv['dv_close_to_zero'] = None
+    
+
+
     for i in range(1, len(cycle_df_dv)):
+    	#if (cycle_df_dv.loc[i, ('dV/dt(V/s)')] == 0 or isclose(cycle_df_dv.loc[i, ('Current(A)')], 0, abs_tol = 10**-3) or isclose(cycle_df_dv.loc[i, ('Voltage(V)')], 4.2, abs_tol = 10**-3)):
+    	#	cycle_df_dv = cycle_df_dv.drop(index = i)
     	if isclose(cycle_df_dv.loc[i, ('Current(A)')], 0, abs_tol = 10**-3):
-    		cycle_df_dv = cycle_df_dv.drop(index = i) 
+    		cycle_df_dv = cycle_df_dv.drop(index = i)
 
-    cycle_df_dv = cycle_df_dv.reset_index(drop = True)		
+    cycle_df_dv = cycle_df_dv.reset_index(drop = True) 
+    switch_cd_index = np.where(np.diff(np.sign(cycle_df_dv['Current(A)'])))
+    for i in switch_cd_index:
+        cycle_df_dv = cycle_df_dv.drop(cycle_df_dv.index[i+1])    
+
+    cycle_df_dv = cycle_df_dv.reset_index(drop = True)
 
     for i in range(1, len(cycle_df_dv)):
-        if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3.5):
+        if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-5): #was -3.5 before
             cycle_df_dv.loc[i,('dv_close_to_zero')] = False
         else:
             cycle_df_dv.loc[i,('dv_close_to_zero')]= True   
@@ -212,9 +223,10 @@ def drop_0_dv(cycle_df_dv):
         cycle_df_dv = cycle_df_dv.reset_index(drop = True)
         
         for i in range(1, len(cycle_df_dv)):
-            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3.5): 
+            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-5): 
                 cycle_df_dv = cycle_df_dv.drop(index = i)
-                
+                if i-1 in cycle_df_dv.index:
+                	cycle_df_dv = cycle_df_dv.drop(index = i-1)
         cycle_df_dv = cycle_df_dv.reset_index(drop = True)
         
         for i in range(1, len(cycle_df_dv)):
@@ -225,7 +237,7 @@ def drop_0_dv(cycle_df_dv):
         
         for i in range(1, len(cycle_df_dv)): 
             cycle_df_dv.loc[i, ('dV')] = cycle_df_dv.loc[i, ('Voltage(V)')] - cycle_df_dv.loc[i-1, ('Voltage(V)')] 
-            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3.5):
+            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-5):
                 cycle_df_dv.loc[i,('dv_close_to_zero')] = False
             else:
                 cycle_df_dv.loc[i,('dv_close_to_zero')]= True
@@ -247,6 +259,9 @@ def drop_0_dv(cycle_df_dv):
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
    # cycle_df_dv = cycle_df_dv[:-1]
    
+ 
+
+
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
     return cycle_df_dv  
 
@@ -254,16 +269,24 @@ def sep_char_dis(df_dqdv):
     '''Takes a dataframe of one cycle with calculated dq/dv and separates into charge and discharge differential capacity curves'''
     charge = df_dqdv[df_dqdv['dV'] > 0]
     charge.is_copy = None
-    charge['dQ/dV'] = charge['Charge_dQ/dV']
     charge = charge.reset_index(drop = True)
-    charge = charge.iloc[6:]
+    charge['dQ/dV'] = charge['Charge_dQ/dV']
+    for i in range(1, len(charge)):
+        if charge.loc[i, ('dQ/dV')] == 0: 
+            charge = charge.drop(index = i)
+    charge = charge.reset_index(drop = True)
+   	# charge = charge.iloc[6:]
     charge = charge.reset_index(drop = True)
     discharge = df_dqdv[df_dqdv['dV'] < 0] 
     discharge.is_copy = None 
     discharge['dQ/dV'] = discharge['Discharge_dQ/dV']
     discharge = discharge.reset_index(drop = True)
-    discharge = discharge.iloc[:-2]
-    discharge = discharge.iloc[2:]
+    for i in range(1, len(discharge)):
+        if discharge.loc[i, ('dQ/dV')] == 0: 
+            discharge = discharge.drop(index = i)
+    #discharge = discharge.reset_index(drop = True)
+    #discharge = discharge.iloc[:-2]
+    #discharge = discharge.iloc[2:]
     discharge = discharge.reset_index(drop = True)
     
     return charge, discharge

@@ -8,10 +8,8 @@ import scipy.io
 import scipy.signal
 
 ############################
-#Functions for Data Cleaning
-############################
-
 ### Wrapper Functions
+############################
 
 def load_sep_cycles(getdata_filepath, savedata_filepath):
     """Get data from a specified filepath, separates out data into cycles and saves those cycles as .xlsx files in specified filepath (must be an existing folder)"""
@@ -106,8 +104,9 @@ def get_clean_sets(import_filepath, save_filepath):
                 
     print('All clean cycles appended and saved in folder.')
     return
-
-### Component Functions
+############################
+# Component Functions
+############################
 
 def get_data(filepath): 
     """Imports all data in given path"""
@@ -130,13 +129,16 @@ def get_data(filepath):
 #separate out dataframes into cycles
 def sep_cycles(dataframe):
     """This function separates out the cycles in the battery dataframe by grouping by the 'Cycle_Index' column, and putting them in a dictionary. """
-    assert type(datatable) == pd.DataFrame(), 'Input must be a dataframe' 
+    assert type(dataframe) == pd.DataFrame, 'Input must be a dataframe' 
     gb = dataframe.groupby(by = ['Cycle_Index'])
     cycle_dict = dict(iter(gb))
     return cycle_dict
 
 def save_sep_cycles_xlsx(cycle_dict, battname, path_to_folder):
-    '''This saves the separated out cycles into different excel files, beginning with the battery name. Battname and path to folder must be strings.'''
+    """This saves the separated out cycles into different excel files, beginning with the battery name. Battname and path to folder must be strings."""
+    assert type(cycle_dict) == dict, 'First entry must be a dictionary'
+    assert type(battname) == str, 'Second entry must be a string'
+    assert type(path_to_folder) == str, 'Path to output must be a string'
     for i in range(1, len(cycle_dict)):
          cycle_dict[i]['Battery_Label'] = battname
     for i in range(1,len(cycle_dict)):

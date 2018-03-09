@@ -1,4 +1,3 @@
-import dash_html_components as html
 import glob 
 from math import isclose 
 import os 
@@ -7,13 +6,12 @@ from pandas import ExcelWriter
 import requests
 import scipy.io
 import scipy.signal
-#also have to pip install openpyxl
 
-#####################
-#Data Cleaning
-#####################
+############################
+#Functions for Data Cleaning
+############################
 
-### Wrapper Functions below - load_sep_cycles and clean_calc_sep_smooth
+### Wrapper Functions
 
 def load_sep_cycles(getdata_filepath, savedata_filepath):
     """Get data from a specified filepath, separates out data into cycles and saves those cycles as .xlsx files in specified filepath (must be an existing folder)"""
@@ -45,11 +43,11 @@ def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
     return smooth_charge, smooth_discharge
 
 
-### Component Functions Below
-
+### Component Functions
 
 def get_data(filepath): 
     """Imports all data in given path"""
+    assert type(filepath) == str, 'Input must be a string'
     rootdir = filepath
     file_list = [f for f in glob.glob(os.path.join(rootdir,'*.xlsx'))] #iterate through dir to get excel files 
     
@@ -63,11 +61,12 @@ def get_data(filepath):
         d.update(new_set)
         print("adding file " + str(count) + ' ' + str(name))
     return d
-### There are 23 files in the CS2 directory, so we should have 23 entries in the dictionary - add unit test for this, super EASY check 
+### ADD UNIT TEST:There are 23 files in the CS2 directory, so we should have 23 entries in the dictionary - add unit test for this, super EASY check 
 
 #separate out dataframes into cycles
 def sep_cycles(dataframe):
     """This function separates out the cycles in the battery dataframe by grouping by the 'Cycle_Index' column, and putting them in a dictionary. """
+    assert type(datatable) == pd.DataFrame(), 'Input must be a dataframe' 
     gb = dataframe.groupby(by = ['Cycle_Index'])
     cycle_dict = dict(iter(gb))
     return cycle_dict
@@ -176,23 +175,5 @@ def my_savgolay(dataframe, windowlength, polyorder):
 
 
 
-
-
-#####################
-#DASH Functions 
-#***Beck said not to write unit tests so IM NOT GONNA 
-#####################
-
-def generate_table(data, maxrows=10):
-    """Generates a table with Header and Body given a data set and number of rows to display in Dash format"""
-    return html.Table(
-        # Header
-        [html.Tr([html.Th(col) for col in data.columns])] +
-
-        # Body
-        [html.Tr([
-            html.Td(data.iloc[i][col]) for col in data.columns
-        ]) for i in range(min(len(data), maxrows))]
-    )
 
 

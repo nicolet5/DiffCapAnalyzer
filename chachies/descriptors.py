@@ -6,15 +6,18 @@ import peakutils
 from lmfit import models
 import chachifuncs
 import os
+import glob
 
 #peak finding algorithm
 
 def peak_finder(V_series, dQdV_series, cd):   
 	"""Determines the index of each peak in a dQdV curve V_series = Pandas series of voltage data dQdV_series = Pandas series of differential capacity data cd = either 'c' for charge and 'd' for discharge."""
 	sigx, sigy = cd_dataframe(V_series, dQdV_series, cd)
-
-	sigy_smooth = scipy.signal.savgol_filter(sigy, 25, 3)
-
+	windowlength = 25
+	if len(sigy) > windowlength:
+		sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, 3)
+	elif len(sigy) > 10:
+		sigy_smooth = sigy
 	i = peakutils.indexes(sigy_smooth, thres=3/max(sigy_smooth), min_dist=9)
 
 	return i
@@ -120,23 +123,23 @@ cd = either 'c' for charge and 'd' for discharge."""
 
     model = model_eval(V_series,dQdV_series, cd, par, mod)
     
-    sigx, sigy = cd_dataframe(V_series, dQdV_series, cd) 
-    
-    desc = {'peakLocation(V)': sigx[i], 'peakHeight(dQdV)': sigy[i]}
-    
-    FWHM = []
-    for index in i:
-        center, sigma, amplitude, fraction, comb = label_gen(index)
-        FWHM.append(model.best_values[sigma])
-
-    
     coefficients = []
-    for k in np.arange(4):
-        coef = 'c' + str(k)
-        coefficients.append(model.best_values[coef])
-        
-    desc.update({'peakFWHM': FWHM, 'coefficients': coefficients})
     
+
+    for k in np.arange(4):
+    	coef = 'c' + str(k)
+    	coefficients.append(model.best_values[coef])
+
+    desc = {'coefficients': coefficients}
+    if len(i) > 0:
+    	sigx, sigy = cd_dataframe(V_series, dQdV_series, cd)
+    	desc.update({'peakLocation(V)': sigx[i], 'peakHeight(dQdV)': sigy[i]})
+    	FWHM = []
+    	for index in i:
+    		center, sigma, amplitude, fraction, comb = label_gen(index)
+    		FWHM.append(model.best_values[sigma])
+    	desc.update({'peakFWHM': FWHM, 'coefficients': coefficients})
+
     return desc
 
 
@@ -153,36 +156,57 @@ def imp_item(direct, pref, cyc, sgf_frame, sgf_order):
 	testdf = pd.read_excel(pt)
 	#just picked a random one out of the separated out cycles
 
-	charge, discharge = chachifuncs.clean_calc_sep_smooth(testdf, sft_frame, sgf_order)
+	charge, discharge = chachifuncs.sep_char_dis(testdf)
 
 
 	return charge, discharge
 
-def imp_all(direct, pref, sgf_frame, sgf_order):
+def imp_all(source):
 	"""Generates a list of dictionaries containing the fitting parameters
 
-	direct = string containing directory with the excel sheets for individual cycle data
-	pref = text prior to the cycle number
-	sgf_frame = Savitzky-Golay filter frame width
-	sgf_order =Savitzsky-Golay filter order"""
+	source = string containing directory with the excel sheets for individual cycle data"""
+	file_list = [f for f in glob.glob(os.path.join(source,'*.xlsx'))]
 
-	i = 1
-	pt = direct + pref + str(i) + '.xlsx'
+	name_l = os.path.split(file_list[1])[1].split('.')[0]
+	name_dat = os.path.split(name_l)[1].split('-')[0]
+
 	charge_descript = []
-
+	discharge_descript = []
 	# while excel spreadsheet with path exists
-	while os.path.isfile(pt) == True:
+	for file_val in file_list:
 
-		testdf = pd.read_excel(pt)
+		testdf = pd.read_excel(file_val)
 		#just picked a random one out of the separated out cycles
 
-		charge, discharge = chachifuncs.clean_calc_sep_smooth(testdf, sgf_frame, sgf_order)
+		charge, discharge = chachifuncs.sep_char_dis(testdf)
 		
-		d = descriptor_func(charge['Voltage(V)'], charge['Smoothed_dQ/dV'], 'c')
-		charge_descript.append(d)
+		if (len(charge['Voltage(V)'].index) >= 10) and (len(discharge['Voltage(V)'].index) >= 10):
+			c = descriptor_func(charge['Voltage(V)'], charge['Smoothed_dQ/dV'], 'c')
+			d = descriptor_func(discharge['Voltage(V)'] , discharge['Smoothed_dQ/dV'], 'd')
+			charge_descript.append(c)
+			discharge_descript.append(d)
 
-		i = i + 1
-		pt = direct + pref + str(i) + '.xlsx'
 
+	return charge_descript, discharge_descript, name_dat
 
-	return charge_descript
+def pd_create(charge_descript, discharge_descript, name_dat):
+	"""Creates two pandas dataframe containing charge and discharge descriptors
+
+	"""
+	ncyc = len(charge_descript)
+
+	ch_npeaks = []
+	for ch in charge_descript:
+		ch_npeaks.append(len(ch['peakFWHM']))
+	ch_mxpeaks = max(ch_npeaks)
+
+	dc_npeaks = []
+	for dc in discharge_descript:
+		dc_npeaks.append(len(dc['peakFWHM']))
+	dc_mxpeaks = max(dc_npeaks)
+
+	desc = pd.DataFrame()
+	for ch in np.arange(ch_mxpeaks*3+4):
+		desc.append({'ch_'+str(ch): np.zeros(ncyc)})
+
+	return desc

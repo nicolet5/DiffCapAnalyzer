@@ -232,9 +232,10 @@ def dict_2_list(desc):
 	desc = pandas dataframe containing descriptors"""
 	desc_ls = desc['coefficients']
 	if 'peakFWHM' in desc.keys():
-		desc_ls = desc_ls + desc['peakLocation(V)']
-		desc_ls = desc_ls + desc['peakHeight(dQdV)']
-		desc_ls = desc_ls + desc['peakFWHM']
+		for i in np.arange(len(desc['peakFWHM'])):
+			desc_ls.append(desc['peakLocation(V)'][i])
+			desc_ls.append(desc['peakHeight(dQdV)'][i])
+			desc_ls.append(desc['peakFWHM'][i])
 
 	return desc_ls
 

@@ -108,7 +108,7 @@ output string format:
     
     return center, sigma, amplitude, fraction, comb
 
-def descriptor_func(V_series,dQdV_series, cd):
+def descriptor_func(V_series,dQdV_series, cd, file_val):
     """Generates dictionary of descriptors
 
 V_series = Pandas series of voltage data
@@ -139,6 +139,8 @@ cd = either 'c' for charge and 'd' for discharge."""
     		center, sigma, amplitude, fraction, comb = label_gen(index)
     		FWHM.append(model.best_values[sigma])
     	desc.update({'peakFWHM': FWHM, 'coefficients': coefficients})
+    else:
+    	print(file_val)
 
     return desc
 
@@ -181,8 +183,8 @@ def imp_all(source):
 		charge, discharge = chachifuncs.sep_char_dis(testdf)
 		
 		if (len(charge['Voltage(V)'].index) >= 10) and (len(discharge['Voltage(V)'].index) >= 10):
-			c = descriptor_func(charge['Voltage(V)'], charge['Smoothed_dQ/dV'], 'c')
-			d = descriptor_func(discharge['Voltage(V)'] , discharge['Smoothed_dQ/dV'], 'd')
+			c = descriptor_func(charge['Voltage(V)'], charge['Smoothed_dQ/dV'], 'c', file_val)
+			d = descriptor_func(discharge['Voltage(V)'] , discharge['Smoothed_dQ/dV'], 'd', file_val)
 			charge_descript.append(c)
 			discharge_descript.append(d)
 
@@ -195,18 +197,23 @@ def pd_create(charge_descript, discharge_descript, name_dat):
 	"""
 	ncyc = len(charge_descript)
 
+	
 	ch_npeaks = []
 	for ch in charge_descript:
-		ch_npeaks.append(len(ch['peakFWHM']))
+		if 'peakFWHM' in ch.keys():
+			ch_npeaks.append(len(ch['peakFWHM']))
 	ch_mxpeaks = max(ch_npeaks)
 
 	dc_npeaks = []
 	for dc in discharge_descript:
-		dc_npeaks.append(len(dc['peakFWHM']))
+		if 'peakFWHM' in dc.keys():
+			dc_npeaks.append(len(dc['peakFWHM']))
+
 	dc_mxpeaks = max(dc_npeaks)
 
 	desc = pd.DataFrame()
 	for ch in np.arange(ch_mxpeaks*3+4):
-		desc.append({'ch_'+str(ch): np.zeros(ncyc)})
+		names = 'ch_' + str(int(ch))
+		desc.append({names: np.zeros(ncyc)})
 
 	return desc

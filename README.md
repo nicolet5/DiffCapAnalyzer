@@ -1,5 +1,6 @@
-# ChaChies
-## TODO
+# ChaChies 
+# Package for Battery Cycling Data Visualization and Interpretation`
+## TO-DO
 - Create Requirements 
 	- create a virual environment 
 	- make sure everything is installed to run

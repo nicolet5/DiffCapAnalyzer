@@ -8,7 +8,42 @@ import chachifuncs
 import os
 import glob
 
-#peak finding algorithm
+################################
+### OVERALL Wrapper Function ###
+################################
+
+def all_the_bats(import_filepath):
+	"""Creates pandas dataframe containing descriptors for data types
+
+	import_filepath = filepath containing cleaned separated cycles
+	Note: 'data/Clean_Separated_Cycles' will work as long as you're in chachies"""
+	rootdir = import_filepath
+	file_list = [f for f in glob.glob(os.path.join(rootdir,'*.xlsx'))]
+	#iterate through dir to get excel file
+
+	list_bats = [] 
+
+	for file in file_list:
+
+		name = os.path.split(file)[1].split('.')[0]
+		batname = name.split('-')[0]
+		if batname not in list_bats:
+			list_bats.append(batname)
+		else: None
+	df_all = pd.DataFrame()
+	for bat in list_bats:
+		df = imp_and_combine(import_filepath, bat)
+		df_all = pd.concat([df_all, df], axis=0, ignore_index=True)
+		#this is where shit stops working. Here's the error message I get:
+
+		#AssertionError: Number of manager items must equal union of block items
+		# manager items: 24, # tot_items: 25
+
+	return df_all
+
+############################
+### Sub - Wrapper Functions
+############################
 
 def peak_finder(V_series, dQdV_series, cd):   
 	"""Determines the index of each peak in a dQdV curve V_series = Pandas series of voltage data dQdV_series = Pandas series of differential capacity data cd = either 'c' for charge and 'd' for discharge."""
@@ -163,11 +198,12 @@ def imp_item(direct, pref, cyc, sgf_frame, sgf_order):
 
 	return charge, discharge
 
-def imp_all(source):
+def imp_all(source, battery):
 	"""Generates a list of dictionaries containing the fitting parameters
 
 	source = string containing directory with the excel sheets for individual cycle data"""
-	file_list = [f for f in glob.glob(os.path.join(source,'*.xlsx'))]
+	file_pref = battery + '*.xlsx'
+	file_list = [f for f in glob.glob(os.path.join(source,file_pref))]
 
 	name_l = os.path.split(file_list[1])[1].split('.')[0]
 	name_dat = os.path.split(name_l)[1].split('-')[0]
@@ -213,7 +249,8 @@ def pd_create(charge_descript, name_dat, cd):
 		par = pd.DataFrame({names: np.zeros(ncyc)})
 		desc = pd.concat([desc, par], axis=1)
 
-	desc.index.names = [name_dat]
+	name_col = pd.DataFrame({'Name': [name_dat] * ncyc})
+	desc = pd.concat([name_col, desc], axis=1)
 
 	return desc
 
@@ -245,10 +282,12 @@ def pd_update(desc, charge_descript):
 
 	return desc
 
-def imp_and_combine(path):
-	"""imports separated charge, discharge spreadsheets from a specified path and generates a dataframe of descriptrs"""
+def imp_and_combine(path, battery):
+	"""imports separated charge, discharge spreadsheets from a specified path
+
+	generates a dataframe of descriptrs"""
 	
-	charge_descript, discharge_descript, name_dat = imp_all(path)
+	charge_descript, discharge_descript, name_dat = imp_all(path, battery)
 
 	charge_df = pd_create(charge_descript, name_dat, 'c')
 	charge_df = pd_update(charge_df, charge_descript)

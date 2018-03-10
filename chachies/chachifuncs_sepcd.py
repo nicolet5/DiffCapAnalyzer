@@ -93,8 +93,7 @@ def get_clean_cycles(import_filepath, save_filepath):
         
         #clean_data = clean_data.sort_values(['Voltage'], ascending = True)
         clean_data = clean_data.reset_index(drop = True)
-        #clean_data = my_savgolay(clean_data1, 21, 3)
-        #####################################################################################3
+       
         clean_cycle = {name : clean_data}
         d.update(clean_cycle)
        # print("adding file to dictionary" + str(count) + ' ' + str(name))
@@ -166,8 +165,7 @@ def get_data(filepath):
         new_set = {name : data}
         d.update(new_set)
        # print("adding file " + str(count) + ' ' + str(name))
-    return d
-### ADD UNIT TEST:There are 23 files in the CS2 directory, so we should have 23 entries in the dictionary - add unit test for this, super EASY check 
+    return  
 
 #separate out dataframes into cycles
 def sep_cycles(dataframe):
@@ -203,7 +201,7 @@ def calc_dv_dqdv(cycle_df):
         cycle_df.loc[i, ('dV')] = cycle_df.loc[i, ('Voltage(V)')] - cycle_df.loc[i-1, ('Voltage(V)')]  
         cycle_df.loc[i, ('Discharge_dQ')] = cycle_df.loc[i, ('Discharge_Capacity(Ah)')] - cycle_df.loc[i-1, ('Discharge_Capacity(Ah)')]
         cycle_df.loc[i, ('Charge_dQ')] = cycle_df.loc[i, ('Charge_Capacity(Ah)')] - cycle_df.loc[i-1, ('Charge_Capacity(Ah)')]
-    #calculate dq/dv based off of discharge capacity - might change this later so user can choose to use charge or discharge cap. 
+    #calculate dq/dv based off of discharge capacity for the discharge data points and based off of charge cap for the charge data points.  
     cycle_df['Discharge_dQ/dV'] = cycle_df['Discharge_dQ']/cycle_df['dV']
     cycle_df['Charge_dQ/dV'] = cycle_df['Charge_dQ']/cycle_df['dV']
     return cycle_df
@@ -219,8 +217,6 @@ def drop_0_dv(cycle_df_dv):
 
 
     for i in range(1, len(cycle_df_dv)):
-    	#if (cycle_df_dv.loc[i, ('dV/dt(V/s)')] == 0 or isclose(cycle_df_dv.loc[i, ('Current(A)')], 0, abs_tol = 10**-3) or isclose(cycle_df_dv.loc[i, ('Voltage(V)')], 4.2, abs_tol = 10**-3)):
-    	#	cycle_df_dv = cycle_df_dv.drop(index = i)
     	if isclose(cycle_df_dv.loc[i, ('Current(A)')], 0, abs_tol = 10**-3):
     		cycle_df_dv = cycle_df_dv.drop(index = i)
 
@@ -232,7 +228,7 @@ def drop_0_dv(cycle_df_dv):
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
 
     for i in range(1, len(cycle_df_dv)):
-        if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3): #was -3.5 before
+        if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3): 
             cycle_df_dv.loc[i,('dv_close_to_zero')] = False
         else:
             cycle_df_dv.loc[i,('dv_close_to_zero')]= True   
@@ -245,8 +241,6 @@ def drop_0_dv(cycle_df_dv):
         for i in range(1, len(cycle_df_dv)):
             if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3):
                 cycle_df_dv = cycle_df_dv.drop(index = i)
-                #if i-1 in cycle_df_dv.index:
-                #	cycle_df_dv = cycle_df_dv.drop(index = i-1)
         cycle_df_dv = cycle_df_dv.reset_index(drop = True)
 
         separate_dis_char = np.where(np.diff(np.sign(cycle_df_dv['Current(A)'])))
@@ -279,7 +273,6 @@ def drop_0_dv(cycle_df_dv):
     cycle_df_dv = cycle_df_dv.dropna(subset=['Discharge_dQ/dV'])
     cycle_df_dv = cycle_df_dv.dropna(subset=['Charge_dQ/dV'])
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
-   # cycle_df_dv = cycle_df_dv[:-1]
    
  
 

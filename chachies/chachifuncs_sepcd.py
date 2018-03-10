@@ -1,5 +1,6 @@
 import glob 
 from math import isclose 
+import numpy as np
 import os 
 import pandas as pd
 from pandas import ExcelWriter
@@ -49,8 +50,22 @@ def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
     """Takes one cycle dataframe, calculates dq/dv, cleans the data, separates out charge and discharge, and applies sav-golay filter. Returns two dataframes, one charge and one discharge.
     Windowlength and polyorder are for the sav-golay filter."""
     df1 = calc_dv_dqdv(dataframe)
-    df2 = drop_0_dv(df1)
-    charge, discharge = sep_char_dis(df2)
+    raw_charge = df1[df1['Current(A)'] > 0]
+    raw_charge = raw_charge.reset_index(drop = True)
+    raw_discharge = df1[df1['Current(A)'] < 0]
+    raw_discharge = raw_discharge.reset_index(drop = True)
+    clean_charge2 = drop_0_dv(raw_charge)
+    #clean_charge2 = clean_charge2.reset_index(drop = True)
+    #clean_charge2 = clean_charge2.drop(index = 0)
+    #want to delete first datapoint in charge row here instead?
+    clean_discharge2 = drop_0_dv(raw_discharge)
+    clean_charge2 = clean_charge2.sort_values(['Voltage(V)'], ascending = True)
+    clean_discharge2 = clean_discharge2.sort_values(['Voltage(V)'], ascending = False)
+    #clean_discharge2 = clean_discharge2[:-1]
+    cleandf2 = clean_charge2.append(clean_discharge2, ignore_index = True)
+    #cleandf2 = cleandf2.sort_values(['Voltage(V)'], ascending = True)
+    cleandf2 = cleandf2.reset_index(drop = True)
+    charge, discharge = sep_char_dis(cleandf2)
     if len(discharge) > windowlength:
         smooth_discharge = my_savgolay(discharge, windowlength, polyorder)
     else:
@@ -73,8 +88,13 @@ def get_clean_cycles(import_filepath, save_filepath):
         count += 1
         name = os.path.split(file)[1].split('.')[0]
         data = pd.read_excel(file)
-        charge, discharge = clean_calc_sep_smooth(data, 15, 3)
-        clean_data = charge.append(discharge)
+        charge, discharge = clean_calc_sep_smooth(data, 9, 3)
+        clean_data = discharge.append(charge, ignore_index = True)
+        
+        #clean_data = clean_data.sort_values(['Voltage'], ascending = True)
+        clean_data = clean_data.reset_index(drop = True)
+        #clean_data = my_savgolay(clean_data1, 21, 3)
+        #####################################################################################3
         clean_cycle = {name : clean_data}
         d.update(clean_cycle)
        # print("adding file to dictionary" + str(count) + ' ' + str(name))
@@ -115,7 +135,8 @@ def get_clean_sets(import_filepath, save_filepath):
                 setdf = setdf.append(df, ignore_index=True)
             else:
                 None 
-        setdf = setdf.sort_values(['Data_Point'], ascending = True)
+        setdf = setdf.sort_values(['Voltage(V)'], ascending = True)
+        setdf = setdf.reset_index(drop = True)
         newset = {batID : setdf}
         set_dict.update(newset) 
         
@@ -161,9 +182,9 @@ def save_sep_cycles_xlsx(cycle_dict, battname, path_to_folder):
     assert type(cycle_dict) == dict, 'First entry must be a dictionary'
     assert type(battname) == str, 'Second entry must be a string'
     assert type(path_to_folder) == str, 'Path to output must be a string'
-    for i in range(1, len(cycle_dict)):
+    for i in range(1, len(cycle_dict)+1):
          cycle_dict[i]['Battery_Label'] = battname
-    for i in range(1,len(cycle_dict)):
+    for i in range(1,len(cycle_dict)+1):
         writer = ExcelWriter(path_to_folder + battname + '-'+'Cycle' + str(i) + '.xlsx')
         cycle_dict[i].to_excel(writer)
         writer.save()
@@ -194,14 +215,24 @@ def drop_0_dv(cycle_df_dv):
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
    
     cycle_df_dv['dv_close_to_zero'] = None
+    
+
+
     for i in range(1, len(cycle_df_dv)):
+    	#if (cycle_df_dv.loc[i, ('dV/dt(V/s)')] == 0 or isclose(cycle_df_dv.loc[i, ('Current(A)')], 0, abs_tol = 10**-3) or isclose(cycle_df_dv.loc[i, ('Voltage(V)')], 4.2, abs_tol = 10**-3)):
+    	#	cycle_df_dv = cycle_df_dv.drop(index = i)
     	if isclose(cycle_df_dv.loc[i, ('Current(A)')], 0, abs_tol = 10**-3):
-    		cycle_df_dv = cycle_df_dv.drop(index = i) 
+    		cycle_df_dv = cycle_df_dv.drop(index = i)
 
-    cycle_df_dv = cycle_df_dv.reset_index(drop = True)		
+    cycle_df_dv = cycle_df_dv.reset_index(drop = True) 
+    switch_cd_index = np.where(np.diff(np.sign(cycle_df_dv['Current(A)'])))
+    for i in switch_cd_index:
+        cycle_df_dv = cycle_df_dv.drop(cycle_df_dv.index[i+1])    
+
+    cycle_df_dv = cycle_df_dv.reset_index(drop = True)
 
     for i in range(1, len(cycle_df_dv)):
-        if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3.5):
+        if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3): #was -3.5 before
             cycle_df_dv.loc[i,('dv_close_to_zero')] = False
         else:
             cycle_df_dv.loc[i,('dv_close_to_zero')]= True   
@@ -212,10 +243,13 @@ def drop_0_dv(cycle_df_dv):
         cycle_df_dv = cycle_df_dv.reset_index(drop = True)
         
         for i in range(1, len(cycle_df_dv)):
-            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3.5): 
+            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3): 
                 cycle_df_dv = cycle_df_dv.drop(index = i)
-                
+                #if i-1 in cycle_df_dv.index:
+                #	cycle_df_dv = cycle_df_dv.drop(index = i-1)
         cycle_df_dv = cycle_df_dv.reset_index(drop = True)
+
+        separate_dis_char = np.where(np.diff(np.sign(cycle_df_dv['Current(A)'])))
         
         for i in range(1, len(cycle_df_dv)):
             if (cycle_df_dv.loc[i,('dV')] > 0.7 or cycle_df_dv.loc[i,('dV')] < -0.7):
@@ -225,7 +259,7 @@ def drop_0_dv(cycle_df_dv):
         
         for i in range(1, len(cycle_df_dv)): 
             cycle_df_dv.loc[i, ('dV')] = cycle_df_dv.loc[i, ('Voltage(V)')] - cycle_df_dv.loc[i-1, ('Voltage(V)')] 
-            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3.5):
+            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol = 10**-3):
                 cycle_df_dv.loc[i,('dv_close_to_zero')] = False
             else:
                 cycle_df_dv.loc[i,('dv_close_to_zero')]= True
@@ -247,23 +281,34 @@ def drop_0_dv(cycle_df_dv):
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
    # cycle_df_dv = cycle_df_dv[:-1]
    
+ 
+
+
     cycle_df_dv = cycle_df_dv.reset_index(drop = True)
     return cycle_df_dv  
 
 def sep_char_dis(df_dqdv):
     '''Takes a dataframe of one cycle with calculated dq/dv and separates into charge and discharge differential capacity curves'''
-    charge = df_dqdv[df_dqdv['dV'] > 0]
+    charge = df_dqdv[df_dqdv['Current(A)'] > 0]
     charge.is_copy = None
+    charge = charge.reset_index(drop = True)
     charge['dQ/dV'] = charge['Charge_dQ/dV']
+    for i in range(1, len(charge)):
+        if charge.loc[i, ('dQ/dV')] == 0: 
+            charge = charge.drop(index = i)
     charge = charge.reset_index(drop = True)
-    charge = charge.iloc[6:]
+    #charge = charge.iloc[1:]
     charge = charge.reset_index(drop = True)
-    discharge = df_dqdv[df_dqdv['dV'] < 0] 
+    discharge = df_dqdv[df_dqdv['Current(A)'] < 0] 
     discharge.is_copy = None 
     discharge['dQ/dV'] = discharge['Discharge_dQ/dV']
     discharge = discharge.reset_index(drop = True)
-    discharge = discharge.iloc[:-2]
-    discharge = discharge.iloc[2:]
+    for i in range(1, len(discharge)):
+        if discharge.loc[i, ('dQ/dV')] == 0: 
+            discharge = discharge.drop(index = i)
+    discharge = discharge.reset_index(drop = True)
+    #discharge = discharge.iloc[:-1]
+    #discharge = discharge.iloc[2:]
     discharge = discharge.reset_index(drop = True)
     
     return charge, discharge

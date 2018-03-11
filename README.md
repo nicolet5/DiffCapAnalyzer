@@ -29,6 +29,8 @@ pip install matplotlib
 pip install pyplot
 pip install requests
 pip install xlrd
+pip install numpy
+pip install lmfit
 ```
 
 ## Organization of the project

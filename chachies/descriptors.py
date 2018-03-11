@@ -197,6 +197,35 @@ def descriptor_func(V_series,dQdV_series, cd, cyc, battery):
 
     return desc
 
+def imp_one_cycle(file_val, cd, cyc_loop, battery):
+	"""imports and fits a single charge discharge cycle of a battery
+
+	file_val = directory containing current cycle
+	cd = either 'c' for charge or 'd' for discharge
+	cyc_loop = cycle number
+	battery = battery name
+
+	output:
+	a list of descriptors"""
+	testdf = pd.read_excel(file_val)
+		#just picked a random one out of the separated out cycles
+
+	charge, discharge = ccf.sep_char_dis(testdf)
+	if cd == 'c':
+		df_run = charge
+	elif cd == 'd':
+		df_run = discharge
+	
+	
+	if (len(charge['Voltage(V)'].index) >= 10) and (len(discharge['Voltage(V)'].index) >= 10):
+		
+		c = descriptor_func(df_run['Voltage(V)'], df_run['Smoothed_dQ/dV'], cd, cyc_loop, battery)
+	else:
+		notice = 'Cycle ' + str(cyc_loop) + ' in battery '+ battery + ' had fewer than 10 datapoints and was removed from the dataset.'
+		print(notice)
+		c = 'throw'
+	return c
+
 
 def imp_all(source, battery, cd):
 	"""Generates a list of dictionaries containing the fitting parameters for a particular battery
@@ -229,26 +258,12 @@ def imp_all(source, battery, cd):
 
 	#this is the end of the shit that sorts by cycle
 	charge_descript = []
-	discharge_descript = []
 	# while excel spreadsheet with path exists
 	for file_val, cyc_loop in zip(file_sort, cyc_sort):
 
-		testdf = pd.read_excel(file_val)
-		#just picked a random one out of the separated out cycles
-
-		charge, discharge = ccf.sep_char_dis(testdf)
-		if cd == 'c':
-			df_run = charge
-		elif cd == 'd':
-			df_run = discharge
-		
-		if (len(charge['Voltage(V)'].index) >= 10) and (len(discharge['Voltage(V)'].index) >= 10):
-			
-			c = descriptor_func(df_run['Voltage(V)'], df_run['Smoothed_dQ/dV'], cd, cyc_loop, battery)
+		c = imp_one_cycle(file_val, cd, cyc_loop, battery)
+		if c != 'throw':
 			charge_descript.append(c)
-		else:
-			notice = 'Cycle ' + str(cyc_loop) + ' in battery '+ battery + ' had fewer than 10 datapoints and was removed from the dataset.'
-			print(notice)
 
 
 	return charge_descript

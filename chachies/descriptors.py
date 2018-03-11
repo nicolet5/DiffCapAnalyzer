@@ -83,7 +83,7 @@ def cd_dataframe(V_series, dQdV_series, cd):
 
 
 
-def model_gen(V_series, dQdV_series, cd, i):
+def model_gen(V_series, dQdV_series, cd, i, cyc, battery):
     """Develops initial model and parameters for battery data fitting.
 
 	V_series = Pandas series of voltage data
@@ -100,20 +100,23 @@ def model_gen(V_series, dQdV_series, cd, i):
     par = mod.guess(sigy_bot, x=sigx_bot)
     #i = np.append(i, i+5)
     #print(i)
+    if all(i) == False:
+    	notice = 'Cycle ' + str(cyc) + cd + ' in battery ' + battery + ' has no peaks.'
+    	print(notice)
+    else:
+    	for index in i:
+	        
+	        center, sigma, amplitude, fraction, comb = label_gen(index)
+	        
+	        gaus_loop = models.PseudoVoigtModel(prefix=comb)
+	        par.update(gaus_loop.make_params())
 
-    for index in i:
-        
-        center, sigma, amplitude, fraction, comb = label_gen(index)
-        
-        gaus_loop = models.PseudoVoigtModel(prefix=comb)
-        par.update(gaus_loop.make_params())
+	        par[center].set(sigx_bot[index], vary=False)
+	        par[sigma].set(0.01)
+	        par[amplitude].set(.05, min=0)
+	        par[fraction].set(.5, min=0, max=1)
 
-        par[center].set(sigx_bot[index], vary=False)
-        par[sigma].set(0.01)
-        par[amplitude].set(.05, min=0)
-        par[fraction].set(.5, min=0, max=1)
-
-        mod = mod + gaus_loop
+	        mod = mod + gaus_loop
         
     return par, mod
 
@@ -157,7 +160,7 @@ def label_gen(index):
     
     return center, sigma, amplitude, fraction, comb
 
-def descriptor_func(V_series,dQdV_series, cd, file_val):
+def descriptor_func(V_series,dQdV_series, cd, cyc, battery):
     """Generates dictionary of descriptors
 
 	V_series = Pandas series of voltage data
@@ -171,7 +174,7 @@ def descriptor_func(V_series,dQdV_series, cd, file_val):
     
     i = peak_finder(V_series, dQdV_series, cd)
     
-    par, mod = model_gen(V_series,dQdV_series, cd, i)
+    par, mod = model_gen(V_series,dQdV_series, cd, i, cyc, battery)
 
     model = model_eval(V_series,dQdV_series, cd, par, mod)
     
@@ -191,14 +194,11 @@ def descriptor_func(V_series,dQdV_series, cd, file_val):
     		center, sigma, amplitude, fraction, comb = label_gen(index)
     		FWHM.append(model.best_values[sigma])
     	desc.update({'peakFWHM': FWHM})
-    else:
-    	print(file_val)
-
 
     return desc
 
 
-def imp_all(source, battery):
+def imp_all(source, battery, cd):
 	"""Generates a list of dictionaries containing the fitting parameters for a particular battery
 
 	source = string containing directory with the excel sheets for individual cycle data
@@ -231,21 +231,27 @@ def imp_all(source, battery):
 	charge_descript = []
 	discharge_descript = []
 	# while excel spreadsheet with path exists
-	for file_val in file_sort:
+	for file_val, cyc_loop in zip(file_sort, cyc_sort):
 
 		testdf = pd.read_excel(file_val)
 		#just picked a random one out of the separated out cycles
 
 		charge, discharge = ccf.sep_char_dis(testdf)
+		if cd == 'c':
+			df_run = charge
+		elif cd == 'd':
+			df_run = discharge
 		
 		if (len(charge['Voltage(V)'].index) >= 10) and (len(discharge['Voltage(V)'].index) >= 10):
-			c = descriptor_func(charge['Voltage(V)'], charge['Smoothed_dQ/dV'], 'c', file_val)
-			d = descriptor_func(discharge['Voltage(V)'] , discharge['Smoothed_dQ/dV'], 'd', file_val)
+			
+			c = descriptor_func(df_run['Voltage(V)'], df_run['Smoothed_dQ/dV'], cd, cyc_loop, battery)
 			charge_descript.append(c)
-			discharge_descript.append(d)
+		else:
+			notice = 'Cycle ' + str(cyc_loop) + ' in battery '+ battery + ' had fewer than 10 datapoints and was removed from the dataset.'
+			print(notice)
 
 
-	return charge_descript, discharge_descript
+	return charge_descript
 
 def pd_create(charge_descript, name_dat, cd):
 	"""Creates a blank dataframe for a particular battery containing either charge or discharge descriptors
@@ -266,7 +272,10 @@ def pd_create(charge_descript, name_dat, cd):
 	for ch in charge_descript:
 		if 'peakFWHM' in ch.keys():
 			ch_npeaks.append(len(ch['peakFWHM']))
-	ch_mxpeaks = max(ch_npeaks)
+	if not ch_npeaks:
+		ch_mxpeaks = 0
+	else:
+		ch_mxpeaks = max(ch_npeaks)
 
 	desc = pd.DataFrame()
 	for ch in np.arange(ch_mxpeaks*3+4):
@@ -321,14 +330,14 @@ def imp_and_combine(path, battery, cd):
 
 	Output: dataframe of descriptrs"""
 	
-	charge_descript, discharge_descript = imp_all(path, battery)
+	charge_descript = imp_all(path, battery, cd)
 
 	if cd == 'c':
 		charge_df = pd_create(charge_descript, battery, cd)
 		df = pd_update(charge_df, charge_descript)
 	else:
-		charge_df = pd_create(discharge_descript, battery, cd)
-		df = pd_update(charge_df, discharge_descript)
+		charge_df = pd_create(charge_descript, battery, cd)
+		df = pd_update(charge_df, charge_descript)
 
 
 	return df
@@ -355,11 +364,13 @@ def df_generate(import_filepath, cd):
 		if batname not in list_bats:
 			list_bats.append(batname)
 		else: None
-	
+	notice = 'Successfully extracted all battery names for ' + cd
+	print(notice)
 	df_ch = []
 	col_ch = []
 	for bat in list_bats:
-
+		notice = 'Fitting battery: ' + bat + ' ' + cd
+		print(notice)
 		df = imp_and_combine(import_filepath, bat, cd)
 		df_ch.append(df)
 		col_ch.append(len(df.columns))

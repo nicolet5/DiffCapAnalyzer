@@ -12,23 +12,23 @@ import scipy.signal
 ### OVERALL Wrapper Function ###
 ################################
 
-def get_all_data(path_to_raw_data_folder):
-    '''Gets all raw data from the specified folder (path_to_raw_data_folder), and then 
+def get_all_data(rootdir, path_to_raw_data_folder):
+    '''Gets all raw data from the rootdir (ie 'data/') and specified folder (path_to_raw_data_folder), i.e. 'Source_Data' (which is within , and then 
     1. separates it into raw cycles and puts them in a folder (data/Separated_Cycles/)
     2. cleans those separated cycles and puts them in a folder (data/Clean_Separated_Cycles/)
     3. recombines the cleaned, separated cycles and saves those data sets in a folder (data/Clean_Whole_Sets/)
     These folders do not have to have existed previously. '''
-    if not os.path.exists('data/'):
-        os.makedirs('data/')
-    if not os.path.exists('data/Separated_Cycles/'):
-        os.makedirs('data/Separated_Cycles/')
-    if not os.path.exists('data/Clean_Separated_Cycles/'):
-        os.makedirs('data/Clean_Separated_Cycles/')
-    if not os.path.exists('data/Clean_Whole_Sets/'):
-        os.makedirs('data/Clean_Whole_Sets/')
-    load_sep_cycles(path_to_raw_data_folder, 'data/Separated_Cycles/')
-    get_clean_cycles('data/Separated_Cycles/', 'data/Clean_Separated_Cycles/')
-    get_clean_sets('data/Clean_Separated_Cycles/', 'data/Clean_Whole_Sets/')
+    if not os.path.exists(rootdir):
+        print('The specified rootdir does not exist.')
+    if not os.path.exists(rootdir+'Separated_Cycles/'):
+        os.makedirs(rootdir+'Separated_Cycles/')
+    if not os.path.exists(rootdir+'Clean_Separated_Cycles/'):
+        os.makedirs(rootdir + 'Clean_Separated_Cycles/')
+    if not os.path.exists(rootdir + 'Clean_Whole_Sets/'):
+        os.makedirs(rootdir + 'Clean_Whole_Sets/')
+    load_sep_cycles(rootdir + path_to_raw_data_folder, rootdir+ 'Separated_Cycles/')
+    get_clean_cycles(rootdir + 'Separated_Cycles/', rootdir +'Clean_Separated_Cycles/')
+    get_clean_sets(rootdir +'Clean_Separated_Cycles/', rootdir+'Clean_Whole_Sets/')
     return 
 
 ############################

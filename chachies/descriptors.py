@@ -14,9 +14,9 @@ import glob
 
 def ML_generate(import_filepath):
 	"""Generates a dataframe containing charge and discharge data
+	also writes descriptors to an excel spreadsheet 'describe.xlsx'
 
-	import_filepath = filepath containing cleaned separated cycles
-	Note: 'data/Clean_Separated_Cycles' will work as long as you're in chachies"""
+	import_filepath = filepath containing cleaned separated cycles"""
 
 	df_ch_list, col_ch = df_generate(import_filepath, 'c')
 	df_ch = df_combine(df_ch_list, col_ch)
@@ -26,6 +26,10 @@ def ML_generate(import_filepath):
 
 	df_final = pd.concat([df_ch, df_dc], axis=1)
 	df_final = df_final.T.drop_duplicates().T
+
+	writer = pd.ExcelWriter('describe.xlsx')
+	df_final.to_excel(writer,'Sheet1')
+	writer.save()
 
 	return df_final
 
@@ -55,19 +59,25 @@ def peak_finder(V_series, dQdV_series, cd):
 def cd_dataframe(V_series, dQdV_series, cd):
 	"""Classifies and flips differential capactity data.
 
-V_series = Pandas series of voltage data
-dQdV_series = Pandas series of differential capacity data
-cd = either 'c' for charge and 'd' for discharge.
+	V_series = Pandas series of voltage data
+	dQdV_series = Pandas series of differential capacity data
+	cd = either 'c' for charge and 'd' for discharge.
 
-Output:
-sigx = numpy array of signal x values
-sigy = numpy array of signal y values"""
+	Output:
+	sigx = numpy array of signal x values
+	sigy = numpy array of signal y values"""
+
+	#converts voltage data to numpy array
 
 	sigx = pd.to_numeric(V_series).as_matrix()
+
+	#descriminates between charge and discharge cycle
 	if cd == 'c':
 		sigy = pd.to_numeric(dQdV_series).as_matrix()
 	elif cd == 'd':
 		sigy = -pd.to_numeric(dQdV_series).as_matrix()
+	else:
+		raise TypeError("Cycle type must be either 'c' for charge or 'd' for discharge.")
 
 	return sigx, sigy
 
@@ -76,13 +86,13 @@ sigy = numpy array of signal y values"""
 def model_gen(V_series, dQdV_series, cd, i):
     """Develops initial model and parameters for battery data fitting.
 
-V_series = Pandas series of voltage data
-dQdV_series = Pandas series of differential capacity data
-cd = either 'c' for charge and 'd' for discharge.
+	V_series = Pandas series of voltage data
+	dQdV_series = Pandas series of differential capacity data
+	cd = either 'c' for charge and 'd' for discharge.
 
-Output:
-par = lmfit parameters object
-mod = lmfit model object"""
+	Output:
+	par = lmfit parameters object
+	mod = lmfit model object"""
     
     sigx_bot, sigy_bot = cd_dataframe(V_series, dQdV_series, cd)
     
@@ -154,7 +164,7 @@ def descriptor_func(V_series,dQdV_series, cd, file_val):
 	dQdV_series = Pandas series of differential capacity data
 	cd = either 'c' for charge and 'd' for discharge.
 
-	output:
+	Output:
 	dictionary with keys 'codfficients', 'peakLocation(V)', 'peakHeight(dQdV)', 'peakFWHM'"""
 
     sigx_bot, sigy_bot = cd_dataframe(V_series, dQdV_series, cd)
@@ -194,16 +204,34 @@ def imp_all(source, battery):
 	source = string containing directory with the excel sheets for individual cycle data
 	battery = string containing excel spreadsheet of file name
 
+	Output:
 	charge_descript = list of charge dictionaries
 	discharge_descript = list of discharge dictionaries"""
 		
 	file_pref = battery + '*.xlsx'
 	file_list = [f for f in glob.glob(os.path.join(source,file_pref))]
+	
+	#this is the shit that sorts by cycle
+	cycle = []
+	for file in file_list:
+		cyc1 = os.path.split(file)[1].split('Clean')[0]
+		cyc = os.path.split(cyc1)[1].split('-Cycle')[1]
+		cycle.append(int(cyc))
 
+	cyc_sort = sorted(cycle)
+	cyc_index = []
+	for cyc in cyc_sort:
+		cyc_index.append(cycle.index(cyc))
+	
+	file_sort = []
+	for indices in cyc_index:
+		file_sort.append(file_list[indices])
+
+	#this is the end of the shit that sorts by cycle
 	charge_descript = []
 	discharge_descript = []
 	# while excel spreadsheet with path exists
-	for file_val in file_list:
+	for file_val in file_sort:
 
 		testdf = pd.read_excel(file_val)
 		#just picked a random one out of the separated out cycles
@@ -226,7 +254,7 @@ def pd_create(charge_descript, name_dat, cd):
 	name_dat = name of battery prior to '-'
 	cd = either 'c' for charge or 'd' for discharge
 
-	output:
+	Output:
 	blank pandas dataframe with descriptor columns and cycle number rows"""
 	ncyc = len(charge_descript)
 	if cd == 'c':
@@ -238,9 +266,7 @@ def pd_create(charge_descript, name_dat, cd):
 	for ch in charge_descript:
 		if 'peakFWHM' in ch.keys():
 			ch_npeaks.append(len(ch['peakFWHM']))
-			ch_mxpeaks = max(ch_npeaks)
-		else:
-			ch_mxpeaks = 0
+	ch_mxpeaks = max(ch_npeaks)
 
 	desc = pd.DataFrame()
 	for ch in np.arange(ch_mxpeaks*3+4):
@@ -258,7 +284,7 @@ def dict_2_list(desc):
 
 	desc = dictionary containing descriptors
 
-	output:
+	Output:
 	list of descriptors"""
 	desc_ls = list(desc['coefficients'])
 	if 'peakFWHM' in desc.keys():
@@ -275,19 +301,25 @@ def pd_update(desc, charge_descript):
 	desc = blank dataframe from pd_create
 	charge_descript = list of descriptor dictionaries
 
-	output:
+	Output:
 	pandas dataframe for a single battery"""
 
 	for i in np.arange(len(desc.index)):
 		desc_ls = dict_2_list(charge_descript[i])
-		desc.iloc[i, 1:len(desc_ls)+1] = desc_ls
+		if not desc_ls:
+			desc.iloc[i, 1] = [0]
+		else:
+			desc.iloc[i, 1:(len(desc_ls)+1)] = desc_ls
 
 	return desc
 
 def imp_and_combine(path, battery, cd):
 	"""imports separated charge, discharge spreadsheets from a specified path
+	path = path to battery cycles
+	battery = battery name
+	cd = either 'c' for charge or 'd' for discharge
 
-	generates a dataframe of descriptrs"""
+	Output: dataframe of descriptrs"""
 	
 	charge_descript, discharge_descript = imp_all(path, battery)
 
@@ -302,11 +334,14 @@ def imp_and_combine(path, battery, cd):
 	return df
 
 def df_generate(import_filepath, cd):
-	"""Creates a list of pandas dataframe containing descriptors for data types
-	also creates a list of columns for each battery
+	"""Creates a list of pandas dataframe containing descriptors for each battery
 
 	import_filepath = filepath containing cleaned separated cycles
-	Note: 'data/Clean_Separated_Cycles' will work as long as you're in chachies"""
+	cd = 'c' for charge and 'd' for discharge
+
+	Output:
+	df_ch = list of dictionaries for each battery
+	col_ch = list of numbers of columns for each battery"""
 	rootdir = import_filepath
 	file_list = [f for f in glob.glob(os.path.join(rootdir,'*.xlsx'))]
 	#iterate through dir to get excel file
@@ -332,10 +367,12 @@ def df_generate(import_filepath, cd):
 	return df_ch, col_ch
 
 def df_combine(df_ch, col_ch):
-	"""creates a dataframe containing charge descriptors for all batteries
+	"""creates a dataframe containing charge descriptors for all batteries for a charge or discharge cycle
 
 	df_ch = list of dataframes for each battery
-	col_ch = list of dataframe columns"""
+	col_ch = list of dataframe columns
+
+	Output: dataframe containing charge or discharge descriptors for all batteries"""
 	
 	df_temp_index = col_ch.index(max(col_ch))
 

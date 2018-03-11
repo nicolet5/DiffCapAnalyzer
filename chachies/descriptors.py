@@ -14,6 +14,7 @@ import glob
 
 def ML_generate(import_filepath):
 	"""Generates a dataframe containing charge and discharge data
+	also writes descriptors to an excel spreadsheet 'describe.xlsx'
 
 	import_filepath = filepath containing cleaned separated cycles
 	Note: 'data/Clean_Separated_Cycles' will work as long as you're in chachies"""

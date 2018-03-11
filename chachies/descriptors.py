@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import peakutils
 from lmfit import models
-import chachifuncs
+import chachifuncs_sepcd as ccf
 import os
 import glob
 
@@ -34,14 +34,21 @@ def ML_generate(import_filepath):
 ############################
 
 def peak_finder(V_series, dQdV_series, cd):   
-	"""Determines the index of each peak in a dQdV curve V_series = Pandas series of voltage data dQdV_series = Pandas series of differential capacity data cd = either 'c' for charge and 'd' for discharge."""
+	"""Determines the index of each peak in a dQdV curve
+
+	V_series = Pandas series of voltage data
+	dQdV_series = Pandas series of differential capacity data
+	cd = either 'c' for charge and 'd' for discharge.
+
+	Output:
+	i = list of indexes for each found peak"""
 	sigx, sigy = cd_dataframe(V_series, dQdV_series, cd)
 	windowlength = 25
 	if len(sigy) > windowlength:
 		sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, 3)
 	elif len(sigy) > 10:
 		sigy_smooth = sigy
-	i = peakutils.indexes(sigy_smooth, thres=3/max(sigy_smooth), min_dist=9)
+	i = peakutils.indexes(sigy_smooth, thres=.3/max(sigy_smooth), min_dist=9)
 
 	return i
 
@@ -50,13 +57,17 @@ def cd_dataframe(V_series, dQdV_series, cd):
 
 V_series = Pandas series of voltage data
 dQdV_series = Pandas series of differential capacity data
-cd = either 'c' for charge and 'd' for discharge."""
+cd = either 'c' for charge and 'd' for discharge.
+
+Output:
+sigx = numpy array of signal x values
+sigy = numpy array of signal y values"""
 
 	sigx = pd.to_numeric(V_series).as_matrix()
 	if cd == 'c':
-		sigy = -pd.to_numeric(dQdV_series).as_matrix()
-	elif cd == 'd':
 		sigy = pd.to_numeric(dQdV_series).as_matrix()
+	elif cd == 'd':
+		sigy = -pd.to_numeric(dQdV_series).as_matrix()
 
 	return sigx, sigy
 
@@ -88,8 +99,8 @@ mod = lmfit model object"""
         par.update(gaus_loop.make_params())
 
         par[center].set(sigx_bot[index], vary=False)
-        par[sigma].set(0.001)
-        par[amplitude].set(5, min=0)
+        par[sigma].set(0.01)
+        par[amplitude].set(.05, min=0)
         par[fraction].set(.5, min=0, max=1)
 
         mod = mod + gaus_loop
@@ -97,24 +108,29 @@ mod = lmfit model object"""
     return par, mod
 
 def model_eval(V_series, dQdV_series, cd, par, mod):
-    sigx_bot, sigy_bot = cd_dataframe(V_series, dQdV_series, cd)
-    
-    model = mod.fit(sigy_bot, par, x=sigx_bot)
-    #print(model.fit_report(min_correl=0.5))
+	"""evaluate lmfit model generated in model_gen function
 
-    #fig = plt.figure(figsize=(10, 10), facecolor='w', edgecolor='k')
-    #plt.plot(sigx_bot, sigy_bot)
-    #plt.plot(sigx_bot, model.init_fit, 'k--')
-    #plt.plot(sigx_bot, model.best_fit, 'r-')
-    
-    return model
+	V_series = Pandas series of voltage data
+	dQdV_series = Pandas series of differential capacity data
+	cd = either 'c' for charge and 'd' for discharge.
+	par = lmfit parameters object
+	mod = lmfit model object
+
+	output:
+	model = lmfit model object fitted to dataset"""
+	sigx_bot, sigy_bot = cd_dataframe(V_series, dQdV_series, cd)
+
+	model = mod.fit(sigy_bot, par, x=sigx_bot)
+
+	return model
+
 
 def label_gen(index):
     """Generates label set for individual gaussian
-index = index of peak location
+	index = index of peak location
 
-output string format: 
-'a' + index + "_" + parameters"""
+	output string format: 
+	'a' + index + "_" + parameter"""
     
     pref = str(int(index))
     comb = 'a' + pref + '_'
@@ -134,9 +150,12 @@ output string format:
 def descriptor_func(V_series,dQdV_series, cd, file_val):
     """Generates dictionary of descriptors
 
-V_series = Pandas series of voltage data
-dQdV_series = Pandas series of differential capacity data
-cd = either 'c' for charge and 'd' for discharge."""
+	V_series = Pandas series of voltage data
+	dQdV_series = Pandas series of differential capacity data
+	cd = either 'c' for charge and 'd' for discharge.
+
+	output:
+	dictionary with keys 'codfficients', 'peakLocation(V)', 'peakHeight(dQdV)', 'peakFWHM'"""
 
     sigx_bot, sigy_bot = cd_dataframe(V_series, dQdV_series, cd)
     
@@ -169,36 +188,17 @@ cd = either 'c' for charge and 'd' for discharge."""
     return desc
 
 
-def imp_item(direct, pref, cyc, sgf_frame, sgf_order):
-	"""Function to import a set of charge, discharge pandas dataframes from a single file
-
-	direct = string containing directory with the excel sheets for individual cycle data
-	pref = text prior to the cycle number
-	cyc = cycle number (must be an integer)
-	sgf_frame = Savitzky-Golay filter frame width
-	sgf_order =Savitzsky-Golay filter order"""
-	pt = direct + pref + str(cyc)
-
-	testdf = pd.read_excel(pt)
-	#just picked a random one out of the separated out cycles
-
-	charge, discharge = chachifuncs.sep_char_dis(testdf)
-
-
-	return charge, discharge
-
 def imp_all(source, battery):
-	"""Generates a list of dictionaries containing the fitting parameters
+	"""Generates a list of dictionaries containing the fitting parameters for a particular battery
 
 	source = string containing directory with the excel sheets for individual cycle data
-	battery = string containing excel spreadsheet of file name"""
-	#rootdir = import_filepath
-	#file_list = [f for f in glob.glob(os.path.join(rootdir,'*.xlsx'))]
+	battery = string containing excel spreadsheet of file name
+
+	charge_descript = list of charge dictionaries
+	discharge_descript = list of discharge dictionaries"""
+		
 	file_pref = battery + '*.xlsx'
 	file_list = [f for f in glob.glob(os.path.join(source,file_pref))]
-
-	name_l = os.path.split(file_list[1])[1].split('.')[0]
-	name_dat = os.path.split(name_l)[1].split('-')[0]
 
 	charge_descript = []
 	discharge_descript = []
@@ -208,7 +208,7 @@ def imp_all(source, battery):
 		testdf = pd.read_excel(file_val)
 		#just picked a random one out of the separated out cycles
 
-		charge, discharge = chachifuncs.sep_char_dis(testdf)
+		charge, discharge = ccf.sep_char_dis(testdf)
 		
 		if (len(charge['Voltage(V)'].index) >= 10) and (len(discharge['Voltage(V)'].index) >= 10):
 			c = descriptor_func(charge['Voltage(V)'], charge['Smoothed_dQ/dV'], 'c', file_val)
@@ -217,14 +217,17 @@ def imp_all(source, battery):
 			discharge_descript.append(d)
 
 
-	return charge_descript, discharge_descript, name_dat
+	return charge_descript, discharge_descript
 
 def pd_create(charge_descript, name_dat, cd):
-	"""Creates a blank dataframe for a particular battery containing charge, discharge descriptors
+	"""Creates a blank dataframe for a particular battery containing either charge or discharge descriptors
 
 	charege_descript = list of dictionaries containing descriptors
 	name_dat = name of battery prior to '-'
-	cd = either 'c' for charge or 'd' for discharge"""
+	cd = either 'c' for charge or 'd' for discharge
+
+	output:
+	blank pandas dataframe with descriptor columns and cycle number rows"""
 	ncyc = len(charge_descript)
 	if cd == 'c':
 		prefix = 'ch_'
@@ -235,7 +238,9 @@ def pd_create(charge_descript, name_dat, cd):
 	for ch in charge_descript:
 		if 'peakFWHM' in ch.keys():
 			ch_npeaks.append(len(ch['peakFWHM']))
-	ch_mxpeaks = max(ch_npeaks)
+			ch_mxpeaks = max(ch_npeaks)
+		else:
+			ch_mxpeaks = 0
 
 	desc = pd.DataFrame()
 	for ch in np.arange(ch_mxpeaks*3+4):
@@ -251,7 +256,10 @@ def pd_create(charge_descript, name_dat, cd):
 def dict_2_list(desc):
 	"""Converts a dictionary of descriptors into a list for pandas assignment
 
-	desc = pandas dataframe containing descriptors"""
+	desc = dictionary containing descriptors
+
+	output:
+	list of descriptors"""
 	desc_ls = list(desc['coefficients'])
 	if 'peakFWHM' in desc.keys():
 		for i in np.arange(len(desc['peakFWHM'])):
@@ -262,9 +270,13 @@ def dict_2_list(desc):
 	return desc_ls
 
 def pd_update(desc, charge_descript):
-	"""adds list to the series
+	"""adds list to the pandas DataFrame
+
 	desc = blank dataframe from pd_create
-	charge_descript = list of descriptor dictionaries"""
+	charge_descript = list of descriptor dictionaries
+
+	output:
+	pandas dataframe for a single battery"""
 
 	for i in np.arange(len(desc.index)):
 		desc_ls = dict_2_list(charge_descript[i])
@@ -277,13 +289,13 @@ def imp_and_combine(path, battery, cd):
 
 	generates a dataframe of descriptrs"""
 	
-	charge_descript, discharge_descript, name_dat = imp_all(path, battery)
+	charge_descript, discharge_descript = imp_all(path, battery)
 
 	if cd == 'c':
-		charge_df = pd_create(charge_descript, name_dat, cd)
+		charge_df = pd_create(charge_descript, battery, cd)
 		df = pd_update(charge_df, charge_descript)
 	else:
-		charge_df = pd_create(discharge_descript, name_dat, cd)
+		charge_df = pd_create(discharge_descript, battery, cd)
 		df = pd_update(charge_df, discharge_descript)
 
 

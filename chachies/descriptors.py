@@ -27,6 +27,10 @@ def ML_generate(import_filepath):
 	df_final = pd.concat([df_ch, df_dc], axis=1)
 	df_final = df_final.T.drop_duplicates().T
 
+	writer = pd.ExcelWriter('describe.xlsx')
+	df_final.to_excel(writer,'Sheet1')
+	writer.save()
+
 	return df_final
 
 ############################

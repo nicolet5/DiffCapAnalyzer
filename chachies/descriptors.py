@@ -320,22 +320,22 @@ def model_eval(V_series, dQdV_series, cd, par, mod):
 
 #next function to be called by imp_and_combine
 def pd_create(cd):
-	"""Creates a blank dataframe for a particular battery containing either charge or discharge descriptors
+	"""Creates a blank dataframe containing either charge or discharge descriptors
 
-	charege_descript = list of dictionaries containing descriptors
-	name_dat = name of battery prior to '-'
 	cd = either 'c' for charge or 'd' for discharge
 
 	Output:
 	blank pandas dataframe with descriptor columns and cycle number rows"""
 
+	#number of descriptors it generates
+	n_desc = 19
 	if cd == 'c':
 		prefix = 'ch_'
 	else:
 		prefix = 'dc_'
 	
 	names = []
-	for ch in np.arange(19):
+	for ch in np.arange(n_desc):
 		names.append(prefix + str(int(ch)))
 	
 	desc = pd.DataFrame(columns = names)
@@ -343,13 +343,13 @@ def pd_create(cd):
 	return desc
 
 def pd_update(desc, charge_descript):
-	"""adds list to the pandas DataFrame
+	"""adds a list of charge descriptors to a pandas dataframe
 
-	desc = blank dataframe from pd_create
+	desc = dataframe from pd_create
 	charge_descript = descriptor dictionaries
 
 	Output:
-	pandas dataframe for a single battery"""
+	pandas dataframe with a row of descriptors appended on"""
 
 	#for i in np.arange(len(desc.index)):
 	#desc_ls = dict_2_list(charge_descript[i])
@@ -381,19 +381,3 @@ def dict_2_list(desc):
 			desc_ls.append(desc['peakFWHM'][i])
 
 	return desc_ls
-
-#final function used by ML_generate
-def df_combine(df_ch, cd):
-	"""creates a dataframe containing charge descriptors for all batteries for a charge or discharge cycle
-
-	df_ch = list of dataframes for each battery
-	col_ch = list of dataframe columns
-
-	Output: dataframe containing charge or discharge descriptors for all batteries"""
-	
-	df_max = pd_create(cd)
-
-	for df in df_ch:
-		df_max.append(df)
-
-	return df_max

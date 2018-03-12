@@ -221,7 +221,7 @@ class process:
 		if 'peakSIGMA' in desc.keys():
 
 			#iterates over the number of peaks
-			for i in np.arange(len(desc['peakFWHM'])):
+			for i in np.arange(len(desc['peakSIGMA'])):
 			#appends peak descriptors to the list in order of peak number
 				desc_ls.append(desc['peakLocation(V)'][i])
 				desc_ls.append(desc['peakHeight(dQdV)'][i])

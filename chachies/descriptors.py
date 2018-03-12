@@ -16,8 +16,14 @@ def ML_generate(import_filepath):
 	"""Generates a dataframe containing charge and discharge data
 	also writes descriptors to an excel spreadsheet 'describe.xlsx'
 	import_filepath = filepath containing cleaned separated cycles"""
-	
-	#creates dataframe of descriptors for the charge/discharge cycles of all batteris
+
+	#checks that the file exists
+	assert os.path.exists(import_filepath), 'The file does not exist'
+
+	#check that the whatever is passed to ML_generate is a string
+	assert isinstance(import_filepath,str), 'The input should be a string'
+
+	#creates dataframe of descriptors for the charge/discharge cycles of all batteries
 	df_ch = process.df_generate(import_filepath, 'c')
 	df_dc = process.df_generate(import_filepath, 'd')
 		#concats charge and discharge cycles
@@ -28,9 +34,9 @@ def ML_generate(import_filepath):
 	writer = pd.ExcelWriter('describe.xlsx')
 	df_final.to_excel(writer,'Sheet1')
 	writer.save()
-	
+
 	return df_final
-	
+
 ############################
 ### Sub - Wrapper Functions
 ############################
@@ -46,17 +52,19 @@ class process:
 		cd = 'c' for charge and 'd' for discharge
 
 		Output:
-		df_ch = pandas dataframe for all cycles of all batteries in a 
+		df_ch = pandas dataframe for all cycles of all batteries in a
 		col_ch = list of numbers of columns for each battery"""
-		
+
+		assert cd == ('c' or 'd'), 'This must be charge (c) or discharge (d) data'
+
 		#generates a list of datafiles to analyze
 		rootdir = import_filepath
 		file_list = [f for f in glob.glob(os.path.join(rootdir,'*.xlsx'))]
 		#iterate through dir to get excel file
-		
+
 		#generates a list of unique batteries
-		list_bats = [] 
-		
+		list_bats = []
+
 		for file in file_list:
 
 			#splits file paths to get battery names
@@ -74,6 +82,8 @@ class process:
 
 		#generates a blank dataframe of charge/discharge descriptors
 		df_ch = process.pd_create(cd)
+
+
 
 		#begins generating dataframe of descriptors
 		name_ch = []
@@ -94,7 +104,7 @@ class process:
 
 		#adds name column to the dataframe
 		df_ch['names'] = name_ch
-			
+
 		return df_ch
 
 	def imp_all(source, battery, cd):
@@ -110,7 +120,7 @@ class process:
 		#generates list of battery files for import
 		file_pref = battery + '*.xlsx'
 		file_list = [f for f in glob.glob(os.path.join(source,file_pref))]
-		
+
 		#sorts by cycle
 		cycle = []
 
@@ -127,7 +137,7 @@ class process:
 		cyc_index = []
 		for cyc in cyc_sort:
 			cyc_index.append(cycle.index(cyc))
-		
+
 		#reindexes file list using the lists of indices from above
 		file_sort = []
 		for indices in cyc_index:
@@ -162,12 +172,12 @@ class process:
 			prefix = 'ch_'
 		else:
 			prefix = 'dc_'
-		
+
 		#generates list of names for the top of the descriptors dataframe
 		names = []
 		for ch in np.arange(n_desc):
 			names.append(prefix + str(int(ch)))
-		
+
 		#creates pandas dataframe with necessary heading
 		desc = pd.DataFrame(columns = names)
 
@@ -184,7 +194,7 @@ class process:
 
 		#converts the dictionary of descriptors into a list of descriptors
 		desc_ls = process.dict_2_list(charge_descript)
-		
+
 		#adds zeros to the end of each descriptor list to create a list with 19 entries
 		desc_app = desc_ls + np.zeros(19-len(desc_ls)).tolist()
 
@@ -230,7 +240,7 @@ class process:
 		output: a dictionary of descriptors for a single battery"""
 		#reads excel file into pandas
 		testdf = pd.read_excel(file_val)
-		
+
 		#extracts charge and discharge from the dataset
 		charge, discharge = ccf.sep_char_dis(testdf)
 
@@ -257,7 +267,7 @@ class process:
 class fitters:
 
 	def descriptor_func(V_series, dQdV_series, cd, cyc, battery):
-		    """Generates dictionary of descriptors
+			"""Generates dictionary of descriptors
 
 			V_series = Pandas series of voltage data
 			dQdV_series = Pandas series of differential capacity data
@@ -267,46 +277,46 @@ class fitters:
 			dictionary with keys 'codfficients', 'peakLocation(V)', 'peakHeight(dQdV)', 'peakFWHM'"""
 
 			#appropriately reclassifies data from pandas to numpy
-		    sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
-		    
-		    #returns the indices of the peaks for the dataset
-		    i = fitters.peak_finder(V_series, dQdV_series, cd)
-		    
-		    #generates the necessary model parameters for the fit calculation
-		    par, mod = fitters.model_gen(V_series,dQdV_series, cd, i, cyc, battery)
+			sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
 
-		    #returns a fitted lmfit model object from the parameters and data
-		    model = fitters.model_eval(V_series,dQdV_series, cd, par, mod)
-		    
-		    #initiates collection of coefficients
-		    coefficients = []
-		    
-		    for k in np.arange(4):
-		    	#key calculation for coefficient collection
-		    	coef = 'c' + str(k)
-		    	#extracting coefficients from model object
-		    	coefficients.append(model.best_values[coef])
+			#returns the indices of the peaks for the dataset
+			i = fitters.peak_finder(V_series, dQdV_series, cd)
 
-		    #creates a dictionary of coefficients
-		    desc = {'coefficients': coefficients}
+			#generates the necessary model parameters for the fit calculation
+			par, mod = fitters.model_gen(V_series,dQdV_series, cd, i, cyc, battery)
 
-		    if len(i) > 0:
-		    	#generates numpy array for peak calculation
-		    	sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
+			#returns a fitted lmfit model object from the parameters and data
+			model = fitters.model_eval(V_series,dQdV_series, cd, par, mod)
 
-		    	#determines peak location and height locations from raw data
-		    	desc.update({'peakLocation(V)': sigx[i].tolist(), 'peakHeight(dQdV)': sigy[i].tolist()})
-		    	#initiates loop to extract 
-		    	sig = []
-		    	for index in i:
-		    		#determines appropriate string to call standard deviation object from model
-		    		center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
-		    		sig.append(model.best_values[sigma])
+			#initiates collection of coefficients
+			coefficients = []
 
-		    	#updates dictionary with sigma key and object
-		    	desc.update({'peakSIGMA': sig})
+			for k in np.arange(4):
+				#key calculation for coefficient collection
+				coef = 'c' + str(k)
+				#extracting coefficients from model object
+				coefficients.append(model.best_values[coef])
 
-		    return desc
+			#creates a dictionary of coefficients
+			desc = {'coefficients': coefficients}
+
+			if len(i) > 0:
+				#generates numpy array for peak calculation
+				sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
+
+				#determines peak location and height locations from raw data
+				desc.update({'peakLocation(V)': sigx[i].tolist(), 'peakHeight(dQdV)': sigy[i].tolist()})
+				#initiates loop to extract
+				sig = []
+				for index in i:
+					#determines appropriate string to call standard deviation object from model
+					center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
+					sig.append(model.best_values[sigma])
+
+				#updates dictionary with sigma key and object
+				desc.update({'peakSIGMA': sig})
+
+			return desc
 
 	############################
 	### Sub - descriptor_func
@@ -332,10 +342,10 @@ class fitters:
 				sigy = pd.to_numeric(dQdV_series).as_matrix()
 			elif cd == 'd':
 				sigy = -pd.to_numeric(dQdV_series).as_matrix()
-			
+
 			return sigx, sigy
 
-	def peak_finder(V_series, dQdV_series, cd):   
+	def peak_finder(V_series, dQdV_series, cd):
 			"""Determines the index of each peak in a dQdV curve
 
 			V_series = Pandas series of voltage data
@@ -355,29 +365,29 @@ class fitters:
 			return i
 
 	def label_gen(index):
-		    """Generates label set for individual gaussian
+			"""Generates label set for individual gaussian
 			index = index of peak location
 
-			output string format: 
+			output string format:
 			'a' + index + "_" + parameter"""
-		    
-		    pref = str(int(index))
-		    comb = 'a' + pref + '_'
-		    
-		    cent = 'center'
-		    sig = 'sigma'
-		    amp = 'amplitude'
-		    fract = 'fraction'
-		    
-		    center = comb + cent
-		    sigma = comb + sig
-		    amplitude = comb + amp
-		    fraction = comb + fract
-		    
-		    return center, sigma, amplitude, fraction, comb
-		    
+
+			pref = str(int(index))
+			comb = 'a' + pref + '_'
+
+			cent = 'center'
+			sig = 'sigma'
+			amp = 'amplitude'
+			fract = 'fraction'
+
+			center = comb + cent
+			sigma = comb + sig
+			amplitude = comb + amp
+			fraction = comb + fract
+
+			return center, sigma, amplitude, fraction, comb
+
 	def model_gen(V_series, dQdV_series, cd, i, cyc, battery):
-		    """Develops initial model and parameters for battery data fitting.
+			"""Develops initial model and parameters for battery data fitting.
 
 			V_series = Pandas series of voltage data
 			dQdV_series = Pandas series of differential capacity data
@@ -386,32 +396,32 @@ class fitters:
 			Output:
 			par = lmfit parameters object
 			mod = lmfit model object"""
-		    
-		    sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
-		    
-		    mod = models.PolynomialModel(4)
-		    par = mod.guess(sigy_bot, x=sigx_bot)
-		    #i = np.append(i, i+5)
-		    #print(i)
-		    if all(i) == False:
-		    	notice = 'Cycle ' + str(cyc) + cd + ' in battery ' + battery + ' has no peaks.'
-		    	print(notice)
-		    else:
-		    	for index in i:
-			        
-			        center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
-			        
-			        gaus_loop = models.PseudoVoigtModel(prefix=comb)
-			        par.update(gaus_loop.make_params())
 
-			        par[center].set(sigx_bot[index], min=sigx_bot[index]-0.01, max=sigx_bot[index]+0.01)
-			        par[sigma].set(0.01)
-			        par[amplitude].set(.05, min=0)
-			        par[fraction].set(.5, min=0, max=1)
+			sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
 
-			        mod = mod + gaus_loop
-		        
-		    return par, mod
+			mod = models.PolynomialModel(4)
+			par = mod.guess(sigy_bot, x=sigx_bot)
+			#i = np.append(i, i+5)
+			#print(i)
+			if all(i) == False:
+				notice = 'Cycle ' + str(cyc) + cd + ' in battery ' + battery + ' has no peaks.'
+				print(notice)
+			else:
+				for index in i:
+
+					center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
+
+					gaus_loop = models.PseudoVoigtModel(prefix=comb)
+					par.update(gaus_loop.make_params())
+
+					par[center].set(sigx_bot[index], min=sigx_bot[index]-0.01, max=sigx_bot[index]+0.01)
+					par[sigma].set(0.01)
+					par[amplitude].set(.05, min=0)
+					par[fraction].set(.5, min=0, max=1)
+
+					mod = mod + gaus_loop
+
+			return par, mod
 
 	def model_eval(V_series, dQdV_series, cd, par, mod):
 		"""evaluate lmfit model generated in model_gen function

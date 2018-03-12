@@ -107,32 +107,41 @@ class process:
 		Output:
 		charge_descript = pandas dataframe of charge descriptors"""
 
+		#generates list of battery files for import
 		file_pref = battery + '*.xlsx'
 		file_list = [f for f in glob.glob(os.path.join(source,file_pref))]
 		
-		#this is the shit that sorts by cycle
+		#sorts by cycle
 		cycle = []
+
+		#extracts cycle number from file name using known pattern
 		for file in file_list:
 			cyc1 = os.path.split(file)[1].split('Clean')[0]
 			cyc = os.path.split(cyc1)[1].split('-Cycle')[1]
 			cycle.append(int(cyc))
 
+		#sorts cycle numbers
 		cyc_sort = sorted(cycle)
+
+		#determines order of indexes that will properly sort the data
 		cyc_index = []
 		for cyc in cyc_sort:
 			cyc_index.append(cycle.index(cyc))
 		
+		#reindexes file list using the lists of indices from above
 		file_sort = []
 		for indices in cyc_index:
 			file_sort.append(file_list[indices])
 
 		#this is the end of the shit that sorts by cycle
 		charge_descript = process.pd_create(cd)
-		# while excel spreadsheet with path exists
+		# iterates over the file list and the cycle number
 		for file_val, cyc_loop in zip(file_sort, cyc_sort):
 
+			#determines dictionary of descriptors from file data
 			c = process.imp_one_cycle(file_val, cd, cyc_loop, battery)
 			if c != 'throw':
+			#generates list of dictionaries while rejecting any that retunr the 'throw' error
 				charge_descript = process.pd_update(charge_descript, c)
 
 		return charge_descript
@@ -147,15 +156,19 @@ class process:
 
 		#number of descriptors it generates
 		n_desc = 19
+
+		#determines prefix string based on need for a charge or discharge dataframe
 		if cd == 'c':
 			prefix = 'ch_'
 		else:
 			prefix = 'dc_'
 		
+		#generates list of names for the top of the descriptors dataframe
 		names = []
 		for ch in np.arange(n_desc):
 			names.append(prefix + str(int(ch)))
 		
+		#creates pandas dataframe with necessary heading
 		desc = pd.DataFrame(columns = names)
 
 		return desc
@@ -169,17 +182,16 @@ class process:
 		Output:
 		pandas dataframe with a row of descriptors appended on"""
 
-		#for i in np.arange(len(desc.index)):
-		#desc_ls = dict_2_list(charge_descript[i])
+		#converts the dictionary of descriptors into a list of descriptors
 		desc_ls = process.dict_2_list(charge_descript)
-		#print(desc_ls)
-			
+		
+		#adds zeros to the end of each descriptor list to create a list with 19 entries
 		desc_app = desc_ls + np.zeros(19-len(desc_ls)).tolist()
 
-		#print(desc.head())
+		#generates a dataframe of descriptors
 		desc_df = pd.DataFrame([desc_app], columns = desc.columns)
+		#combines row of a dataframe with previous dataframe
 		desc = pd.concat([desc, desc_df], ignore_index=True)
-		#print(desc.head())
 
 		return desc
 
@@ -191,9 +203,16 @@ class process:
 
 		Output:
 		list of descriptors"""
+
+		#generates an initial list from the coefficients
 		desc_ls = list(desc['coefficients'])
+
+		#determines whether or not there are peaks in the datasent
 		if 'peakSIGMA' in desc.keys():
+
+			#iterates over the number of peaks
 			for i in np.arange(len(desc['peakFWHM'])):
+			#appends peak descriptors to the list in order of peak number
 				desc_ls.append(desc['peakLocation(V)'][i])
 				desc_ls.append(desc['peakHeight(dQdV)'][i])
 				desc_ls.append(desc['peakSIGMA'][i])
@@ -209,19 +228,26 @@ class process:
 		battery = battery name
 
 		output: a dictionary of descriptors for a single battery"""
+		#reads excel file into pandas
 		testdf = pd.read_excel(file_val)
-		#print(cyc_loop)
+		
+		#extracts charge and discharge from the dataset
 		charge, discharge = ccf.sep_char_dis(testdf)
+
+		#determines if the charge, discharge indicator was inputted correctly
+		#assigns daframe for fitting accordingly
 		if cd == 'c':
 			df_run = charge
 		elif cd == 'd':
 			df_run = discharge
 		else:
 			raise TypeError("Cycle type must be either 'c' for charge or 'd' for discharge.")
-		
+
+		#determines if a cycle shoudl be passed into the descriptor fitting function
 		if (len(charge['Voltage(V)'].index) >= 10) and (len(discharge['Voltage(V)'].index) >= 10):
-			
+			#generates a dictionary of descriptors
 			c = fitters.descriptor_func(df_run['Voltage(V)'], df_run['Smoothed_dQ/dV'], cd, cyc_loop, battery)
+		#eliminates cycle number and notifies user of cycle removal
 		else:
 			notice = 'Cycle ' + str(cyc_loop) + ' in battery '+ battery + ' had fewer than 10 datapoints and was removed from the dataset.'
 			print(notice)

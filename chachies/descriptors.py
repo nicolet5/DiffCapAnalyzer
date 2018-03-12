@@ -55,7 +55,7 @@ class process:
 		df_ch = pandas dataframe for all cycles of all batteries in a
 		col_ch = list of numbers of columns for each battery"""
 
-		assert cd == ('c' or 'd'), 'This must be charge (c) or discharge (d) data'
+		#assert cd == ('c' or 'd'), 'This must be charge (c) or discharge (d) data'
 
 		#generates a list of datafiles to analyze
 		rootdir = import_filepath
@@ -177,8 +177,10 @@ class process:
 		names = []
 		for ch in np.arange(n_desc):
 			names.append(prefix + str(int(ch)))
+		names = names + ['AIC', 'BIC', 'red_chi_squared']
 
 		#creates pandas dataframe with necessary heading
+		#print(names)
 		desc = pd.DataFrame(columns = names)
 
 		return desc
@@ -195,8 +197,8 @@ class process:
 		#converts the dictionary of descriptors into a list of descriptors
 		desc_ls = process.dict_2_list(charge_descript)
 
-		#adds zeros to the end of each descriptor list to create a list with 19 entries
-		desc_app = desc_ls + np.zeros(19-len(desc_ls)).tolist()
+		#adds zeros to the end of each descriptor list to create a list with 22 entries
+		desc_app = desc_ls + np.zeros(19-len(desc_ls)).tolist() + charge_descript['errorParams']
 
 		#generates a dataframe of descriptors
 		desc_df = pd.DataFrame([desc_app], columns = desc.columns)
@@ -226,6 +228,7 @@ class process:
 				desc_ls.append(desc['peakLocation(V)'][i])
 				desc_ls.append(desc['peakHeight(dQdV)'][i])
 				desc_ls.append(desc['peakSIGMA'][i])
+		
 
 		return desc_ls
 
@@ -315,6 +318,7 @@ class fitters:
 
 				#updates dictionary with sigma key and object
 				desc.update({'peakSIGMA': sig})
+			desc.update({'errorParams': [model.aic, model.bic, model.redchi]})
 
 			return desc
 

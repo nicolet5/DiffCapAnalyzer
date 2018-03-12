@@ -13,8 +13,8 @@ import glob
 ################################
 
 def ML_generate(import_filepath):
-	"""Generates a dataframe containing charge and discharge data
-	also writes descriptors to an excel spreadsheet 'describe.xlsx'
+	"""Generates a dataframe containing charge and discharge descriptors/error parameters. Also writes descriptors to an excel spreadsheet 'describe.xlsx'
+	
 	import_filepath = filepath containing cleaned separated cycles"""
 
 	#checks that the file exists
@@ -157,7 +157,7 @@ class process:
 		return charge_descript
 
 	def pd_create(cd):
-		"""Creates a blank dataframe containing either charge or discharge descriptors
+		"""Creates a blank dataframe containing either charge or discharge descriptors/error parameters
 
 		cd = either 'c' for charge or 'd' for discharge
 
@@ -177,6 +177,8 @@ class process:
 		names = []
 		for ch in np.arange(n_desc):
 			names.append(prefix + str(int(ch)))
+
+		#adds names of error parameters to the end of the descriptor list
 		names = names + [prefix+'AIC', prefix+'BIC', prefix+'red_chi_squared']
 
 		#creates pandas dataframe with necessary heading
@@ -198,6 +200,7 @@ class process:
 		desc_ls = process.dict_2_list(charge_descript)
 
 		#adds zeros to the end of each descriptor list to create a list with 22 entries
+		#also appends error parameters to the end of the descriptor list
 		desc_app = desc_ls + np.zeros(19-len(desc_ls)).tolist() + charge_descript['errorParams']
 
 		#generates a dataframe of descriptors
@@ -270,14 +273,14 @@ class process:
 class fitters:
 
 	def descriptor_func(V_series, dQdV_series, cd, cyc, battery):
-			"""Generates dictionary of descriptors
+			"""Generates dictionary of descriptors/error parameters
 
 			V_series = Pandas series of voltage data
 			dQdV_series = Pandas series of differential capacity data
 			cd = either 'c' for charge and 'd' for discharge.
 
 			Output:
-			dictionary with keys 'codfficients', 'peakLocation(V)', 'peakHeight(dQdV)', 'peakFWHM'"""
+			dictionary with keys 'codfficients', 'peakLocation(V)', 'peakHeight(dQdV)', 'peakSIGMA', 'errorParams"""
 
 			#appropriately reclassifies data from pandas to numpy
 			sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
@@ -318,6 +321,8 @@ class fitters:
 
 				#updates dictionary with sigma key and object
 				desc.update({'peakSIGMA': sig})
+
+			#adds keys for the error parameters of each fit
 			desc.update({'errorParams': [model.aic, model.bic, model.redchi]})
 
 			return desc
@@ -375,6 +380,7 @@ class fitters:
 			output string format:
 			'a' + index + "_" + parameter"""
 
+			#generates unique parameter strings based on index of peak
 			pref = str(int(index))
 			comb = 'a' + pref + '_'
 
@@ -383,6 +389,7 @@ class fitters:
 			amp = 'amplitude'
 			fract = 'fraction'
 
+			#creates final objects for use in model generation
 			center = comb + cent
 			sigma = comb + sig
 			amplitude = comb + amp
@@ -401,24 +408,36 @@ class fitters:
 			par = lmfit parameters object
 			mod = lmfit model object"""
 
+			#generates numpy arrays for use in fitting
 			sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
 
+			#creates a polynomial fitting object
 			mod = models.PolynomialModel(4)
+
+			#sets polynomial parameters based on a
+			#guess of a polynomial fit to the data with no peaks
 			par = mod.guess(sigy_bot, x=sigx_bot)
-			#i = np.append(i, i+5)
-			#print(i)
+
+			#prints a notice if no peaks are found
 			if all(i) == False:
 				notice = 'Cycle ' + str(cyc) + cd + ' in battery ' + battery + ' has no peaks.'
 				print(notice)
+
+			#iterates over all peak indices
 			else:
 				for index in i:
 
+					 #generates unique parameter strings based on index of peak
 					center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
 
+					#generates a pseudo voigt fitting model
 					gaus_loop = models.PseudoVoigtModel(prefix=comb)
 					par.update(gaus_loop.make_params())
 
-					par[center].set(sigx_bot[index], min=sigx_bot[index]-0.01, max=sigx_bot[index]+0.01)
+					#uses unique parameter strings to generate parameters with initial guesses
+				    #in this model, the center of the peak is locked at the peak location determined from PeakUtils
+
+					par[center].set(sigx_bot[index], vary=False)
 					par[sigma].set(0.01)
 					par[amplitude].set(.05, min=0)
 					par[fraction].set(.5, min=0, max=1)

@@ -4,43 +4,40 @@ import matplotlib.pyplot as plt
 import numpy as np
 import peakutils
 from lmfit import models
-import chachifuncs_sepcd as ccf
+import chachifuncs as ccf
 import os
 import glob
 
+################################
+### OVERALL Wrapper Function ###
+################################
+
+def ML_generate(import_filepath):
+	"""Generates a dataframe containing charge and discharge data
+	also writes descriptors to an excel spreadsheet 'describe.xlsx'
+	import_filepath = filepath containing cleaned separated cycles"""
+	
+	#creates dataframe of descriptors for the charge/discharge cycles of all batteris
+	df_ch = process.df_generate(import_filepath, 'c')
+	df_dc = process.df_generate(import_filepath, 'd')
+		#concats charge and discharge cycles
+	df_final = pd.concat([df_ch, df_dc], axis=1)
+		#drops any duplicate rows
+	df_final = df_final.T.drop_duplicates().T
+		#saves data to an excel file
+	writer = pd.ExcelWriter('describe.xlsx')
+	df_final.to_excel(writer,'Sheet1')
+	writer.save()
+	
+	return df_final
+	
+############################
+### Sub - Wrapper Functions
+############################
 #data processing that calls from fitting class
 
 class process:
-	################################
-	### OVERALL Wrapper Function ###
-	################################
 
-	def ML_generate(import_filepath):
-		"""Generates a dataframe containing charge and discharge data
-		also writes descriptors to an excel spreadsheet 'describe.xlsx'
-
-		import_filepath = filepath containing cleaned separated cycles"""
-
-		#creates dataframe of descriptors for the charge/discharge cycles of all batteris
-		df_ch = process.df_generate(import_filepath, 'c')
-		df_dc = process.df_generate(import_filepath, 'd')
-
-		#concats charge and discharge cycles
-		df_final = pd.concat([df_ch, df_dc], axis=1)
-
-		#drops any duplicate rows
-		df_final = df_final.T.drop_duplicates().T
-
-		#saves data to an excel file
-		writer = pd.ExcelWriter('describe.xlsx')
-		df_final.to_excel(writer,'Sheet1')
-		writer.save()
-
-		return df_final
-
-	############################
-	### Sub - Wrapper Functions
-	############################
 	#first function called by ML_generate
 	def df_generate(import_filepath, cd):
 		"""Creates a pandas dataframe for each battery's charge/discharge cycle in the import_filepath folder
@@ -195,11 +192,11 @@ class process:
 		Output:
 		list of descriptors"""
 		desc_ls = list(desc['coefficients'])
-		if 'peakFWHM' in desc.keys():
+		if 'peakSIGMA' in desc.keys():
 			for i in np.arange(len(desc['peakFWHM'])):
 				desc_ls.append(desc['peakLocation(V)'][i])
 				desc_ls.append(desc['peakHeight(dQdV)'][i])
-				desc_ls.append(desc['peakFWHM'][i])
+				desc_ls.append(desc['peakSIGMA'][i])
 
 		return desc_ls
 
@@ -233,7 +230,7 @@ class process:
 
 class fitters:
 
-	def descriptor_func(V_series,dQdV_series, cd, cyc, battery):
+	def descriptor_func(V_series, dQdV_series, cd, cyc, battery):
 		    """Generates dictionary of descriptors
 
 			V_series = Pandas series of voltage data
@@ -243,30 +240,45 @@ class fitters:
 			Output:
 			dictionary with keys 'codfficients', 'peakLocation(V)', 'peakHeight(dQdV)', 'peakFWHM'"""
 
+			#appropriately reclassifies data from pandas to numpy
 		    sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
 		    
+		    #returns the indices of the peaks for the dataset
 		    i = fitters.peak_finder(V_series, dQdV_series, cd)
 		    
+		    #generates the necessary model parameters for the fit calculation
 		    par, mod = fitters.model_gen(V_series,dQdV_series, cd, i, cyc, battery)
 
+		    #returns a fitted lmfit model object from the parameters and data
 		    model = fitters.model_eval(V_series,dQdV_series, cd, par, mod)
 		    
+		    #initiates collection of coefficients
 		    coefficients = []
 		    
-
 		    for k in np.arange(4):
+		    	#key calculation for coefficient collection
 		    	coef = 'c' + str(k)
+		    	#extracting coefficients from model object
 		    	coefficients.append(model.best_values[coef])
 
+		    #creates a dictionary of coefficients
 		    desc = {'coefficients': coefficients}
+
 		    if len(i) > 0:
+		    	#generates numpy array for peak calculation
 		    	sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
+
+		    	#determines peak location and height locations from raw data
 		    	desc.update({'peakLocation(V)': sigx[i].tolist(), 'peakHeight(dQdV)': sigy[i].tolist()})
-		    	FWHM = []
+		    	#initiates loop to extract 
+		    	sig = []
 		    	for index in i:
+		    		#determines appropriate string to call standard deviation object from model
 		    		center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
-		    		FWHM.append(model.best_values[sigma])
-		    	desc.update({'peakFWHM': FWHM})
+		    		sig.append(model.best_values[sigma])
+
+		    	#updates dictionary with sigma key and object
+		    	desc.update({'peakSIGMA': sig})
 
 		    return desc
 

@@ -177,7 +177,7 @@ class process:
 		names = []
 		for ch in np.arange(n_desc):
 			names.append(prefix + str(int(ch)))
-		names = names + ['AIC', 'BIC', 'red_chi_squared']
+		names = names + [prefix+'AIC', prefix+'BIC', prefix+'red_chi_squared']
 
 		#creates pandas dataframe with necessary heading
 		#print(names)

@@ -8,7 +8,7 @@ import chachifuncs_sepcd as ccf
 import os
 import glob
 
-#data processing that calls from fitting class
+
 
 class process:
 	################################
@@ -21,17 +21,13 @@ class process:
 
 		import_filepath = filepath containing cleaned separated cycles"""
 
-		#creates dataframe of descriptors for the charge/discharge cycles of all batteris
 		df_ch = process.df_generate(import_filepath, 'c')
+
 		df_dc = process.df_generate(import_filepath, 'd')
 
-		#concats charge and discharge cycles
 		df_final = pd.concat([df_ch, df_dc], axis=1)
-
-		#drops any duplicate rows
 		df_final = df_final.T.drop_duplicates().T
 
-		#saves data to an excel file
 		writer = pd.ExcelWriter('describe.xlsx')
 		df_final.to_excel(writer,'Sheet1')
 		writer.save()
@@ -40,7 +36,7 @@ class process:
 
 	############################
 	### Sub - Wrapper Functions
-	############################
+############################
 	#first function called by ML_generate
 	def df_generate(import_filepath, cd):
 		"""Creates a pandas dataframe for each battery's charge/discharge cycle in the import_filepath folder
@@ -51,54 +47,50 @@ class process:
 		Output:
 		df_ch = pandas dataframe for all cycles of all batteries in a 
 		col_ch = list of numbers of columns for each battery"""
-		
-		#generates a list of datafiles to analyze
 		rootdir = import_filepath
 		file_list = [f for f in glob.glob(os.path.join(rootdir,'*.xlsx'))]
 		#iterate through dir to get excel file
 		
-		#generates a list of unique batteries
 		list_bats = [] 
 		
 		for file in file_list:
 
-			#splits file paths to get battery names
 			name = os.path.split(file)[1].split('.')[0]
 			batname = name.split('-')[0]
-
-			#adds unique battery names to the list of batteries
 			if batname not in list_bats:
 				list_bats.append(batname)
 			else: None
-
-		#notifies user of successful import
 		notice = 'Successfully extracted all battery names for ' + cd
 		print(notice)
-
-		#generates a blank dataframe of charge/discharge descriptors
 		df_ch = process.pd_create(cd)
-
-		#begins generating dataframe of descriptors
 		name_ch = []
 		for bat in list_bats:
-
-			#notifies user which battery is being fit
 			notice = 'Fitting battery: ' + bat + ' ' + cd
 			print(notice)
 
-			#generates dataframe of descriptor fits for each battery
 			df = process.imp_all(import_filepath, bat, cd)
-
-			#generates an iterative list of names for the 'name' column of the final dataframe
 			name_ch = name_ch + [bat] * len(df.index)
-
-			#concats dataframe from current battery with previous batteries
 			df_ch = pd.concat([df_ch, df])
-
-		#adds name column to the dataframe
 		df_ch['names'] = name_ch
 			
 		return df_ch
+
+	#dependencies
+	def imp_and_combine(path, battery, cd):
+		"""imports separated charge, discharge spreadsheets from a specified path
+		path = path to battery cycles
+		battery = battery name
+		cd = either 'c' for charge or 'd' for discharge
+
+		Output: dataframe of descriptrs"""
+		
+		charge_descript = process.imp_all(path, battery, cd)
+
+		charge_df = process.pd_create(cd)
+		df = process.pd_update(charge_df, charge_descript)
+
+
+		return df
 
 	def imp_all(source, battery, cd):
 		"""Generates a Pandas dataframe of descriptors for a single battery

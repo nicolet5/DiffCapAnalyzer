@@ -1,7 +1,7 @@
 # Test all functions used in chachies 
 - data contains example files use to run tests on function  
 
-### chachifuncs.py tests
+### Test chachifuncs.py
 Result of running nosetests on test_chachifuncs.py: 
 ```
 ............
@@ -11,7 +11,7 @@ Ran 12 tests in 2.495s
 OK
 ```
 
-### descriptors.py tests
+### Test descriptors.py
 Result of running nosetests on test_descriptors.py:
 ```
 .............

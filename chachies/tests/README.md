@@ -1,4 +1,5 @@
 # Test all functions used in chachies 
+- data contains example files use to run tests on function  
 
 ### chachifuncs.py tests
 Result of running nosetests on test_chachifuncs.py: 

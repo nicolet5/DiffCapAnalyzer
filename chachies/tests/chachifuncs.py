@@ -18,6 +18,7 @@ def get_all_data(rootdir, path_to_raw_data_folder):
     2. cleans those separated cycles and puts them in a folder (data/Clean_Separated_Cycles/)
     3. recombines the cleaned, separated cycles and saves those data sets in a folder (data/Clean_Whole_Sets/)
     These folders do not have to have existed previously. '''
+    assert os.path.exists(rootdir) == 1
     if not os.path.exists(rootdir):
         print('The specified rootdir does not exist.')
     if not os.path.exists(rootdir+'Separated_Cycles/'):
@@ -46,14 +47,13 @@ def load_sep_cycles(getdata_filepath, savedata_filepath):
         cycle_dict = sep_cycles(all_cycles_df)
         battname = key 
         save_sep_cycles_xlsx(cycle_dict, battname, savedata_filepath) 
-    print('All data separated into cycles and saved in folder "data/Separated_Cycles". ')
+    print('All data separated into cycles and saved in folder "'+ savedata_filepath+ '".')
     return 
 
 def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
     """Takes one cycle dataframe, calculates dq/dv, cleans the data, separates out charge and discharge, and applies sav-golay filter. Returns two dataframes, one charge and one discharge.
     Windowlength and polyorder are for the sav-golay filter."""
-    assert type(dataframe) = pd.DataFrame 
-    assert 'Current(A)'and 'Voltage(V)' and 'dQ/dV' in dataframe.columns 
+    assert type(dataframe) == pd.DataFrame 
 
     df1 = calc_dv_dqdv(dataframe)
     raw_charge = df1[df1['Current(A)'] > 0]
@@ -101,6 +101,8 @@ def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
 
 def get_clean_cycles(import_filepath, save_filepath): 
     """Imports all separated out cycles in given path and cleans them and saves them in the specified filepath"""
+    assert os.path.exists(import_filepath) == 1
+    assert os.path.exists(save_filepath) == 1 
     rootdir = import_filepath
     file_list = [f for f in glob.glob(os.path.join(rootdir,'*.xlsx'))] #iterate through dir to get excel files 
     d = {} #initiate dict for data storage
@@ -123,11 +125,13 @@ def get_clean_cycles(import_filepath, save_filepath):
         writer = ExcelWriter(save_filepath + cyclename + 'Clean'+ '.xlsx')
         clean_cycle_df.to_excel(writer)
         writer.save() 
-    print('All cycles cleaned and saved in folder "data/Clean_Separated_Cycles".')
+    print('All cycles cleaned and saved in folder "' + save_filepath + '" .')
     return 
 
 def get_clean_sets(import_filepath, save_filepath): 
     """Imports all clean cycles of data from import path and appends them into complete sets of battery data, saved into save_filepath"""
+    assert os.path.exists(import_filepath) == 1
+    assert os.path.exists(save_filepath) == 1 
     rootdir = import_filepath
     file_list = [f for f in glob.glob(os.path.join(rootdir,'*.xlsx'))] #iterate through dir to get excel files 
     d = {} #initiate dict for data storage
@@ -164,7 +168,7 @@ def get_clean_sets(import_filepath, save_filepath):
         value.to_excel(writer)
         writer.save() 
                 
-    print('All clean cycles recombined and saved in folder "data/Clean_Whole_Sets".')
+    print('All clean cycles recombined and saved in folder "' + save_filepath + '" .')
     return
 ############################
 # Component Functions

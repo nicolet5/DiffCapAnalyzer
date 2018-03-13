@@ -22,39 +22,32 @@ def test_get_data():
 		raise Exception ('Exception not handled by Asserts.')
 
 def test_sep_cycles():
-    """ tests function to separate cycles """
-    #dataframe = pd.read_excel('test.xsls',1) #test should raise an error
-    dataframe = [1,2,3] 
-    #test should pass if test generates an AssertionError 
-    try: 
-        ccf.sep_cycles(dataframe)
-    except (AssertionError):
-        pass
-    else:
-        raise Exception ("Exception not handled by Asserts")
-
-
-def test_save_sep_cycles_xsls():
-    """tests function that saves separate cycles"""
-    dataframe = pd.read_excel('test.xsls',1)
-    cycle_dict = [dataframe,1,2] 
-    #should raise AssertionError. Inputs must be a dictionary, a battery name string, and a path as a string. 
-    try: 
-        ccf.save_sep_cycles_xlsx(cycle_dict, 'battery1', 'seperate_cycles/') 
-    except (AssertionError):
-        pass
-    else: 
-        raise Exception ("Exception not handled by Asserts")
-
-def test_calc_dv_dqdv():
-	"""Tests function that is calculating dv columns and dq/dv columns in the dataframe"""
-	try:
-		ccf.calc_dv_dqdv('test.xsls')
-		#should raise AssertionError because input should be a pd.Dataframe, not an excel file. 
+	""" tests function to separate cycles """
+	#dataframe = pd.read_excel('test.xsls',1) #test should raise an error
+	dataframe = [1,2,3] 
+	#test should pass if test generates an AssertionError 
+	try: 
+		ccf.sep_cycles(dataframe)
 	except (AssertionError):
 		pass
 	else:
-		raise Exception ("Input type exception not handled by asserts.")
+		raise Exception ("Exception not handled by Asserts")
+
+
+def test_save_sep_cycles_xsls():
+	"""tests function that saves separate cycles"""
+	dataframe = pd.read_excel('test.xsls',1)
+	cycle_dict = [dataframe,1,2]
+	#should raise AssertionError. Inputs must be a dictionary, a battery name string, and a path as a string. 
+	try: 
+		ccf.save_sep_cycles_xlsx(cycle_dict, 'battery1', 'seperate_cycles/') 
+	except (AssertionError):
+		pass
+	else: 
+		raise Exception ("Exception not handled by Asserts")
+
+def test_calc_dv_dqdv():
+	"""Tests function that is calculating dv columns and dq/dv columns in the dataframe"""
 	dataframe = pd.DataFrame({'col1': [1, 2, 3], 'col2': [4, 5, 6]})
 	try: 
 		ccf.calc_dv_dqdv(dataframe)
@@ -85,7 +78,7 @@ def test_drop_0_dv():
 
 def test_sep_char_dis():
 	"""Tests that input is a dataframe with a column titled 'Discharge_dQ/dV' and a column titled 'Charge_dQ/dV', indicating upstream 
-	function drop_0_dv created those columns correctly."""  
+	function drop_0_dv created those columns correctly."""
 	dataframe = pd.DataFrame({'col1': [1, 2, 3], 'Discharge_dQ/dV': [3, 4, 5]})
 	dataframe2 = pd.DataFrame({'col1': [1, 2, 3], 'Charge_dQ/dV': [3, 4, 5]})
 	try:
@@ -127,28 +120,53 @@ def test_my_savgolay():
 ##############################
 
 def test_load_sep_cycles():
-    """ Tests that the inputted file paths actually exist. (This function will NOT create a new directory if the paths don't exist - 
-    that is handled by the overall wrapper function.) """
-    try: 
-        ccf.load_sep_cycles('NotARealFilePath/', 'AnotherNotARealFilePath/')
-    except (AssertionError):
-        pass
-    else:
-        raise Exception ('Not real file path exception not handled by assertion.')
-
-def test_clean_calc_sep_smooth():
-	""" Tests the input is a dataframe with columns with the correct names (dQ/dV, Current(A), Voltage(V))."""
-	dataframe = pd.DataFrame({'dQ/dV': [1, 2, 4], 'Current(A)': [0, 2, 5], 'col3': [6, 7, 8]})
-	dataframe2 = pd.read_excel('test.xsls')
+	""" Tests that the inputted file paths actually exist. (This function will NOT create a new directory if the paths don't exist -
+	that is handled by the overall wrapper function.) """
 	try: 
-		ccf.clean_calc_sep_smooth(dataframe)
-		#should raise an assertion error because the dataframe does not contain the column 'Voltage(V)'
+		ccf.load_sep_cycles('NotARealFilePath/', 'AnotherNotARealFilePath/')
 	except (AssertionError):
 		pass
 	else:
-		raise Exception ('DataFrame does not have all the right columns exception not handled by asserts.')
+		raise Exception ('Not real file path exception not handled by assertion.')
+
+def test_clean_calc_sep_smooth():
+	""" Tests the input is a dataframe with columns with the correct names (dQ/dV, Current(A), Voltage(V))."""
+	dataframe1 = pd.DataFrame({'dQ/dV': [1, 2, 4], 'col2:': [0, 2, 5], 'Voltage(V)': [6, 7, 8], 'Current(A)': [2, 3, 5], 'Discharge_Capacity(Ah)': [2, 1, 4], 'Charge_Capacity(Ah)': [1, 9, 14]})
+
+	smooth_ch, smooth_dis = ccf.clean_calc_sep_smooth(dataframe1, 15, 3)
+	assert 'Smoothed_dQ/dV' in smooth_ch.columns
+	assert 'Smoothed_dQ/dV' in smooth_dis.columns
+	assert not any(pd.isnull(smooth_ch['Smoothed_dQ/dV']))
+	assert not any(pd.isnull(smooth_dis['Smoothed_dQ/dV']))
+	#asserts there are no NaN values in the 'Smoothed_dQ/dV' column.
+
+def test_get_clean_cycles():
+	"""Tests the inputs for the function are real directory locations."""
+	try:
+		ccf.get_clean_cycles('NotARealFilePath/', 'AnotherNotARealFilePath/')
+	except (AssertionError):
+		pass
+	else:
+		raise Exception ('Not real file path exception not handled by asserts.')
+
+def test_get_clean_sets():
+	""" Tests the inputs for the function are real directory locations."""
+	try:
+		ccf.get_clean_cycles('NotARealFilePath/', 'AnotherNotARealFilePath/')
+	except (AssertionError):
+		pass
+	else:
+		raise Exception ('Not real file path exception not handled by asserts.')
+
+########################
+# Test Overall Wrapper
+#######################
+
+def test_get_all_data():
+	""" Tests the inputs for get_all_data."""
 	try: 
-		smooth_ch, smooth_dis = ccf.clean_calc_sep_smooth(dataframe2)
-		assert 'Smoothed_dQ/dV' in smooth_ch.columns
-		assert 'Smoothed_dQ/dV' in smooth_dis.columns
-		assert NaN not in smooth_dis['Smoothed_dQ/dV'] 
+		ccf.get_all_data('NotARealFilePath/', 'AnotherNotARealFilePath')
+	except (AssertionError):
+		pass
+	else:
+		raise Exception ('Note a real file path exception not handled by asserts.')

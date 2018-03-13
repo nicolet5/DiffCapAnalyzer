@@ -15,27 +15,29 @@ import plotly
 #eventually add everything in folder and create a dropdown that loads that data into data 
 
 #for now just use some data we have 
-#data = pd.read_excel('data/CS2_33_1_24_11.xlsx')
-data = pd.read_excel('../data/CS2_33/CS2_33_10_04_10.xlsx',1)
+data = pd.read_excel('data/CS2_33_1_24_11.xlsx')
+#data = pd.read_excel('../data/CS2_33/CS2_33_10_04_10.xlsx',1)
 
-#charge, discharge = ccf.sep_char_dis(data)
+charge, discharge = ccf.sep_char_dis(data)
 
 #df_dqdv = ccf.calc_dv_dqdv('data/CS2_33/CS2_33_10_04_10.xlsx')
-df_dqdv = ccf.calc_dv_dqdv(data)
-charge, discharge = ccf.sep_char_dis(df_dqdv)
+#df_dqdv = ccf.calc_dv_dqdv(data)
+#charge, discharge = ccf.sep_char_dis(df_dqdv)
 
 ##########################################
 #App Layout 
 ##########################################
 app = dash.Dash() #initialize dash 
 
-app.layout = html.Div([
-    html.Div([
-        html.H1('ChaChi Battery Cycle Visualization'),
-        dcc.Markdown('''
+Introduction= dcc.Markdown('''
         # ChaChi
         ## Interface for visualizing battery cycle data
         #'''), #Add some Markdown
+
+
+app.layout = html.Div([
+    html.Div([
+        html.H1('ChaChi Battery Cycle Visualization'),
         ]),
 
     html.Div([
@@ -54,7 +56,7 @@ app.layout = html.Div([
                 'borderStyle': 'dashed',
                 'borderRadius': '5px',
                 'textAlign': 'center',
-                'margin': '10px'
+                #'margin': '10px'
             },
             multiple=False),
         ]),
@@ -83,7 +85,12 @@ app.layout = html.Div([
         dcc.Graph(id='charge-graph'), #initialize a simple plot
         html.Br(),
         dcc.Graph(id='discharge-graph'),
-        ],style={'columnCount': 2}),
+        ],style={
+            'columnCount': 2,
+            'width':'98%',
+            'height': '80%',
+            }
+        ),
     
     html.Div([
         html.H4('Charge DataTable'),
@@ -110,9 +117,8 @@ app.layout = html.Div([
         ],
         style={
             'width': '98%',
-            'height': '60px',
-            'lineHeight': '60px',
-            'textAlign': 'center',
+            #'height': '60px',
+            #'lineHeight': '60px',
             'margin': '10px'    
             },
         )
@@ -122,26 +128,33 @@ app.layout = html.Div([
 #Interactive Parts
 ##########################################
 
-def parse_contents(contents, filename):
-    content_type, content_string = contents.split(',')
+#def parse_contents(contents, filename):
+#    content_type, content_string = contents.split(',')
+#
+#    decoded = base64.b64decode(content_string)
+#    try:
+#        if 'csv' in filename:
+#            # Assume that the user uploaded a CSV file
+#            return html.Div([
+#                'Not setup to handle CSV files yet, please use an excel file (xls or xlsx)'
+#                ])
+#        elif 'xls' in filename:
+#            # Assume that the user uploaded an excel file
+#            data = pd.read_excel(io.BytesIO(decoded))
+#            charge, discharge = ccf.sep_char_dis(data)
+#    except Exception as e:
+#        print(e)
+#        return html.Div([
+#            'There was an error processing this file.'
+#        ])
+#    return charge, discharge
 
-    decoded = base64.b64decode(content_string)
-    try:
-        if 'csv' in filename:
-            # Assume that the user uploaded a CSV file
-            return html.Div([
-                'Not setup to handle CSV files yet, please use an excel file (xls or xlsx)'
-                ])
-        elif 'xls' in filename:
-            # Assume that the user uploaded an excel file
-            data = pd.read_excel(io.BytesIO(decoded))
-            charge, discharge = ccf.sep_char_dis(data)
-    except Exception as e:
-        print(e)
-        return html.Div([
-            'There was an error processing this file.'
-        ])
-    return charge, discharge
+
+#def update_figure(content):
+#    if not content:
+#        return []
+#    dff = pd.read_csv(io.StringIO(content))
+#    return dff.to_dict('records')
 
 @app.callback( #decorator wrapper for table 
         Output('charge-datatable', 'selected_row_indices'), #component_id, component_property 
@@ -172,7 +185,7 @@ def update_figure1(selected_step1,rows1,selected_row_indices1):
         dff = filtered_data[filtered_data['Cycle_Index'] == i]
         fig = plotly.tools.make_subplots(
             rows=2,cols=1,
-            subplot_titles=('dQ/dV Charge Cycle','Raw dQ/dV Charge Cycle'))
+            subplot_titles=('Fitted dQ/dV Charge Cycle','Raw dQ/dV Charge Cycle'))
             #shared_xaxes=True)
         marker = {'color': ['#0074D9']}
         marker = {'color': ['#0074D9']*len(dff)}
@@ -180,7 +193,7 @@ def update_figure1(selected_step1,rows1,selected_row_indices1):
             marker['color'][i] = '#FF851B'
         fig.append_trace({
             'x': dff['Voltage(V)'],
-            'y': dff['Charge_Capacity(Ah)'],#['Smoothed_dQ/dV'],
+            'y': dff['Smoothed_dQ/dV'],
             'type': 'scatter',
             'marker': marker,
             'name': 'Smoothed Data'
@@ -191,7 +204,7 @@ def update_figure1(selected_step1,rows1,selected_row_indices1):
             'type': 'scatter',
             'marker': marker,
             'name': 'Raw Data'
-            }, 1, 1)
+            }, 2, 1)
         fig['layout']['showlegend'] = False
         fig['layout']['height'] = 800
         fig['layout']['margin'] = {
@@ -217,7 +230,7 @@ def update_figure2(selected_step2,rows2,selected_row_indices2):
         dff = filtered_data[filtered_data['Cycle_Index'] == i]
         fig = plotly.tools.make_subplots(
             rows=2,cols=1,
-            subplot_titles=('dQ/dV Discharge Cycle','Raw dQ/dV Discharge Cycle'))
+            subplot_titles=('Fitted dQ/dV Discharge Cycle','Raw dQ/dV Discharge Cycle'))
             #shared_xaxes=True)
         #marker = {'color': ['#0074D9']}
         marker = {'color': ['#0074D9']*len(dff)}
@@ -225,7 +238,7 @@ def update_figure2(selected_step2,rows2,selected_row_indices2):
             marker['color'][i] = '#FF851B'
         fig.append_trace({
             'x': dff['Voltage(V)'],
-            'y': dff['Charge_Capacity(Ah)'],#['Smoothed_dQ/dV'],
+            'y': dff['Smoothed_dQ/dV'],
             'type': 'scatter',
             'marker': marker,
             'name': 'Smoothed Data'
@@ -236,7 +249,7 @@ def update_figure2(selected_step2,rows2,selected_row_indices2):
             'type': 'scatter',
             'marker': marker,
             'name': 'Raw Data'
-            }, 1, 1)
+            }, 2, 1)
         fig['layout']['showlegend'] = False
         fig['layout']['height'] = 800
         fig['layout']['margin'] = {

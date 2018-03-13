@@ -1,4 +1,4 @@
-## Data Visualization 
+## Data Visualization using DASH by Plotly 
 
 Make sure to install the following dash libraries
 ```

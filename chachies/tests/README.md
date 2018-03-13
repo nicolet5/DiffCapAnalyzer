@@ -1,11 +1,21 @@
-app.py - > final vesion (not ready yet)
+# Test all functions used in chachies 
 
+### chachifuncs.py tests
+Result of running nosetests on test_chachifuncs.py: 
+```
+............
+----------------------------------------------------------------------
+Ran 12 tests in 2.495s
 
-int_table.py -> has interactive table features
-int_graph.py -> has interactive graph features
-slider.py -> has slider
+OK
+```
 
+### descriptors.py tests
+Result of running nosetests on test_descriptors.py:
+```
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 0.010s
 
-
-
-crossfilter.py - > example from python 
+OK
+```

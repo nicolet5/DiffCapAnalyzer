@@ -14,7 +14,7 @@ import glob
 
 def ML_generate(import_filepath):
 	"""Generates a dataframe containing charge and discharge descriptors/error parameters. Also writes descriptors to an excel spreadsheet 'describe.xlsx'
-	
+
 	import_filepath = filepath containing cleaned separated cycles"""
 
 	#checks that the file exists
@@ -55,7 +55,7 @@ class process:
 		df_ch = pandas dataframe for all cycles of all batteries in a
 		col_ch = list of numbers of columns for each battery"""
 
-		#assert cd == ('c' or 'd'), 'This must be charge (c) or discharge (d) data'
+		assert cd == ('c' or 'd'), 'This must be charge (c) or discharge (d) data'
 
 		#generates a list of datafiles to analyze
 		rootdir = import_filepath
@@ -117,6 +117,13 @@ class process:
 		Output:
 		charge_descript = pandas dataframe of charge descriptors"""
 
+		#check that the battery label is a string
+		#check that the whatever is passed to ML_generate is a string
+		#check that 'c' or 'd' is passed
+		assert isinstance(source,str), 'The input should be a string'
+		assert isinstance(battery,str), 'The input should be a string'
+		assert cd == ('c' or 'd'), 'This must be charge (c) or discharge (d) data'
+
 		#generates list of battery files for import
 		file_pref = battery + '*.xlsx'
 		file_list = [f for f in glob.glob(os.path.join(source,file_pref))]
@@ -164,6 +171,9 @@ class process:
 		Output:
 		blank pandas dataframe with descriptor columns and cycle number rows"""
 
+		#check that 'c' or 'd' is passed
+		assert cd == ('c' or 'd'), 'This must be charge (c) or discharge (d) data'
+
 		#number of descriptors it generates
 		n_desc = 19
 
@@ -196,6 +206,11 @@ class process:
 		Output:
 		pandas dataframe with a row of descriptors appended on"""
 
+		#check if the inputs have the right Type
+		assert isinstance(desc, pd.core.frame.DataFrame), "This input must be a pandas dataframe"
+		assert isinstance(charge_descript, dict), "Stop right there, only dictionaries are allowed in these parts"
+
+
 		#converts the dictionary of descriptors into a list of descriptors
 		desc_ls = process.dict_2_list(charge_descript)
 
@@ -219,6 +234,10 @@ class process:
 		Output:
 		list of descriptors"""
 
+		#this function is kinda pointless if you don't give it a dictionary
+		assert isinstance(desc, dict), "Stop right there, only dictionaries are allowed in these parts"
+
+
 		#generates an initial list from the coefficients
 		desc_ls = list(desc['coefficients'])
 
@@ -231,9 +250,11 @@ class process:
 				desc_ls.append(desc['peakLocation(V)'][i])
 				desc_ls.append(desc['peakHeight(dQdV)'][i])
 				desc_ls.append(desc['peakSIGMA'][i])
-		
+		else:
+			pass
 
 		return desc_ls
+
 
 	def imp_one_cycle(file_val, cd, cyc_loop, battery):
 		"""imports and fits a single charge discharge cycle of a battery
@@ -244,6 +265,10 @@ class process:
 		battery = battery name
 
 		output: a dictionary of descriptors for a single battery"""
+
+		#make sure this is an Excel spreadsheet by checking the file extension
+		assert file_val.split('.')[-1] == ('xlsx' or 'xls')
+
 		#reads excel file into pandas
 		testdf = pd.read_excel(file_val)
 
@@ -273,129 +298,155 @@ class process:
 class fitters:
 
 	def descriptor_func(V_series, dQdV_series, cd, cyc, battery):
-			"""Generates dictionary of descriptors/error parameters
+		"""Generates dictionary of descriptors/error parameters
 
-			V_series = Pandas series of voltage data
-			dQdV_series = Pandas series of differential capacity data
-			cd = either 'c' for charge and 'd' for discharge.
+		V_series = Pandas series of voltage data
+		dQdV_series = Pandas series of differential capacity data
+		cd = either 'c' for charge and 'd' for discharge.
 
-			Output:
-			dictionary with keys 'codfficients', 'peakLocation(V)', 'peakHeight(dQdV)', 'peakSIGMA', 'errorParams"""
+		Output:
+		dictionary with keys 'codfficients', 'peakLocation(V)', 'peakHeight(dQdV)', 'peakSIGMA', 'errorParams"""
 
-			#appropriately reclassifies data from pandas to numpy
-			sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
 
-			#returns the indices of the peaks for the dataset
-			i = fitters.peak_finder(V_series, dQdV_series, cd)
+		#make sure a single column of the data frame is passed to the function
+		assert isinstance(V_series,pd.core.series.Series)
+		assert isinstance(dQdV_series,pd.core.series.Series)
 
-			#generates the necessary model parameters for the fit calculation
-			par, mod = fitters.model_gen(V_series,dQdV_series, cd, i, cyc, battery)
+		#appropriately reclassifies data from pandas to numpy
+		sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
 
-			#returns a fitted lmfit model object from the parameters and data
-			model = fitters.model_eval(V_series,dQdV_series, cd, par, mod)
+		#returns the indices of the peaks for the dataset
+		i = fitters.peak_finder(V_series, dQdV_series, cd)
 
-			#initiates collection of coefficients
-			coefficients = []
+		#generates the necessary model parameters for the fit calculation
+		par, mod = fitters.model_gen(V_series,dQdV_series, cd, i, cyc, battery)
 
-			for k in np.arange(4):
-				#key calculation for coefficient collection
-				coef = 'c' + str(k)
-				#extracting coefficients from model object
-				coefficients.append(model.best_values[coef])
+		#returns a fitted lmfit model object from the parameters and data
+		model = fitters.model_eval(V_series,dQdV_series, cd, par, mod)
 
-			#creates a dictionary of coefficients
-			desc = {'coefficients': coefficients}
+		#initiates collection of coefficients
+		coefficients = []
 
-			if len(i) > 0:
-				#generates numpy array for peak calculation
-				sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
+		for k in np.arange(4):
+			#key calculation for coefficient collection
+			coef = 'c' + str(k)
+			#extracting coefficients from model object
+			coefficients.append(model.best_values[coef])
 
-				#determines peak location and height locations from raw data
-				desc.update({'peakLocation(V)': sigx[i].tolist(), 'peakHeight(dQdV)': sigy[i].tolist()})
-				#initiates loop to extract
-				sig = []
-				for index in i:
-					#determines appropriate string to call standard deviation object from model
-					center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
-					sig.append(model.best_values[sigma])
+		#creates a dictionary of coefficients
+		desc = {'coefficients': coefficients}
 
-				#updates dictionary with sigma key and object
-				desc.update({'peakSIGMA': sig})
+		if len(i) > 0:
+			#generates numpy array for peak calculation
+			sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
 
-			#adds keys for the error parameters of each fit
-			desc.update({'errorParams': [model.aic, model.bic, model.redchi]})
+			#determines peak location and height locations from raw data
+			desc.update({'peakLocation(V)': sigx[i].tolist(), 'peakHeight(dQdV)': sigy[i].tolist()})
+			#initiates loop to extract
+			sig = []
+			for index in i:
+				#determines appropriate string to call standard deviation object from model
+				center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
+				sig.append(model.best_values[sigma])
+		else:
+			pass
 
-			return desc
+			#updates dictionary with sigma key and object
+			desc.update({'peakSIGMA': sig})
+
+		#adds keys for the error parameters of each fit
+		desc.update({'errorParams': [model.aic, model.bic, model.redchi]})
+
+		return desc
 
 	############################
 	### Sub - descriptor_func
 	############################
 
 	def cd_dataframe(V_series, dQdV_series, cd):
-			"""Classifies and flips differential capactity data.
+		"""Classifies and flips differential capactity data.
 
-			V_series = Pandas series of voltage data
-			dQdV_series = Pandas series of differential capacity data
-			cd = either 'c' for charge and 'd' for discharge.
+		V_series = Pandas series of voltage data
+		dQdV_series = Pandas series of differential capacity data
+		cd = either 'c' for charge and 'd' for discharge.
 
-			Output:
-			sigx = numpy array of signal x values
-			sigy = numpy array of signal y values"""
+		Output:
+		sigx = numpy array of signal x values
+		sigy = numpy array of signal y values"""
 
-			#converts voltage data to numpy array
 
-			sigx = pd.to_numeric(V_series).as_matrix()
 
-			#descriminates between charge and discharge cycle
-			if cd == 'c':
-				sigy = pd.to_numeric(dQdV_series).as_matrix()
-			elif cd == 'd':
-				sigy = -pd.to_numeric(dQdV_series).as_matrix()
+		#converts voltage data to numpy array
 
-			return sigx, sigy
+		sigx = pd.to_numeric(V_series).as_matrix()
+
+		#descriminates between charge and discharge cycle
+		if cd == 'c':
+			sigy = pd.to_numeric(dQdV_series).as_matrix()
+		elif cd == 'd':
+			sigy = -pd.to_numeric(dQdV_series).as_matrix()
+
+		#check that the ouptut for these fuctions is positive (with a little wiggle room of 0.5)
+		threshold = -0.5
+		min_sigy = np.min(sigy)
+		assert min_sigy > threshold
+
+		return sigx, sigy
 
 	def peak_finder(V_series, dQdV_series, cd):
-			"""Determines the index of each peak in a dQdV curve
+		"""Determines the index of each peak in a dQdV curve
 
-			V_series = Pandas series of voltage data
-			dQdV_series = Pandas series of differential capacity data
-			cd = either 'c' for charge and 'd' for discharge.
+		V_series = Pandas series of voltage data
+		dQdV_series = Pandas series of differential capacity data
+		cd = either 'c' for charge and 'd' for discharge.
 
-			Output:
-			i = list of indexes for each found peak"""
-			sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
-			windowlength = 25
-			if len(sigy) > windowlength:
-				sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, 3)
-			elif len(sigy) > 10:
-				sigy_smooth = sigy
-			i = peakutils.indexes(sigy_smooth, thres=.3/max(sigy_smooth), min_dist=9)
+		Output:
+		i = list of indexes for each found peak"""
 
-			return i
+		assert len(dQdV_series) > 10
+
+		sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
+
+
+
+		windowlength = 25
+		if len(sigy) > windowlength:
+			sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, 3)
+		elif len(sigy) > 10:
+			sigy_smooth = sigy
+
+
+		i = peakutils.indexes(sigy_smooth, thres=.3/max(sigy_smooth), min_dist=9)
+
+		return i
 
 	def label_gen(index):
-			"""Generates label set for individual gaussian
-			index = index of peak location
+		"""Generates label set for individual gaussian
+		index = index of peak location
 
-			output string format:
-			'a' + index + "_" + parameter"""
+		output string format:
+		'a' + index + "_" + parameter"""
 
-			#generates unique parameter strings based on index of peak
-			pref = str(int(index))
-			comb = 'a' + pref + '_'
+		assert isinstance(index,(float,int))
 
-			cent = 'center'
-			sig = 'sigma'
-			amp = 'amplitude'
-			fract = 'fraction'
+		#generates unique parameter strings based on index of peak
+		pref = str(int(index))
+		comb = 'a' + pref + '_'
 
-			#creates final objects for use in model generation
-			center = comb + cent
-			sigma = comb + sig
-			amplitude = comb + amp
-			fraction = comb + fract
+		cent = 'center'
+		sig = 'sigma'
+		amp = 'amplitude'
+		fract = 'fraction'
 
-			return center, sigma, amplitude, fraction, comb
+		#creates final objects for use in model generation
+		center = comb + cent
+		sigma = comb + sig
+		amplitude = comb + amp
+		fraction = comb + fract
+
+		assert isinstance((center,sigma,amplitude,fraction,comb),str)
+
+		return center, sigma, amplitude, fraction, comb
 
 	def model_gen(V_series, dQdV_series, cd, i, cyc, battery):
 			"""Develops initial model and parameters for battery data fitting.
@@ -435,7 +486,7 @@ class fitters:
 					par.update(gaus_loop.make_params())
 
 					#uses unique parameter strings to generate parameters with initial guesses
-				    #in this model, the center of the peak is locked at the peak location determined from PeakUtils
+					#in this model, the center of the peak is locked at the peak location determined from PeakUtils
 
 					par[center].set(sigx_bot[index], vary=False)
 					par[sigma].set(0.01)

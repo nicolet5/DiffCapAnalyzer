@@ -6,7 +6,7 @@
 	- make sure everything is installed to run
 	- pip freeze #prints out all packages/versions needed to run 
 	- Save in requirements.txt  
-
+- Cant use a python3 environment (because of peakutils) - aka must be run on python3 framework 
 - Unit tests
 - Make project pip installable 
 - update init.py with all imports

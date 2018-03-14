@@ -125,4 +125,4 @@ class chachies:
         loaded_model = pickle.load(open(filename, 'rb'))
         predict = loaded_model.predict(test_x,test_y)
         result = loaded_model.score(test_x, test_y)
-    print(result)
+        return predict

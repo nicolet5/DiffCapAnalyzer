@@ -56,43 +56,7 @@ This process is carried out by the `lmfit` package.
 
 lmfit is an open-source fitting platform based on `scipy.optimize.leastsq`. It uses a Levenberg-Marquart algorithm with numerically-calculated derivatives from MINPACK's lmdif function. For our use case. We needed to fit a mixture of Pseudo-Voight distributions with a 4th degree polynomial background. The Pseudo-Voight distribution has the following form:
 
-$$f_v(x,A,\mu,\sigma,\alpha)=\frac{(1−\alpha)A}{\sigma_g \sqrt{2 \pi}}\exp{[−{(x− \mu)}_2/2 {\sigma_g}^2]}+\frac{\alpha A}{\pi}[\frac{\sigma}{{(x-\mu)}^2 + \sigma^2}]$$
-$$\sigma_g = \sigma/\sqrt{2 \ln{2}}$$
-
-In this model $A$ is the amplitude of the peak, $\mu$ is the center of the distribution, $\sigma$ and $\alpha$ is the fraction of Lorenzian character.
-
-This function was used to develop and fit $f(x)$ to the following, not linear model:
-
-$$\hat{f}(x) = \sum_{i=0}^{3}\hat{c}_i x^i + \sum_{j=1}^{n}\hat{f}_{vj}(x,\hat{A}_j,\hat{\mu}_j,\hat{\sigma}_j,\hat{\alpha}_j)$$
-
-Where $n$ is the number of peaks determined by the peak fitting function `peak_finder`. The peak finding function uses `peakutils` package.
-
-### Descriptors for ML
-The following descriptors were extracted from the each fit for use in the machine leaning component of this package.
-
-Polynomial coefficients:
-$$c_0, c_1, c_2, c_3$$
-
-For each peak $j$, the following parameters were used:
-
-$\hat{\mu}_j = $ Peak center
-
-$f(\hat{\mu}_j) = $ Peak height
-
-$\hat{\sigma}_j = $ Peak standard deviation
-
-### Fitting Error analysis
-
-Functional form of reduced chi squared:
-
-$$\chi_{\nu}^2 = \sum_{i=0}^{n}\frac{{(\hat{f}(x_i)-f(x_i))}^2}{(n-N_{pars})}$$
-
-Functional form of Bayesian infromation criterion (BIC):
-$$BIC = n \ln{(\chi^2/n)} + \ln{(n)} N_{pars}$$
-
-functional form of Akaike information criterion (AIC):
-
-$$AIC = n \ln{(\chi^2/n)} + 2 N_{pars}$$
+Each function is fit with a linear combination of Pseudo-Voight distributions and a 4th order polynomial background. The error of this fit is quantified using Reduced Chi Squared, Akaike information criterion (AIC), and Bayesian infromation criterion (BIC) parameters. More information regarding the model and the descriptors parameters can be found in Descriptor_Examples.ipynb.
 
 ### Overall Code Use
 
@@ -115,3 +79,29 @@ These functions execute the lmfit peak fitting function and properly organize th
 --|--|--|--|--|--|--|--|--|--|--|--|--
  | | | | | | | | | | | | 
  
+ Each row of the dataframe is an individual cycle. Briefly, each battery cycle is run to develop a dataframe of either charge or discharge data. These dataframes are iteratively conocated vertically and the name of each battery is inserted into the dataset. This process is repeated for the discharge cycles and the charge/discharge dataframes are conocated along the column axis.
+
+### Descriptor Keys
+
+the 'ch_'/'dc_' prefix is for the charge/discharge descriptors and will be used in this table as 'pref':
+
+DataFrame Entry | Descriptors
+------|------
+pref_0 to pref_3 | polynomial coefficient in order of degree
+pref_4, 7, 10, ... | peak location (V)
+pref_5, 8, 11, ... | peak height (dQ/dV)
+pref_6, 9, 12, ... | peak $\sigma$
+
+### Process class work flow
+
+This call graph was generated on a set of two batteries with 16 cycles total. It shows the structure of the `descriptors` package when `ML_generate` is called.
+
+![Images/Function_flow.png](Images/Function_flow.png)
+
+This figure was generated using the package pycallgraph. It can be found at the following GitHub repository: https://github.com/gak/pycallgraph/#python-call-graph
+
+It is installable with the following lines in a python terminal:
+```
+pip install pycallgraph
+pip install graphviz
+```

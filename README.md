@@ -4,8 +4,8 @@
 - Make project pip installable 
 - add photo of chinchilla 
 
-<img src="images/battery.png" alt="Drawing" style="width: 20px;"/>
-<img src="images/dab_chinchilla.jpg" alt="Drawing" style="width: 20px;"/>
+<img src="images/battery.png" width="50">
+<img src="images/dab_chinchilla.jpg" width="50">
 
 ### How to Install 
 ```

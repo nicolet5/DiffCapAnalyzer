@@ -1,16 +1,9 @@
 # ChaChies 
 ## Package for Battery Cycling Data Visualization and Interpretation
 ### TO-DO
-- Create Requirements 
-	- create a virual environment 
-	- make sure everything is installed to run
-	- pip freeze #prints out all packages/versions needed to run 
-	- Save in requirements.txt  
-- Cant use a python3 environment (because of peakutils) - aka must be run on python3 framework 
-- Unit tests
 - Make project pip installable 
-- update init.py with all imports
 - add photo of chinchilla 
+- add gifs for app to front page and app page 
 
 ### How to Install 
 ```
@@ -18,44 +11,38 @@ pip install chachies
 ```
 ### Software Dependencies 
 - Python3 
-- Python packages (see requirements.txt)
-#### known packages  - make sure we catch them all 
-- *Update below with versions used*
-```
-pip install scipy
-pip install pandas
-pip install openpyxl
-pip install matplotlib
-pip install pyplot
-pip install requests
-pip install xlrd
-pip install numpy
-pip install lmfit
-```
+- For python packages see requirements.txt
 
 ## Organization of the project
 ```
-docs/
+app/
+    data/
     README.md
-    ppt/    
-    design/
-examples/
-    README.md
-ourproject/
-    README.md
-    __init__.py
-    data/    
-        CS2_33/ 
+    app.py 
+chachies/ 
+    data/
     tests/
-        README.md	
-    DescriptorFunctions.ipynb
-    CleanData.ipynb
-    'Plot Elena Data.ipynb'
-    SVM.ipynb
+        data/
+        README.md
+        __init___.py
+        test_chachifuncs.py
+        test_descriptors.py
+    __init__.py
+    chachies.py 
+    chachifuncs.py
+    descriptors.py 
+    svc_model.sav
+docs/ 
+    design/
+    ppt/
+    README.md
+examples/
+    Images/ 
+    README.md
 LICENSE
 README.md
+requirements.txt
 setup.py
-tests.md
 ```
 
 ## Preview of app 

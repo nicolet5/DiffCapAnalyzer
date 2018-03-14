@@ -1,22 +1,22 @@
 ## Data Visualization using DASH by Plotly 
 
 ### Usage
-- Load in cycling data from ```Clean_Whole_Sets``` that has been cleaned using chachies.clean()  
+- Load in cycling data from ```Clean_Whole_Sets``` that has been cleaned using chachies.clean() (it takes a while for many cycles)) 
 
 
-![Preview](images/gif1_loaddata.gif)
+![Preview](images/gif1_loaddata.gif)  
 
-- Takes a while...
+- After some time...  
 
-![Preview](images/gif2_loaddata.gif f)
+![Preview](images/gif2_loaddata.gif)  
 
-- Interact with graph to explore dQ/dV through different cycles 
+- Interact with graph to explore dQ/dV through different cycles   
 
-![Preview](imagesgif3_interactivegraph.gif)
+![Preview](imagesgif3_interactivegraph.gif)  
 
-- Interactive tables for data exploration 
+- Interactive tables for data exploration   
 
-![Preview](images/gif4_interactivetable.gif)
+![Preview](images/gif4_interactivetable.gif)  
 
 ### Requirements 
 Make sure to install the following dash libraries

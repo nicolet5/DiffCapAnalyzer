@@ -36,7 +36,7 @@ def test_sep_cycles():
 
 def test_save_sep_cycles_xsls():
 	"""tests function that saves separate cycles"""
-	dataframe = pd.read_excel('data/CS2_33/CS2_33_8_18_10.xlsx',1)
+	dataframe = pd.read_excel('data/test.xsls',1)
 	cycle_dict = [dataframe,1,2]
 	#should raise AssertionError. Inputs must be a dictionary, a battery name string, and a path as a string.
 	try:

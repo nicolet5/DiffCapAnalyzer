@@ -48,6 +48,8 @@ setup.py
 ## Preview of app 
 ![Preview](gif3_interactivegraph.gif)
 
+For more see ```app/```
+
 ## Data Visualization 
 Make sure to install the following dash libraries
 ```

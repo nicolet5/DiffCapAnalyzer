@@ -56,7 +56,6 @@ def test_df_generate_is_fed_c_or_d():
 def test_df_generate_spits_out_a_dataframe():
 	#assert that df_generate spits out a pandas dataframe
 	assert isinstance(descriptors.process.df_generate(b,'c'), pd.core.frame.DataFrame), 'This should be a pandas dataframe'
-<<<<<<< HEAD
 
 	return
 
@@ -210,10 +209,6 @@ def test_label_gen():
 		pass
 	else:
 			raise Exception("Exception not handled by asserts")
-
-	return
-=======
-
 	return
 
 def test_imp_all_behaves_well():

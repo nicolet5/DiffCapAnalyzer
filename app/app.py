@@ -1,28 +1,28 @@
-import chachifuncs_sepcd as ccf
+import chachifuncs as ccf
 import dash
 import dash_core_components as dcc
 from dash.dependencies import Input, Output, State
 import dash_html_components as html
 import dash_table_experiments as dt
 import pandas as pd
+import io
 import json
 import plotly 
+import base64
 
 ##########################################
 #Load Data
 ##########################################
-
 #eventually add everything in folder and create a dropdown that loads that data into data 
 
 #for now just use some data we have 
-data = pd.read_excel('data/CS2_33_1_24_11.xlsx')
-#data = pd.read_excel('../data/CS2_33/CS2_33_10_04_10.xlsx',1)
+data = pd.read_excel('data/Clean_Whole_Sets/CS2_33_12_16_10CleanSet.xlsx')
 
 charge, discharge = ccf.sep_char_dis(data)
 
 #df_dqdv = ccf.calc_dv_dqdv('data/CS2_33/CS2_33_10_04_10.xlsx')
 #df_dqdv = ccf.calc_dv_dqdv(data)
-#charge, discharge = ccf.sep_char_dis(df_dqdv)
+#charge, discharge = ccf.sep_char_dis(data)
 
 ##########################################
 #App Layout 
@@ -66,8 +66,11 @@ app.layout = html.Div([
         html.Br(),
         dcc.Slider(
             id='cycle--slider',
-            min=charge['Cycle_Index'].min(),
+            min=0,
+            #min=charge['Cycle_Index'].min(),
             max=charge['Cycle_Index'].max(),
+            #value=charge['Cycle_Index'].max(),
+            #max=[],
             value=charge['Cycle_Index'].max(),
             step=1,
             included=True,
@@ -79,7 +82,7 @@ app.layout = html.Div([
                 'margin': '10px'
                 }
         ),
-    
+
     html.Div([
         html.Br(),
         dcc.Graph(id='charge-graph'), #initialize a simple plot
@@ -95,8 +98,9 @@ app.layout = html.Div([
     html.Div([
         html.H4('Charge DataTable'),
         dt.DataTable(
-            rows=charge.to_dict('records'), #converts df to dict
-            columns=sorted(charge.columns), #sorts columns 
+            #rows=charge.to_dict('records'), #converts df to dict
+            rows=[{}],
+            #columns=sorted(charge.columns), #sorts columns
             row_selectable=True,
             filterable=True,
             selected_row_indices=[],
@@ -106,8 +110,9 @@ app.layout = html.Div([
 
         html.H4('Discharge DataTable'),
         dt.DataTable(
-            rows=discharge.to_dict('records'), #converts df to dict
-            columns=sorted(discharge.columns), #sorts columns
+            #rows=discharge.to_dict('records'), #converts df to dict
+            rows=[{}],
+            #columns=sorted(discharge.columns), #sorts columns
             row_selectable=True,
             filterable=True,
             selected_row_indices=[],
@@ -119,42 +124,77 @@ app.layout = html.Div([
             'width': '98%',
             #'height': '60px',
             #'lineHeight': '60px',
-            'margin': '10px'    
+            'margin': '10px'
             },
         )
+
 ])
 
 ##########################################
 #Interactive Parts
 ##########################################
 
-#def parse_contents(contents, filename):
-#    content_type, content_string = contents.split(',')
-#
-#    decoded = base64.b64decode(content_string)
-#    try:
-#        if 'csv' in filename:
-#            # Assume that the user uploaded a CSV file
-#            return html.Div([
-#                'Not setup to handle CSV files yet, please use an excel file (xls or xlsx)'
-#                ])
-#        elif 'xls' in filename:
-#            # Assume that the user uploaded an excel file
-#            data = pd.read_excel(io.BytesIO(decoded))
-#            charge, discharge = ccf.sep_char_dis(data)
-#    except Exception as e:
-#        print(e)
-#        return html.Div([
-#            'There was an error processing this file.'
-#        ])
-#    return charge, discharge
+def parse_contents(contents, filename, date):
+    content_type, content_string = contents.split(',')
+    decoded = base64.b64decode(content_string)
+    try:
+        if 'csv' in filename:
+            # Assume that the user uploaded a CSV file
+            df = pd.read_csv(
+                io.StringIO(decoded.decode('utf-8')))
+        elif 'xls' in filename:
+            # Assume that the user uploaded an excel file
+            df = pd.read_excel(io.BytesIO(decoded))
+    except Exception as e:
+        print(e)
+        return html.Div([
+            'There was an error processing this file.'
+        ])
+    return df 
 
+@app.callback( #update charge datatable
+    Output('charge-datatable', 'rows'),
+    [Input('upload-data', 'contents'),
+     Input('upload-data', 'filename'),
+     Input('upload-data', 'last_modified')])
 
-#def update_figure(content):
-#    if not content:
-#        return []
-#    dff = pd.read_csv(io.StringIO(content))
-#    return dff.to_dict('records')
+def update_table1(contents, filename, date):
+    data = parse_contents(contents, filename, date) 
+    charge, discharge = ccf.sep_char_dis(data)
+    return charge.to_dict('records')
+
+@app.callback( #update discharge datatable
+    Output('discharge-datatable', 'rows'),
+    [Input('upload-data', 'contents'),
+     Input('upload-data', 'filename'),
+     Input('upload-data', 'last_modified')])
+
+def update_table2(contents, filename, date):
+    data = parse_contents(contents, filename, date)
+    charge, discharge = ccf.sep_char_dis(data)
+    return discharge.to_dict('records')
+
+@app.callback( #update slider 
+    Output('cycle--slider', 'max'),
+    [Input('upload-data', 'contents'),
+     Input('upload-data', 'filename'),
+     Input('upload-data', 'last_modified')])
+
+def update_slider_max(contents, filename, date):
+    data = parse_contents(contents, filename, date)
+    charge, discharge = ccf.sep_char_dis(data)
+    return charge['Cycle_Index'].max()
+
+@app.callback( #update slider 
+    Output('cycle--slider', 'value'),
+    [Input('upload-data', 'contents'),
+     Input('upload-data', 'filename'),
+     Input('upload-data', 'last_modified')])
+
+def update_slider_value(contents,filename,date):
+    data = parse_contents(contents, filename, date)
+    charge, discharge = ccf.sep_char_dis(data)
+    return charge['Cycle_Index'].max()
 
 @app.callback( #decorator wrapper for table 
         Output('charge-datatable', 'selected_row_indices'), #component_id, component_property 
@@ -174,22 +214,26 @@ def update_selected_row_indices(clickData, selected_row_indices):
 @app.callback( #decorator wrapper for plot
         Output('charge-graph','figure'),
         [Input('cycle--slider','value'),
-         Input('charge-datatable','rows'),
+         #Input('charge-datatable','rows'),
+         Input('upload-data','contents'),
+         Input('upload-data', 'filename'),
+         Input('upload-data', 'last_modified'),
          Input('charge-datatable','selected_row_indices')]
+         #Input('upload-data','contents')]
         )
 
-def update_figure1(selected_step1,rows1,selected_row_indices1):
-    rows_df=pd.DataFrame(rows1) #converts dict back to df
-    filtered_data = rows_df[rows_df['Cycle_Index'] == selected_step1]
+def update_figure1(selected_step,contents,filename,date,selected_row_indices):
+    data = parse_contents(contents, filename, date)
+    (charge, discharge) = ccf.sep_char_dis(data)
+    filtered_data = charge[charge['Cycle_Index'] == selected_step]
     for i in filtered_data['Cycle_Index'].unique():
         dff = filtered_data[filtered_data['Cycle_Index'] == i]
         fig = plotly.tools.make_subplots(
             rows=2,cols=1,
-            subplot_titles=('Fitted dQ/dV Charge Cycle','Raw dQ/dV Charge Cycle'))
-            #shared_xaxes=True)
+            subplot_titles=('Smoothed dQ/dV Charge Cycle','Cleaned dQ/dV Charge Cycle'),
+            shared_xaxes=True)
         marker = {'color': ['#0074D9']}
-        marker = {'color': ['#0074D9']*len(dff)}
-        for i in (selected_row_indices1 or []):
+        for i in (selected_row_indices or []):
             marker['color'][i] = '#FF851B'
         fig.append_trace({
             'x': dff['Voltage(V)'],
@@ -212,29 +256,40 @@ def update_figure1(selected_step1,rows1,selected_row_indices1):
             'r': 10,
             't': 60,
             'b': 200
-        }
+            }
         fig['layout']['yaxis2']
     return fig
+
+#@app.callback( #decorator wrapper for plot
+#        Output('discharge-graph','figure'),
+#        [Input('cycle--slider','value'),
+#         Input('discharge-datatable','rows'),
+#         Input('discharge-datatable','selected_row_indices')]
+#        )
 
 @app.callback( #decorator wrapper for plot
         Output('discharge-graph','figure'),
         [Input('cycle--slider','value'),
-         Input('discharge-datatable','rows'),
+         #Input('charge-datatable','rows'),
+         Input('upload-data','contents'),
+         Input('upload-data','filename'),
+         Input('upload-data','last_modified'),
          Input('discharge-datatable','selected_row_indices')]
+         #Input('upload-data','contents')]
         )
 
-def update_figure2(selected_step2,rows2,selected_row_indices2):
-    rows_df=pd.DataFrame(rows2) #converts dict back to df
-    filtered_data = rows_df[rows_df['Cycle_Index'] == selected_step2]
+def update_figure2(selected_step,contents,filename,date,selected_row_indices):
+    data = parse_contents(contents, filename, date)
+    (charge, discharge) = ccf.sep_char_dis(data)
+    filtered_data = discharge[discharge['Cycle_Index'] == selected_step]
     for i in filtered_data['Cycle_Index'].unique():
         dff = filtered_data[filtered_data['Cycle_Index'] == i]
         fig = plotly.tools.make_subplots(
             rows=2,cols=1,
-            subplot_titles=('Fitted dQ/dV Discharge Cycle','Raw dQ/dV Discharge Cycle'))
-            #shared_xaxes=True)
-        #marker = {'color': ['#0074D9']}
+            subplot_titles=('Smoothed dQ/dV Discharge Cycle','Cleaned dQ/dV Discharge Cycle'),
+            shared_xaxes=True)
         marker = {'color': ['#0074D9']*len(dff)}
-        for i in (selected_row_indices2 or []):
+        for i in (selected_row_indices or []):
             marker['color'][i] = '#FF851B'
         fig.append_trace({
             'x': dff['Voltage(V)'],
@@ -257,7 +312,7 @@ def update_figure2(selected_step2,rows2,selected_row_indices2):
             'r': 10,
             't': 60,
             'b': 200
-        }
+            }
         fig['layout']['yaxis2']
     return fig
 

@@ -185,7 +185,7 @@ def update_figure1(selected_step1,rows1,selected_row_indices1):
         dff = filtered_data[filtered_data['Cycle_Index'] == i]
         fig = plotly.tools.make_subplots(
             rows=2,cols=1,
-            subplot_titles=('Fitted dQ/dV Charge Cycle','Raw dQ/dV Charge Cycle'))
+            subplot_titles=('Smoothed dQ/dV Charge Cycle','Cleaned dQ/dV Charge Cycle'))
             #shared_xaxes=True)
         marker = {'color': ['#0074D9']}
         marker = {'color': ['#0074D9']*len(dff)}
@@ -230,7 +230,7 @@ def update_figure2(selected_step2,rows2,selected_row_indices2):
         dff = filtered_data[filtered_data['Cycle_Index'] == i]
         fig = plotly.tools.make_subplots(
             rows=2,cols=1,
-            subplot_titles=('Fitted dQ/dV Discharge Cycle','Raw dQ/dV Discharge Cycle'))
+            subplot_titles=('Smoothed dQ/dV Discharge Cycle','Cleaned dQ/dV Discharge Cycle'))
             #shared_xaxes=True)
         #marker = {'color': ['#0074D9']}
         marker = {'color': ['#0074D9']*len(dff)}

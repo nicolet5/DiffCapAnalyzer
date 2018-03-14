@@ -1,6 +1,6 @@
-import chachifuncs as ccf
-from descriptors import process 
-from descriptors import fitters
+from chachies import chachifuncs as ccf
+from chachies.descriptors import process 
+from chachies.descriptors import fitters
 import glob
 import os
 import pandas as pd
@@ -62,7 +62,7 @@ pickle.dump(lin_svc, open(filename, 'wb'))
 
 
 # load model from disk
-class chachies:
+class chachies_class:
     
     def clean(rootdir, path_to_raw_data_folder):
         '''Gets all raw data from the rootdir (ie 'data/') and specified folder

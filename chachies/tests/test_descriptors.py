@@ -1,5 +1,5 @@
-import chachifuncs as ccf
-import descriptors
+from chachies import chachifuncs as ccf
+from chachies import descriptors
 import glob
 import matplotlib.pyplot as plt
 import numpy as np

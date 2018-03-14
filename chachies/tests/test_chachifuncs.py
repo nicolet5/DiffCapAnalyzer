@@ -1,4 +1,4 @@
-import chachifuncs as ccf
+from chachies import chachifuncs as ccf
 import os 
 import pandas as pd
 

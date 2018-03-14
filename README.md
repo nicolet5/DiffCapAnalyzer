@@ -1,4 +1,4 @@
-# ChaChies <img align="center" src="images/battery.png" width="50"> <img align="center" src="images/dab_chinchilla.jpg" width="150"> 
+# Charged Chinchillas (ChaChies) <img align="center" src="images/battery.png" width="50"> <img align="center" src="images/dab_chinchilla.jpg" width="150"> 
 ## Package for Battery Cycling Data Visualization and Interpretation
 ### TO-DO
 - Make project pip installable 

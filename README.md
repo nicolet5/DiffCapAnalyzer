@@ -4,8 +4,8 @@
 - Make project pip installable 
 - add photo of chinchilla 
 
-![bat](images/battery.png)
-![dab](images/dab_chinchilla.jpg)
+![bat](images/battery.png =250x)
+![dab](images/dab_chinchilla.jpg =250x)
 
 
 ### How to Install 

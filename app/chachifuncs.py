@@ -216,8 +216,8 @@ def calc_dv_dqdv(cycle_df):
     """This function calculates the dv and the dq/dv for a dataframe."""
     assert type(cycle_df) == pd.DataFrame
     assert 'Voltage(V)' in cycle_df.columns
-    #assert 'Discharge_Capacity(Ah)' in cycle_df.columns 
-    #assert 'Charge_Capacity(Ah)' in cycle_df.columns
+    assert 'Discharge_Capacity(Ah)' in cycle_df.columns 
+    assert 'Charge_Capacity(Ah)' in cycle_df.columns
 
     cycle_df = cycle_df.reset_index(drop = True)
     cycle_df['dV'] = None 
@@ -311,8 +311,8 @@ def drop_0_dv(cycle_df_dv):
 
 def sep_char_dis(df_dqdv):
     '''Takes a dataframe of one cycle with calculated dq/dv and separates into charge and discharge differential capacity curves'''
-    #assert 'Charge_dQ/dV' in df_dqdv.columns
-    #assert 'Discharge_dQ/dV' in df_dqdv.columns
+    assert 'Charge_dQ/dV' in df_dqdv.columns
+    assert 'Discharge_dQ/dV' in df_dqdv.columns
     charge = df_dqdv[df_dqdv['Current(A)'] > 0]
     charge.is_copy = None
     charge = charge.reset_index(drop = True)

@@ -15,7 +15,7 @@ python app.py
 ```
 Which should return
 ```
- * Running on http://someurl/ (Press CTRL+C to quit)
+ * Running on http://127.0.0.1:8050/ (Press CTRL+C to quit)
 ```
 Type that URL in browser to launch
 

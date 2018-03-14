@@ -1,4 +1,4 @@
-# Charged Chinchillas (ChaChies) <img align="center" src="images/battery.png" width="50"> <img align="center" src="images/dab_chinchilla.jpg" width="150"> 
+# Charged Chinchillas (ChaChies) <img align="center" src="images/battery.png" width="50"> <img align="center" src="images/dab_chinchilla.jpg" width="150">* 
 ## Package for Battery Cycling Data Visualization and Interpretation
 ### TO-DO
 - Make project pip installable 
@@ -69,6 +69,6 @@ Which should return
 Type that URL in browser to launch
 
 
-
+*Images taken from Google Images at https://www.redbubble.com/people/ilovepaws/works/28793999-funny-dabbing-chinchilla and http://weclipart.com/cartoon+battery+clipart/d/1708675 
 
 

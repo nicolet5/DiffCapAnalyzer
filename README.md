@@ -3,7 +3,10 @@
 ### TO-DO
 - Make project pip installable 
 - add photo of chinchilla 
-- add gifs for app to front page and app page 
+
+![bat](images/battery.png)
+![dab](images/dab_chinchilla.jpg)
+
 
 ### How to Install 
 ```
@@ -46,7 +49,7 @@ setup.py
 ```
 
 ## Preview of app 
-![Preview](gif3_interactivegraph.gif)
+![Preview](images/gif3_interactivegraph.gif)
 
 For more see ```app/```
 

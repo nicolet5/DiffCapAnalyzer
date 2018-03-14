@@ -12,7 +12,7 @@
 
 - Interact with graph to explore dQ/dV through different cycles   
 
-![Preview](imagesgif3_interactivegraph.gif)  
+![Preview](images/gif3_interactivegraph.gif)  
 
 - Interactive tables for data exploration   
 

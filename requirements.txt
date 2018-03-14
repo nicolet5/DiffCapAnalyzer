@@ -15,3 +15,8 @@ six==1.11.0
 sklearn==0.0
 urllib3==1.22
 xlrd==1.1.0
+dash==0.21.0
+dash-renderer==0.11.3
+dash-html-components==0.9.0
+dash-core-components==0.18.1
+plotly==2.4.1

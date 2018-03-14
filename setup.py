@@ -62,7 +62,7 @@ setup(
         'dash-renderer==0.11.3'  # The dash front-end
         'dash-html-components==0.9.0'  # HTML components
         'dash-core-components==0.18.1'  # Supercharged components
-        'plotly --upgrade'
+        'plotly==2.4.1'
     ]
 
 )

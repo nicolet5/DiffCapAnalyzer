@@ -5,4 +5,3 @@ __all__ = ["chachifuncs","descriptors","chachies", "version"]
 from chachies import chachifuncs
 from chachies import descriptors
 from chachies.version import __version__
-from chachies import chachies

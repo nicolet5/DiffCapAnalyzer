@@ -57,12 +57,12 @@ setup(
         'six==1.11.0',
         'sklearn==0.0',
         'urllib3==1.22',
-        'xlrd==1.1.0'
-        'dash==0.21.0'  # The core dash backend
-        'dash-renderer==0.11.3'  # The dash front-end
-        'dash-html-components==0.9.0'  # HTML components
-        'dash-core-components==0.18.1'  # Supercharged components
-        'plotly==2.4.1'
+        'xlrd==1.1.0',
+        'dash==0.21.0',  # The core dash backend
+        'dash-renderer==0.11.3',  # The dash front-end
+        'dash-html-components==0.9.0',  # HTML components
+        'dash-core-components==0.18.1',  # Supercharged components
+        'plotly==2.4.1',
     ]
 
 )

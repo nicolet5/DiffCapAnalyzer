@@ -58,9 +58,6 @@ class process:
         df_ch = pandas dataframe for all cycles of all batteries in a
         col_ch = list of numbers of columns for each battery"""
 
-        assert cd == (
-            'c' or 'd'), 'This must be charge (c) or discharge (d) data'
-
         # generates a list of datafiles to analyze
         rootdir = import_filepath
         file_list = [f for f in glob.glob(os.path.join(rootdir, '*.xlsx'))]
@@ -128,8 +125,6 @@ class process:
         # check that 'c' or 'd' is passed
         assert isinstance(source, str), 'The input should be a string'
         assert isinstance(battery, str), 'The input should be a string'
-        assert cd == (
-            'c' or 'd'), 'This must be charge (c) or discharge (d) data'
 
         # generates list of battery files for import
         file_pref = battery + '*.xlsx'
@@ -179,10 +174,6 @@ class process:
 
         Output:
         blank pandas dataframe with descriptor columns and cycle number rows"""
-
-        # check that 'c' or 'd' is passed
-        assert cd == (
-            'c' or 'd'), 'This must be charge (c) or discharge (d) data'
 
         # number of descriptors it generates
         n_desc = 19
@@ -373,9 +364,6 @@ class fitters:
                 center, sigma, amplitude, fraction, comb = fitters.label_gen(
                     index)
                 sig.append(model.best_values[sigma])
-        else:
-            pass
-
             # updates dictionary with sigma key and object
             desc.update({'peakSIGMA': sig})
 
@@ -413,7 +401,7 @@ class fitters:
         # (with a little wiggle room of 0.5)
         threshold = -0.5
         min_sigy = np.min(sigy)
-        assert min_sigy > threshold
+        assert min_sigy > threshold, 'output is negative'
 
         return sigx, sigy
 
@@ -426,8 +414,6 @@ class fitters:
 
         Output:
         i = list of indexes for each found peak"""
-
-        assert len(dQdV_series) > 10
 
         sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
 
@@ -449,7 +435,7 @@ class fitters:
         output string format:
         'a' + index + "_" + parameter"""
 
-        assert isinstance(index, (float, int))
+        #assert isinstance(index, int)
 
         # generates unique parameter strings based on index of peak
         pref = str(int(index))
@@ -466,7 +452,7 @@ class fitters:
         amplitude = comb + amp
         fraction = comb + fract
 
-        assert isinstance((center, sigma, amplitude, fraction, comb), str)
+        #assert isinstance((center, sigma, amplitude, fraction, comb), str)
 
         return center, sigma, amplitude, fraction, comb
 

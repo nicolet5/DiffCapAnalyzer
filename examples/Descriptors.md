@@ -48,7 +48,7 @@ descriptors.ML_generate('import_filepath')
 
 This class contains the function that peform the actual fitting. The process of fitting is represented by the following diagram.
 
-![Images/Fitting_flow.jpg](Images/Fitting_flow.jpg)
+![Images/fittingFlowChart.jpg](Images/fittingFlowChart.jpg)
 
 This process is carried out by the `lmfit` package.
 
@@ -96,7 +96,7 @@ pref_6, 9, 12, ... | peak $\sigma$
 
 This call graph was generated on a set of two batteries with 16 cycles total. It shows the structure of the `descriptors` package when `ML_generate` is called.
 
-![Images/Function_flow.png](Images/Function_flow.png)
+![Images/filter_none_overall.png](Images/filter_none_overall.png)
 
 This figure was generated using the package pycallgraph. It can be found at the following GitHub repository: https://github.com/gak/pycallgraph/#python-call-graph
 

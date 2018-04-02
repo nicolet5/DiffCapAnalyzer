@@ -1,6 +1,6 @@
 # Charged Chinchillas (ChaChies) <img align="center" src="images/battery.png" width="50"> <img align="center" src="images/dab_chinchilla.jpg" width="150">* 
 ## Package for Battery Cycling Data Visualization and Analysis
-This package can be used to take battery cycling data, clean and smooth the data, find and fit peaks to obtain peak locations, widths, and amplitudes, and finally use those descriptors to classify a battery as either a LiCoO2 or a LiFePO4 chemistry. Additionally, there is a DASH based visualization app that can be used to scroll through cycles and better understand the inputted data. This package could be expanded upon to include other battery chemistries, and to be able to handle different formats of data. 
+This package can be used to take battery cycling data, clean and smooth the data, find and fit peaks to obtain peak locations, widths, and amplitudes, and finally use those descriptors to classify a battery as either a LiCoO2 or a LiFePO4 chemistry. Additionally, there is a DASH based visualization app that can be used to scroll through cycles and better understand the inputted data. This package could be expanded upon to include other battery chemistries, and to be able to handle different formats of data. For a more specific overview of the project, please see the Chachies_FinalProject_Poster.pdf under docs. 
 
 ### How to Install 
 ```

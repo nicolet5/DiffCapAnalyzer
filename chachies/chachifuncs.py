@@ -7,10 +7,56 @@ from pandas import ExcelWriter
 import requests
 import scipy.io
 import scipy.signal
+import pandas.io.sql as pd_sql
+import sqlite3 as sql
 
 ################################
 # OVERALL Wrapper Function
 ################################
+#rootdir = input('Please input the root directory to pull data from (i.e. data/example_files/ ): ')
+#path_to_raw_data_folder = input('Please input the path to raw data folder (must come after the root directory i.e.Raw_Data_Examples): ')
+
+
+#create sql_master table - this is only ran once 
+def init_master_table():
+	con = sql.connect("nlt_test3.db")
+	c = con.cursor()
+	mydf = pd.DataFrame({'Dataset_Name': ['example'], 
+                     	'Raw_Data_Prefix': ['ex1'], 
+                     	'Cleaned_Data_Prefix':['ex2'], 
+                     	'Cleaned_Cycles_Prefix': ['ex3']})
+	mydf.to_sql('master_table', con, if_exists='replace')
+#my_df is the name of the table within the database
+
+	con.close()
+	return 
+
+def update_master_table(update_dic):
+    """This updates the master table in the database based off of the information in the update dictionary"""
+    if update_dic is not None:
+        con = sql.connect("nlt_test3.db")
+        c = con.cursor()
+        #add upload data filename in sql_master table
+        c.execute('''INSERT INTO master_table('Dataset_Name', 'Raw_Data_Prefix','Cleaned_Data_Prefix', 'Cleaned_Cycles_Prefix') 
+                     VALUES ('%s', '%s', '%s', '%s')
+                  ''' % (update_dic['Dataset_Name'], update_dic['Raw_Data_Prefix'], update_dic['Cleaned_Data_Prefix'], update_dic['Cleaned_Cycles_Prefix']))
+        #the above part updates the master table in the data frame
+        con.commit()
+        con.close()
+        #display table in layout
+        return 
+    else:
+        return [{}]
+
+def update_database_newtable(df, upload_filename):
+
+    #add df into sqlite database as table
+    con = sql.connect("nlt_test3.db")
+    c = con.cursor()
+    df.to_sql(upload_filename, con, if_exists="replace")
+    return
+
+
 
 
 def get_all_data(rootdir, path_to_raw_data_folder):
@@ -151,10 +197,19 @@ def get_clean_cycles(import_filepath, save_filepath):
     for key in d:
         clean_cycle_df = d[key]
         cyclename = key
-        writer = ExcelWriter(save_filepath + cyclename + 'Clean' + '.xlsx')
+        cyclename_pref = cyclename.split('-')[0]
+        cyclename_end = cyclename.split('-')[1]
+        writer = ExcelWriter(save_filepath + cyclename_pref+ '-Clean' + cyclename_end  + '.xlsx')
+        #instead of writing to excel, edit this to save as a variable 
+        #passed to database for master table reference
+        #also instead of writing to excel, write to database. 
         clean_cycle_df.to_excel(writer)
         writer.save()
-    print('All cycles cleaned and saved in folder "' + save_filepath + '" .')
+        update_database_newtable(clean_cycle_df, cyclename_pref+ '-Clean' + cyclename_end)
+        #######################################################################################
+
+
+    print('All cycles cleaned and saved in database and in folder "' + save_filepath + '" .')
     return
 
 
@@ -198,8 +253,13 @@ def get_clean_sets(import_filepath, save_filepath):
 
     for key, value in set_dict.items():
         writer = ExcelWriter(save_filepath + key + 'CleanSet'+'.xlsx')
+        #instead of writing to excel, edit this to save as a variable 
+        #passed to database for master table reference
+        #also instead of writing to excel, write to database. 
         value.to_excel(writer)
         writer.save()
+        update_database_newtable(value, key + 'CleanSet')
+        #######################################################################################
 
     print('All clean cycles recombined and saved in folder "' +
           save_filepath + '" .')
@@ -223,6 +283,13 @@ def get_data(filepath):
         count += 1
         name = os.path.split(file)[1].split('.')[0]
         data = pd.read_excel(file, 1)
+        ########################################################################
+        update_database_newtable(data, name + 'Raw')
+        update_dic ={'Dataset_Name': name, 
+                     'Raw_Data_Prefix': name +'Raw' , 
+                     'Cleaned_Data_Prefix': name + 'CleanSet', 
+                     'Cleaned_Cycles_Prefix': name + '-CleanCycle'}
+        update_master_table(update_dic)
         new_set = {name: data}
         d.update(new_set)
     return d
@@ -253,6 +320,11 @@ def save_sep_cycles_xlsx(cycle_dict, battname, path_to_folder):
                              '-'+'Cycle' + str(i) + '.xlsx')
         cycle_dict[i].to_excel(writer)
         writer.save()
+        #instead of writing to excel, edit this to save as a variable 
+        #passed to database for master table reference
+        #also instead of writing to excel, write to database. 
+        update_database_newtable(cycle_dict[i], battname+'-'+'Cycle'+ str(i))
+        ####################################################################################################
     return
 
 
@@ -407,3 +479,6 @@ def my_savgolay(dataframe, windowlength, polyorder):
         unfiltar, windowlength, polyorder)
     # had windowlength = 21 and polyorder = 3 before
     return dataframe
+
+init_master_table()
+get_all_data('data/example_files/', 'Raw_Data_Examples')

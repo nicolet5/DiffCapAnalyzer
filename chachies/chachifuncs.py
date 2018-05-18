@@ -13,11 +13,26 @@ import sqlite3 as sql
 ################################
 # OVERALL Wrapper Function
 ################################
-#rootdir = input('Please input the root directory to pull data from (i.e. data/example_files/ ): ')
-#path_to_raw_data_folder = input('Please input the path to raw data folder (must come after the root directory i.e.Raw_Data_Examples): ')
 
+def process_data(file, database_name):
+	# Takes raw file 
+	# sep_cycles
+	# cleans cycles
+	# gets descriptors - peak calcs
+	# put back together - save 
+	if not os.path.exists(database_name): 
+		print('That database does not exist-creating it now.')
+		init_master_table(database_name)
+	parse_update_master(file_name, database_name)
+	#this takes the info from the filename and updates the master table in the database. 
+    cycle_dict = load_sep_cycles(file_name, database_name)
 
-#create sql_master table - this is only ran once 
+    get_clean_cycles(file_name, database_name)
+    get_clean_sets(file_name, database_name)
+
+    return 
+
+	#create sql_master table - this is only ran once 
 def init_master_table(database_name):
 	con = sql.connect(database_name)
 	c = con.cursor()
@@ -57,7 +72,7 @@ def update_database_newtable(df, upload_filename, database_name):
     df.to_sql(upload_filename, con, if_exists="replace")
     return
 
-def parse_filename(file_name, database_name):
+def parse_update_master(file_name, database_name):
 	name = file_name.split('.')[0]
     data = pd.read_excel(file, 1)
     update_database_newtable(data, name + 'Raw', database_name)
@@ -66,37 +81,6 @@ def parse_filename(file_name, database_name):
     				'Cleaned_Cycles_Prefix': name + '-CleanCycle'}
     update_master_table(update_dic)
     return 
-
-
-def get_all_data(source_database, file_name):
-    '''Gets all raw data from the rootdir (ie 'data/') and specified folder
-    (path_to_raw_data_folder), i.e. 'Source_Data' (which is within rootdir),
-    and then:
-    1. separates it into raw cycles and puts them in a folder
-    (data/Separated_Cycles/)
-    2. cleans those separated cycles and puts them in a folder
-    (data/Clean_Separated_Cycles/)
-    3. recombines the cleaned, separated cycles and saves those
-    data sets in a folder (data/Clean_Whole_Sets/). These folders
-    do not have to have existed previously.'''
-    #assert os.path.exists(rootdir) == 1
-    #if not os.path.exists(rootdir):
-    #    print('The specified rootdir does not exist.')
-        #does database file exist here
-    #if not os.path.exists(rootdir+'Separated_Cycles/'):
-    #    os.makedirs(rootdir+'Separated_Cycles/')
-    #if not os.path.exists(rootdir+'Clean_Separated_Cycles/'):
-    #    os.makedirs(rootdir + 'Clean_Separated_Cycles/')
-    #if not os.path.exists(rootdir + 'Clean_Whole_Sets/'):
-    #    os.makedirs(rootdir + 'Clean_Whole_Sets/')
-    if not os.path.exists(source_database): 
-    	print('That database does not exist')
-	parse_filename(file_name, source_database)
-    load_sep_cycles(file_name, database_name)
-    get_clean_cycles(file_name, database_name)
-    get_clean_sets(file_name, database_name)
-    ### these above functions all have to be edited to pull form
-    return
 
 ############################
 # Sub - Wrapper Functions
@@ -108,17 +92,15 @@ def load_sep_cycles(file_name, database_name):
     cycles and saves those cycles as .xlsx files in specified
     filepath (must be an existing folder)"""
     df_single = pd.read_excel(file_name)
-    #dfdict = get_data(getdata_filepath)
-    #assert type(dfdict) == dict
-    #assert os.path.exists(getdata_filepath) == 1
-    #assert os.path.exists(savedata_filepath) == 1
-    #for key in dfdict:
-        #all_cycles_df = dfdict[key]
-        cycle_dict = sep_cycles(df_single)
-        battname = file_name.split('.')[0]
-        save_sep_cycles_xlsx(cycle_dict, battname, database_name)
+    gb = df_single.groupby(by=['Cycle_Index'])
+	cycle_dict = dict(iter(gb))
+    battname = file_name.split('.')[0]
+    for i in range(1, len(cycle_dict)+1):
+    	cycle_dict[i]['Battery_Label'] = battname
+	for i in range(1, len(cycle_dict)+1):
+		update_database_newtable(cycle_dict[i], battname+'-'+'Cycle'+ str(i), database_name)
     print('All data separated into cycles and saved in database.')
-    return
+    return cycle_dict
 
 
 def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
@@ -183,45 +165,23 @@ def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
     return smooth_charge, smooth_discharge
 
 
-def get_clean_cycles(file_name, database_name):
+def get_clean_cycles(cycle_dict, file_name, database_name):
     """Imports all separated out cycles in given path and cleans them
     and saves them in the specified filepath"""
-    #assert os.path.exists(import_filepath) == 1
-    #assert os.path.exists(save_filepath) == 1
-    #rootdir = import_filepath
-    # iterate through dir to get excel files
-    #file_list = [f for f in glob.glob(os.path.join(rootdir, '*.xlsx'))]
-
-    #d = {}  # initiate dict for data storage
         name = file_name.split('.')[0]
-        con = sql.connect(database_name)
-		data = pd.read_sql_query("SELECT * FROM `%s`" % name, con)
-		con.close()
-        charge, discharge = clean_calc_sep_smooth(data, 9, 3)
-        clean_data = discharge.append(charge, ignore_index=True)
-
-        clean_data = clean_data.reset_index(drop=True)
-
-        #clean_cycle = {name: clean_data}
-       # d.update(clean_cycle)
-        # print("adding file to dictionary" + str(count) + ' ' + str(name))
-    #for key in d:
-        #clean_cycle_df = d[key]
-        #cyclename = key
-        cyclename_pref = cyclename.split('-')[0]
-        cyclename_end = cyclename.split('-')[1]
-       # writer = ExcelWriter(save_filepath + cyclename_pref+ '-Clean' + cyclename_end  + '.xlsx')
-        #instead of writing to excel, edit this to save as a variable 
-        #passed to database for master table reference
-        #also instead of writing to excel, write to database. 
-        #clean_cycle_df.to_excel(writer)
-        #writer.save()
-        update_database_newtable(clean_cycle_df, cyclename_pref+ '-Clean' + cyclename_end, database_name)
-        #######################################################################################
-
-
+        #con = sql.connect(database_name)
+		#data = pd.read_sql_query("SELECT * FROM `%s`" % name, con)
+		#con.close()
+		for i in range(1, len(cycle_dict)+1):
+        	charge, discharge = clean_calc_sep_smooth(cycle_dict[i], 9, 3)
+        	clean_data = discharge.append(charge, ignore_index=True)
+			clean_data = clean_data.reset_index(drop=True)
+			cyclename = name + '-CleanCycle' + str(i)
+        	update_database_newtable(clean_cycle_df, cyclename, database_name)
+        	#make new clean_cycle_dict to be passed to next function
+        	#run the peak finding peak fitting part here 
     print('All cycles cleaned and saved in database and in folder "' + save_filepath + '" .')
-    return
+    return 
 
 
 def get_clean_sets(file_name, database_name):
@@ -282,65 +242,6 @@ def get_clean_sets(file_name, database_name):
 ############################
 # Component Functions
 ############################
-
-
-#def get_data(filename):
-#    """Imports all data in given path"""
-#    assert type(filepath) == str, 'Input must be a string'
-#    rootdir = filepath
- #   # iterate through dir to get excel files
- #   file_list = [f for f in glob.glob(os.path.join(rootdir, '*.xlsx'))]
-
- #   d = {}
-    # initiate dict for data storage
- #   count = 0
- #   for file in file_list:
- #       count += 1
- #       name = os.path.split(file)[1].split('.')[0]
- #       data = pd.read_excel(file, 1)
-        ########################################################################
- #       update_database_newtable(data, name + 'Raw')
-  #      update_dic ={'Dataset_Name': name, 
-  #                   'Raw_Data_Prefix': name +'Raw' , 
-  #                   'Cleaned_Data_Prefix': name + 'CleanSet', 
-   #                  'Cleaned_Cycles_Prefix': name + '-CleanCycle'}
-    #    update_master_table(update_dic)
- #       new_set = {name: data}
-  #      d.update(new_set)
-   # return d
-
-# separate out dataframes into cycles
-
-
-def sep_cycles(dataframe):
-    """This function separates out the cycles in the battery dataframe by
-     grouping by the 'Cycle_Index' column, and putting them in a dictionary."""
-    assert type(dataframe) == pd.DataFrame, 'Input must be a dataframe'
-    gb = dataframe.groupby(by=['Cycle_Index'])
-    cycle_dict = dict(iter(gb))
-    return cycle_dict
-
-
-def save_sep_cycles_xlsx(cycle_dict, battname, database_name):
-    """This saves the separated out cycles into different excel files,
-    beginning with the battery name. Battname and path to folder must
-    be strings."""
-    #assert type(cycle_dict) == dict, 'First entry must be a dictionary'
-    #assert type(battname) == str, 'Second entry must be a string'
-    #assert type(path_to_folder) == str, 'Path to output must be a string'
-    for i in range(1, len(cycle_dict)+1):
-        cycle_dict[i]['Battery_Label'] = battname
-    for i in range(1, len(cycle_dict)+1):
-        #writer = ExcelWriter(path_to_folder + battname +
-        #                     '-'+'Cycle' + str(i) + '.xlsx')
-        #cycle_dict[i].to_excel(writer)
-        #writer.save()
-        #instead of writing to excel, edit this to save as a variable 
-        #passed to database for master table reference
-        #also instead of writing to excel, write to database. 
-        update_database_newtable(cycle_dict[i], battname+'-'+'Cycle'+ str(i), database_name)
-        ####################################################################################################
-    return
 
 
 def calc_dv_dqdv(cycle_df):

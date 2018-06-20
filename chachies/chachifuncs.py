@@ -7,91 +7,10 @@ from pandas import ExcelWriter
 import requests
 import scipy.io
 import scipy.signal
-import pandas.io.sql as pd_sql
-import sqlite3 as sql
+#import pandas.io.sql as pd_sql
+#import sqlite3 as sql
 
-################################
-# OVERALL Wrapper Function
-################################
 
-def process_data(file_name, database_name):
-	# Takes raw file 
-	# sep_cycles
-	# cleans cycles
-	# gets descriptors - peak calcs
-	# put back together - save 
-	if not os.path.exists(database_name): 
-		print('That database does not exist-creating it now.')
-		init_master_table(database_name)
-	
-	con = sql.connect(database_name)
-	c = con.cursor()
-	names_list = []
-	for row in c.execute("""SELECT name FROM sqlite_master WHERE type='table'""" ):
-		names_list.append(row[0])
-	con.close()
-	name = file_name + 'Raw'
-	if name in names_list: 
-		print('That file name has already been uploaded into the database.')
-	else:
-		print('Processing that data')	
-		parse_update_master(file_name, database_name)
-		#this takes the info from the filename and updates the master table in the database. 
-		cycle_dict = load_sep_cycles(file_name, database_name)
-		clean_cycle_dict= get_clean_cycles(cycle_dict, file_name, database_name)
-		clean_set_df = get_clean_sets(clean_cycle_dict, file_name, database_name)
-
-	return 
-
-	#create sql_master table - this is only ran once 
-def init_master_table(database_name):
-	con = sql.connect(database_name)
-	c = con.cursor()
-	mydf = pd.DataFrame({'Dataset_Name': ['example'], 
-                     	'Raw_Data_Prefix': ['ex1'], 
-                     	'Cleaned_Data_Prefix':['ex2'], 
-                     	'Cleaned_Cycles_Prefix': ['ex3']})
-	mydf.to_sql('master_table', con, if_exists='replace')
-	#my_df is the name of the table within the database
-
-	con.close()
-	return 
-
-def update_master_table(update_dic, database_name):
-    """This updates the master table in the database based off of the information in the update dictionary"""
-    if update_dic is not None:
-        con = sql.connect(database_name)
-        c = con.cursor()
-        #add upload data filename in sql_master table
-        c.execute('''INSERT INTO master_table('Dataset_Name', 'Raw_Data_Prefix','Cleaned_Data_Prefix', 'Cleaned_Cycles_Prefix') 
-                     VALUES ('%s', '%s', '%s', '%s')
-                  ''' % (update_dic['Dataset_Name'], update_dic['Raw_Data_Prefix'], update_dic['Cleaned_Data_Prefix'], update_dic['Cleaned_Cycles_Prefix']))
-        # check if update_dic['Dataset_Name'] exists in master_table, if so, don't run the rest of the code. 
-        #the above part updates the master table in the data frame
-        con.commit()
-        con.close()
-        #display table in layout
-        return 
-    else:
-        return [{}]
-
-def update_database_newtable(df, upload_filename, database_name):
-
-    #add df into sqlite database as table
-    con = sql.connect(database_name)
-    c = con.cursor()
-    df.to_sql(upload_filename, con, if_exists="replace")
-    return
-
-def parse_update_master(file_name, database_name):
-	name = file_name.split('.')[0]
-	data = pd.read_excel(file_name, 1)
-	update_database_newtable(data, name + 'Raw', database_name)
-	update_dic ={'Dataset_Name': name,'Raw_Data_Prefix': name +'Raw',
-    				'Cleaned_Data_Prefix': name + 'CleanSet', 
-    				'Cleaned_Cycles_Prefix': name + '-CleanCycle'}
-	update_master_table(update_dic, database_name)
-	return
 
 ############################
 # Sub - Wrapper Functions
@@ -126,10 +45,13 @@ def get_clean_cycles(cycle_dict, file_name, database_name):
     	clean_data = discharge.append(charge, ignore_index=True)
     	clean_data = clean_data.reset_index(drop=True)
     	cyclename = name + '-CleanCycle' + str(i)
+    	#print(cyclename)
     	clean_cycle_dict.update({cyclename : clean_data})
     	update_database_newtable(clean_data, cyclename, database_name)
     	#run the peak finding peak fitting part here 
-    print('All cycles cleaned and saved in database and in folder')
+    #for key in clean_cycle_dict:
+    #	print(key)
+    print('All cycles cleaned and saved in database')
     return clean_cycle_dict
 
 
@@ -140,13 +62,13 @@ def get_clean_sets(clean_cycle_dict, file_name, database_name):
     name = file_name.split('.')[0]
     for key, value in clean_cycle_dict.items():
     	clean_set_df.append(value, ignore_index = True)
-    #########################################################################################
-    #clean_set_df = clean_set_df.sort_values(['Voltage(V)'], ascending = True)
+
+    #clean_set_df = clean_set_df.sort_values(['Data_Point'], ascending = True)
     clean_set_df.reset_index(drop = True)
     
     update_database_newtable(clean_set_df, name + 'CleanSet', database_name)
     
-    print('All clean cycles recombined and saved in folder')
+    print('All clean cycles recombined and saved in database')
     return clean_set_df
 
 ############################
@@ -159,8 +81,8 @@ def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
     Returns two dataframes, one charge and one discharge.
     Windowlength and polyorder are for the sav-golay filter."""
     assert type(dataframe) == pd.DataFrame
-
-    df1 = calc_dv_dqdv(dataframe)
+    df = init_columns(dataframe)
+    df1 = calc_dq_dqdv(df)
     raw_charge = df1[df1['Current(A)'] > 0]
     raw_charge = raw_charge.reset_index(drop=True)
     # this separated out the charging data and put it in 'raw_charge'.
@@ -216,7 +138,7 @@ def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
 
 
 
-def calc_dv_dqdv(cycle_df):
+def init_columns(cycle_df):
     """This function calculates the dv and the dq/dv for a dataframe."""
     assert type(cycle_df) == pd.DataFrame
     assert 'Voltage(V)' in cycle_df.columns
@@ -229,7 +151,10 @@ def calc_dv_dqdv(cycle_df):
     cycle_df['Charge_dQ'] = None
     cycle_df['Discharge_dQ/dV'] = None
     cycle_df['Charge_dQ/dV'] = None
-    for i in range(1, len(cycle_df)):
+    return cycle_df
+
+def calc_dq_dqdv(cycle_df):
+	for i in range(1, len(cycle_df)):
         cycle_df.loc[i, ('dV')] = cycle_df.loc[i, ('Voltage(V)')
                                                ] - cycle_df.loc[i-1, ('Voltage(V)')]
         cycle_df.loc[i, ('Discharge_dQ')] = cycle_df.loc[i, ('Discharge_Capacity(Ah)')
@@ -239,7 +164,6 @@ def calc_dv_dqdv(cycle_df):
     cycle_df['Discharge_dQ/dV'] = cycle_df['Discharge_dQ']/cycle_df['dV']
     cycle_df['Charge_dQ/dV'] = cycle_df['Charge_dQ']/cycle_df['dV']
     return cycle_df
-
 
 def drop_0_dv(cycle_df_dv):
     '''Drop rows where dv=0 (or about 0) in a dataframe that has
@@ -253,6 +177,7 @@ def drop_0_dv(cycle_df_dv):
 
     cycle_df_dv['dv_close_to_zero'] = None
 
+    #dropping values where current = 0
     for i in range(1, len(cycle_df_dv)):
         if isclose(cycle_df_dv.loc[i, ('Current(A)')], 0, abs_tol=10**-3):
             cycle_df_dv = cycle_df_dv.drop(index=i)
@@ -264,62 +189,54 @@ def drop_0_dv(cycle_df_dv):
 
     cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
-    for i in range(1, len(cycle_df_dv)):
-        if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
-            # was -3.5 before
-            cycle_df_dv.loc[i, ('dv_close_to_zero')] = False
-        else:
-            cycle_df_dv.loc[i, ('dv_close_to_zero')] = True
+ #   for i in range(1, len(cycle_df_dv)):
+ #       if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
+ #           # was -3.5 before
+ #           cycle_df_dv.loc[i, ('dv_close_to_zero')] = False
+ #       else:
+ #           cycle_df_dv.loc[i, ('dv_close_to_zero')] = True
 
-    while (False in cycle_df_dv['dv_close_to_zero'].values or
-           cycle_df_dv['dV'].max() > 0.7 or cycle_df_dv['dV'].min() < -0.7):
+#    while (False in cycle_df_dv['dv_close_to_zero'].values or
+#           cycle_df_dv['dV'].max() > 0.7 or cycle_df_dv['dV'].min() < -0.7):
 
-        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+ #       cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
-        for i in range(1, len(cycle_df_dv)):
-            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
-                cycle_df_dv = cycle_df_dv.drop(index=i)
+ #       for i in range(1, len(cycle_df_dv)):
+  #          if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
+   #             cycle_df_dv = cycle_df_dv.drop(index=i)
 
-        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+#        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
-        separate_dis_char = np.where(
-            np.diff(np.sign(cycle_df_dv['Current(A)'])))
+ #       separate_dis_char = np.where(
+  #          np.diff(np.sign(cycle_df_dv['Current(A)'])))
 
-        for i in range(1, len(cycle_df_dv)):
-            if (cycle_df_dv.loc[i, ('dV')] > 0.7 or cycle_df_dv.loc[i, ('dV')] < -0.7):
-                cycle_df_dv = cycle_df_dv.drop(index=i)
+   #     for i in range(1, len(cycle_df_dv)):
+    #        if (cycle_df_dv.loc[i, ('dV')] > 0.7 or cycle_df_dv.loc[i, ('dV')] < -0.7):
+     #           cycle_df_dv = cycle_df_dv.drop(index=i)
 
-        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+#        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
-        for i in range(1, len(cycle_df_dv)):
-            cycle_df_dv.loc[i, ('dV')] = cycle_df_dv.loc[i,
-                                                         ('Voltage(V)')] - cycle_df_dv.loc[i-1, ('Voltage(V)')]
-            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
-                cycle_df_dv.loc[i, ('dv_close_to_zero')] = False
-            else:
-                cycle_df_dv.loc[i, ('dv_close_to_zero')] = True
+        # for i in range(1, len(cycle_df_dv)):
+        #     cycle_df_dv.loc[i, ('dV')] = cycle_df_dv.loc[i,
+        #                                                  ('Voltage(V)')] - cycle_df_dv.loc[i-1, ('Voltage(V)')]
+        #     if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
+        #         cycle_df_dv.loc[i, ('dv_close_to_zero')] = False
+        #     else:
+        #         cycle_df_dv.loc[i, ('dv_close_to_zero')] = True
 
-        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+        # cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
-    cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+   # cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
     # recalculating dv and dq's after dropping rows
-    for i in range(1, len(cycle_df_dv)):
-        cycle_df_dv.loc[i, ('dV')] = cycle_df_dv.loc[i,
-                                                     ('Voltage(V)')] - cycle_df_dv.loc[i-1, ('Voltage(V)')]
-        cycle_df_dv.loc[i, ('Discharge_dQ')] = cycle_df_dv.loc[i, (
-            'Discharge_Capacity(Ah)')] - cycle_df_dv.loc[i-1, ('Discharge_Capacity(Ah)')]
-        cycle_df_dv.loc[i, ('Charge_dQ')] = cycle_df_dv.loc[i, ('Charge_Capacity(Ah)')
-                                                            ] - cycle_df_dv.loc[i-1, ('Charge_Capacity(Ah)')]
-    # recalculate dq/dv
-    cycle_df_dv['Discharge_dQ/dV'] = cycle_df_dv['Discharge_dQ'] / \
-        cycle_df_dv['dV']
-    cycle_df_dv['Charge_dQ/dV'] = cycle_df_dv['Charge_dQ']/cycle_df_dv['dV']
+    calc_dq_dqdv(cycle_df_dv)
+
     cycle_df_dv = cycle_df_dv.dropna(subset=['Discharge_dQ/dV'])
     cycle_df_dv = cycle_df_dv.dropna(subset=['Charge_dQ/dV'])
     cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
     cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+    print('cycle cleaned NLT')
     return cycle_df_dv
 
 
@@ -369,4 +286,4 @@ def my_savgolay(dataframe, windowlength, polyorder):
     return dataframe
 
 #init_master_table()
-process_data('CS2_33_10_04_10.xlsx', 'nlt_test4.db')
+#process_data('CS2_33_10_04_10.xlsx', 'nlt_test_demo.db')

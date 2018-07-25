@@ -4,6 +4,7 @@ from pandas import ExcelWriter
 import pandas.io.sql as pd_sql
 import sqlite3 as sql
 import chachifuncs_exp as ccf
+import descriptors
 import databasefuncs as dbfs
 # OVERALL Wrapper Function
 ################################
@@ -36,6 +37,9 @@ def process_data(file_name, database_name):
 		# this also adds the raw data fram into the database
 		cycle_dict = ccf.load_sep_cycles(file_name, database_name)
 		clean_cycle_dict= ccf.get_clean_cycles(cycle_dict, file_name, database_name)
+		desc_df = descriptors.get_descriptors(clean_cycle_dict)
+		dbfs.update_database_newtable(desc_df, 'descriptors', database_name)
+		# pass this clean cycle dictionary to function to get descriptors - same as what we did with get clean setss
 		#for k,v in clean_cycle_dict.items():
 		#	print(k,v)
 		# there are definitely values in the dictionary at this point 
@@ -45,13 +49,16 @@ def process_data(file_name, database_name):
 
 
 def parse_update_master(file_name, database_name):
-	name = file_name.split('.')[0]
+	file_name2 = file_name
+	while '/' in file_name2:
+		file_name2 = file_name2.split('/', maxsplit = 1)[1]
+	name = file_name2.split('.')[0]    
 	data1 = pd.read_excel(file_name, 1)
 	# this is the only time the raw data file is read into the program from excel
 	data = ccf.calc_dq_dqdv(data1)
 	dbfs.update_database_newtable(data, name + 'Raw', database_name)
 	update_dic ={'Dataset_Name': name,'Raw_Data_Prefix': name +'Raw',
-    				'Cleaned_Data_Prefix': name + 'CleanSet', 
-    				'Cleaned_Cycles_Prefix': name + '-CleanCycle'}
+					'Cleaned_Data_Prefix': name + 'CleanSet', 
+					'Cleaned_Cycles_Prefix': name + '-CleanCycle'}
 	dbfs.update_master_table(update_dic, database_name)
 	return

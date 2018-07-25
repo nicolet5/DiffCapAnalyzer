@@ -3,7 +3,7 @@ from math import isclose
 import numpy as np
 import os
 import pandas as pd
-from pandas import ExcelWriter
+#from pandas import ExcelWriter
 import requests
 import scipy.io
 import scipy.signal
@@ -14,15 +14,19 @@ def load_sep_cycles(file_name, database_name):
     cycles and saves those cycles as .xlsx files in specified
     filepath (must be an existing folder)"""
     #df_single = pd.read_excel(file_name,1)
+    while '/' in file_name:
+        file_name = file_name.split('/', maxsplit = 1)[1]
     name = file_name.split('.')[0] + 'Raw'
+    
+    #name = file_name.split('.')[0] + 'Raw'
     df_single = dbfs.get_file_from_database(name, database_name)
     gb = df_single.groupby(by=['Cycle_Index'])
     cycle_dict = dict(iter(gb))
     battname = file_name.split('.')[0]
     for i in range(1, len(cycle_dict)+1):
-    	cycle_dict[i]['Battery_Label'] = battname
+        cycle_dict[i]['Battery_Label'] = battname
     for i in range(1, len(cycle_dict)+1):
-    	dbfs.update_database_newtable(cycle_dict[i], battname+'-'+'Cycle'+ str(i), database_name)
+        dbfs.update_database_newtable(cycle_dict[i], battname+'-'+'Cycle'+ str(i), database_name)
     print('All data separated into cycles and saved in database.')
     return cycle_dict
 
@@ -32,7 +36,11 @@ def load_sep_cycles(file_name, database_name):
 def get_clean_cycles(cycle_dict, file_name, database_name):
     """Imports all separated out cycles in given path and cleans them
     and saves them in the specified filepath"""
+    #name = file_name.split('.')[0]
+    while '/' in file_name:
+        file_name = file_name.split('/', maxsplit = 1)[1]
     name = file_name.split('.')[0]
+
     clean_cycle_dict = {} 
     ex_data = input('Are there any voltages that should not be included? (y/n): ')
     if ex_data == 'y': 
@@ -58,9 +66,14 @@ def get_clean_sets(clean_cycle_dict, file_name, database_name):
     """Imports all clean cycles of data from import path and appends
     them into complete sets of battery data, saved into save_filepath"""
     clean_set_df = pd.DataFrame()
+    #name = file_name.split('.')[0]
+    #while '/' in file_name: 
+    while '/' in file_name:
+        file_name = file_name.split('/', maxsplit = 1)[1]
     name = file_name.split('.')[0]
+    
     for k, v in clean_cycle_dict.items():
-    	clean_set_df = clean_set_df.append(v, ignore_index = True)
+        clean_set_df = clean_set_df.append(v, ignore_index = True)
 
     #clean_set_df = clean_set_df.sort_values(['Data_Point'], ascending = True)
     # clean_set_df.reset_index(drop = True)
@@ -123,14 +136,39 @@ def init_columns(cycle_df):
     return cycle_df
 
 def calc_dq_dqdv(cycle_df):
-	for i in range(1, len(cycle_df)):
-		cycle_df.loc[i, ('dV')] = cycle_df.loc[i, ('Voltage(V)')] - cycle_df.loc[i-1, ('Voltage(V)')]
-		cycle_df.loc[i, ('Discharge_dQ')] = cycle_df.loc[i, ('Discharge_Capacity(Ah)')] - cycle_df.loc[i-1, ('Discharge_Capacity(Ah)')]
-		cycle_df.loc[i, ('Charge_dQ')] = cycle_df.loc[i, ('Charge_Capacity(Ah)')] - cycle_df.loc[i-1, ('Charge_Capacity(Ah)')]
-		if cycle_df.loc[i, ('Current(A)')] < 0:
-		 	cycle_df.loc[i, ('dQ/dV')] = cycle_df.loc[i, ('Discharge_dQ')]/cycle_df.loc[i, ('dV')]
-		else: 
-			cycle_df.loc[i, ('dQ/dV')] = cycle_df.loc[i, ('Charge_dQ')]/cycle_df.loc[i,('dV')]
+	pd.options.mode.chained_assignment = None
+	#to avoid the warning 
+	cycle_df['dV'] = cycle_df['Voltage(V)'].diff()
+	cycle_df['Discharge_dQ'] = cycle_df['Discharge_Capacity(Ah)'].diff()
+	cycle_df['Charge_dQ'] = cycle_df['Charge_Capacity(Ah)'].diff()
+	#df3 = df2[df2['a'] > 4]
+	#df4 = df2[df2['a'] <= 4]
+	#print(df3)
+	#df3['f'] = df3['b']/df3['e']
+	#print(df3)
+	#df4['f'] = df4['b']/df4['e']
+	#print(df4)
+	#df5 = pd.concat((df3,df4))
+	#df5.sort_index()
+	cycle_df_charge = cycle_df[cycle_df['Current(A)'] > 0]
+	cycle_df_charge['dQ/dV'] = cycle_df_charge['Charge_dQ']/cycle_df_charge['dV']
+	cycle_df_discharge = cycle_df[cycle_df['Current(A)'] <= 0]
+	cycle_df_discharge['dQ/dV'] = cycle_df_discharge['Discharge_dQ']/cycle_df_discharge['dV']
+	cycle_df = pd.concat((cycle_df_charge, cycle_df_discharge ))
+	cycle_df = cycle_df.sort_index()
+	#cycle_df = cycle_df.dropna(subset = ['dQ/dV'])
+	#cycle_df = cycle_df.reset_index(drop = True)
+	#for i in range(1, len(cycle_df)):
+	#	cycle_df.loc[i, ('dV')] = cycle_df.loc[i, ('Voltage(V)')] - cycle_df.loc[i-1, ('Voltage(V)')]
+	#	cycle_df.loc[i, ('Discharge_dQ')] = cycle_df.loc[i, ('Discharge_Capacity(Ah)')] - cycle_df.loc[i-1, ('Discharge_Capacity(Ah)')]
+	#	cycle_df.loc[i, ('Charge_dQ')] = cycle_df.loc[i, ('Charge_Capacity(Ah)')] - cycle_df.loc[i-1, ('Charge_Capacity(Ah)')]
+	#	if cycle_df.loc[i, ('dV')] == 0:
+	#		cycle_df.loc[i, ('dQ/dV')] = None 
+	#	else: 
+	#		if cycle_df.loc[i, ('Current(A)')] < 0:
+	#		 	cycle_df.loc[i, ('dQ/dV')] = cycle_df.loc[i, ('Discharge_dQ')]/cycle_df.loc[i, ('dV')]
+	#		else: 
+	#			cycle_df.loc[i, ('dQ/dV')] = cycle_df.loc[i, ('Charge_dQ')]/cycle_df.loc[i,('dV')]
 	return cycle_df
 
 def drop_0_dv(cycle_df_dv, thresh):
@@ -149,7 +187,7 @@ def drop_0_dv(cycle_df_dv, thresh):
     cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
     # recalculating dv and dq's after dropping rows  
-
+    cycle_df_dv = cycle_df_dv.replace([np.inf, -np.inf], np.nan)
     cycle_df_dv = cycle_df_dv.dropna(subset=['dQ/dV'])
 
     cycle_df_dv = cycle_df_dv.reset_index(drop=True)

@@ -89,31 +89,32 @@ class chachies_class:
         ccf.get_clean_sets(rootdir + 'Clean_Separated_Cycles/', rootdir+'Clean_Whole_Sets/')
         return
 
-    def get_descriptors(import_filepath):
-        """Generates a dataframe containing charge and discharge
-        descriptors/error parameters. Also writes descriptors to an
-        excel spreadsheet 'describe.xlsx' import_filepath = filepath
-        containing cleaned separated cycles"""
 
-        # checks that the file exists
-        assert os.path.exists(import_filepath), 'The file does not exist'
+    def get_descriptors(import_filepath, database_name):
+    """Generates a dataframe containing charge and discharge
+    descriptors/error parameters. Also writes descriptors to an
+    excel spreadsheet 'describe.xlsx' import_filepath = filepath
+    containing cleaned separated cycles"""
 
-        # check that the whatever is passed to ML_generate is a string
-        assert isinstance(import_filepath, str), 'The input should be a string'
+    # checks that the file exists
+    assert os.path.exists(import_filepath), 'The file does not exist'
 
-        # creates dataframe of descriptors for the charge/discharge
-        # cycles of all batteries
-        df_ch = process.df_generate(import_filepath, 'c')
-        df_dc = process.df_generate(import_filepath, 'd')
-        # concats charge and discharge cycles
-        df_final = pd.concat([df_ch, df_dc], axis=1)
-        #drops any duplicate rows
-        df_final = df_final.T.drop_duplicates().T
-        # saves data to an excel file
-        writer = pd.ExcelWriter('describe.xlsx')
-        df_final.to_excel(writer, 'Sheet1')
-        writer.save()
-        return df_final
+    # check that the whatever is passed to ML_generate is a string
+    assert isinstance(import_filepath, str), 'The input should be a string'
+
+    # creates dataframe of descriptors for the charge/discharge
+    # cycles of all batteries
+    df_ch = process.df_generate(import_filepath, 'c')
+    df_dc = process.df_generate(import_filepath, 'd')
+    # concats charge and discharge cycles
+    df_final = pd.concat([df_ch, df_dc], axis=1)
+    # drops any duplicate rows
+    df_final = df_final.T.drop_duplicates().T
+    # saves data to database
+    dbfs.update_database_newtable(df_final, 'descriptors', database_name)
+
+    return df_final
+
     
     
     def classify(filename, test_x, test_y):

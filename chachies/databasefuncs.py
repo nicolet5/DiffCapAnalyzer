@@ -4,11 +4,11 @@ import sqlite3 as sql
 
 def update_database_newtable(df, upload_filename, database_name):
 
-    #add df into sqlite database as table
-    con = sql.connect(database_name)
-    c = con.cursor()
-    df.to_sql(upload_filename, con, if_exists="replace")
-    return
+  #add df into sqlite database as table
+  con = sql.connect(database_name)
+  c = con.cursor()
+  df.to_sql(upload_filename, con, if_exists="replace")
+  return
 
 def get_file_from_database(name, database):
 	con = sql.connect(database)

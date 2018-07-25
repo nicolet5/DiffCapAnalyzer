@@ -1,5 +1,5 @@
 import base64
-import chachifuncs as ccf
+import chachifuncs_exp as ccf
 import dash
 import dash_core_components as dcc
 from dash.dependencies import Input, Output, State
@@ -10,7 +10,7 @@ import json
 import pandas as pd
 import plotly 
 import sqlite3
-
+import databasefuncs as dbfs
 
 
 ##########################################

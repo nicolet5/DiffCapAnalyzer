@@ -3,39 +3,38 @@ import pandas as pd
 import numpy as np
 import peakutils
 from lmfit import models
-from chachies import chachifuncs as ccf
+import chachifuncs_exp as ccf
 import os
 import glob
+import databasefuncs as dbfs
 
 ################################
 # OVERALL Wrapper Function
 ################################
+# Import dictionary is format of {batcleancycle-1 : df1, batcleancycle-2: df2 ... and so on }
+# individual clean cycles 
 
-
-def ML_generate(import_filepath):
+def get_descriptors(import_dictionary):
     """Generates a dataframe containing charge and discharge
     descriptors/error parameters. Also writes descriptors to an
     excel spreadsheet 'describe.xlsx' import_filepath = filepath
     containing cleaned separated cycles"""
-
+    # import filepath is path of clean, separated cycles 
     # checks that the file exists
-    assert os.path.exists(import_filepath), 'The file does not exist'
+    #assert os.path.exists(import_filepath), 'The file does not exist'
 
     # check that the whatever is passed to ML_generate is a string
-    assert isinstance(import_filepath, str), 'The input should be a string'
+    #assert isinstance(import_filepath, str), 'The input should be a string'
 
     # creates dataframe of descriptors for the charge/discharge
     # cycles of all batteries
-    df_ch = process.df_generate(import_filepath, 'c')
-    df_dc = process.df_generate(import_filepath, 'd')
+    df_ch = process.df_generate(import_dictionary, 'c')
+    df_dc = process.df_generate(import_dictionary, 'd')
     # concats charge and discharge cycles
     df_final = pd.concat([df_ch, df_dc], axis=1)
     # drops any duplicate rows
     df_final = df_final.T.drop_duplicates().T
-    # saves data to an excel file
-    writer = pd.ExcelWriter('describe.xlsx')
-    df_final.to_excel(writer, 'Sheet1')
-    writer.save()
+    # saves data to database
 
     return df_final
 
@@ -48,7 +47,7 @@ def ML_generate(import_filepath):
 class process:
 
     # first function called by ML_generate
-    def df_generate(import_filepath, cd):
+    def df_generate(import_dictionary, cd):
         """Creates a pandas dataframe for each battery's charge/
         discharge cycle in the import_filepath folder.
         import_filepath = filepath containing cleaned separated cycles
@@ -58,22 +57,25 @@ class process:
         df_ch = pandas dataframe for all cycles of all batteries in a
         col_ch = list of numbers of columns for each battery"""
 
-        assert cd == (
-            'c' or 'd'), 'This must be charge (c) or discharge (d) data'
+        #assert cd == (
+        #    'c' or 'd'), 'This must be charge (c) or discharge (d) data'
 
         # generates a list of datafiles to analyze
-        rootdir = import_filepath
-        file_list = [f for f in glob.glob(os.path.join(rootdir, '*.xlsx'))]
+        # rootdir = import_filepath
+        # file_list = [f for f in glob.glob(os.path.join(rootdir, '*.xlsx'))]
         # iterate through dir to get excel file
 
         # generates a list of unique batteries
         list_bats = []
 
-        for file in file_list:
+        for k, v in import_dictionary.items():
+            #clean_set_df = clean_set_df.append(v, ignore_index = True)
 
             # splits file paths to get battery names
-            name = os.path.split(file)[1].split('.')[0]
-            batname = name.split('-')[0]
+            batname = k
+            # this batname is "batname-cleancycle#" individual cycles
+            # name = os.path.split(file)[1].split('.')[0]
+            # batname = name.split('-')[0]
 
             # adds unique battery names to the list of batteries
             if batname not in list_bats:
@@ -91,16 +93,18 @@ class process:
         # begins generating dataframe of descriptors
         name_ch = []
         for bat in list_bats:
-
+            # bat is batnamecleancycle# - individual cycles
             # notifies user which battery is being fit
             notice = 'Fitting battery: ' + bat + ' ' + cd
             print(notice)
 
             # generates dataframe of descriptor fits for each battery
-            df = process.imp_all(import_filepath, bat, cd)
-
+            df = process.imp_all(import_dictionary, bat, cd)
+            # get dataframe of descriptors from all the batcleancycle#'s'
             # generates an iterative list of names for the 'name'
             # column of the final dataframe
+            #print('here is the df in the df_generate function: ')
+            #print(df.to_string())
             name_ch = name_ch + [bat] * len(df.index)
 
             # concats dataframe from current battery with previous
@@ -109,10 +113,11 @@ class process:
 
         # adds name column to the dataframe
         df_ch['names'] = name_ch
-
+        #print('here is the df_ch in the df_generate function: ')
+        #print(df_ch.to_string())
         return df_ch
 
-    def imp_all(source, battery, cd):
+    def imp_all(import_dictionary, battery, cd):
         """Generates a Pandas dataframe of descriptors for a single battery
 
         source = string containing directory with the excel sheets
@@ -122,53 +127,62 @@ class process:
 
         Output:
         charge_descript = pandas dataframe of charge descriptors"""
-
+        # battery is the name "batcleancycle#"
         # check that the battery label is a string
         # check that the whatever is passed to ML_generate is a string
         # check that 'c' or 'd' is passed
-        assert isinstance(source, str), 'The input should be a string'
-        assert isinstance(battery, str), 'The input should be a string'
-        assert cd == (
-            'c' or 'd'), 'This must be charge (c) or discharge (d) data'
+        #assert isinstance(source, str), 'The input should be a string'
+        #assert isinstance(battery, str), 'The input should be a string'
+        #assert cd == (
+         #   'c' or 'd'), 'This must be charge (c) or discharge (d) data'
 
         # generates list of battery files for import
-        file_pref = battery + '*.xlsx'
-        file_list = [f for f in glob.glob(os.path.join(source, file_pref))]
+        #file_pref = battery + '*.xlsx'
+        #file_list = [f for f in glob.glob(os.path.join(source, file_pref))]
 
         # sorts by cycle
         cycle = []
 
         # extracts cycle number from file name using known pattern
-        for file in file_list:
-            cyc1 = os.path.split(file)[1].split('Clean')[0]
-            cyc = os.path.split(cyc1)[1].split('-Cycle')[1]
-            cycle.append(int(cyc))
+        # for file in file_list:
+        #for k, v in import_dictionary:
+        #    cyc = k.split('Cycle')[1]
+        #    cycle.append(int(cyc))
 
         # sorts cycle numbers
-        cyc_sort = sorted(cycle)
+        # cyc_sort = sorted(cycle)
 
         # determines order of indexes that will properly sort the data
-        cyc_index = []
-        for cyc in cyc_sort:
-            cyc_index.append(cycle.index(cyc))
+        # cyc_index = []
+        # for cyc in cyc_sort:
+        #   cyc_index.append(cycle.index(cyc))
 
         # reindexes file list using the lists of indices from above
-        file_sort = []
-        for indices in cyc_index:
-            file_sort.append(file_list[indices])
+        # file_sort = []
+        # for indices in cyc_index:
+         #   file_sort.append(file_list[indices])
 
         # this is the end of the shit that sorts by cycle
         charge_descript = process.pd_create(cd)
+        # this makes an empty dataframe to populate with the descriptors
         # iterates over the file list and the cycle number
-        for file_val, cyc_loop in zip(file_sort, cyc_sort):
-
+        #for file_val, cyc_loop in zip(file_sort, cyc_sort):
+        for k, v in import_dictionary.items():
+            # cyc_loop is just the cycle number associated with the testdf - get from k
             # determines dictionary of descriptors from file data
-            c = process.imp_one_cycle(file_val, cd, cyc_loop, battery)
+            cyc_loop = int(k.split('Cycle')[1])
+            testdf = v
+            c = process.imp_one_cycle(testdf, cd, cyc_loop, battery)
             if c != 'throw':
                 # generates list of dictionaries while rejecting any that
                 # return the 'throw' error
+                #print('here is c: ')
+                #print(c)
                 charge_descript = process.pd_update(charge_descript, c)
-
+               # print('here is charge_descript: ')
+                #print(charge_descript)
+        # print('Here is the charge_descript parameter in the imp all function:  ')
+        # print(charge_descript)
         return charge_descript
 
     def pd_create(cd):
@@ -181,8 +195,8 @@ class process:
         blank pandas dataframe with descriptor columns and cycle number rows"""
 
         # check that 'c' or 'd' is passed
-        assert cd == (
-            'c' or 'd'), 'This must be charge (c) or discharge (d) data'
+        #assert cd == (
+        #    'c' or 'd'), 'This must be charge (c) or discharge (d) data'
 
         # number of descriptors it generates
         n_desc = 19
@@ -218,24 +232,31 @@ class process:
         pandas dataframe with a row of descriptors appended on"""
 
         # check if the inputs have the right Type
+        # c is the charge_descript and desc is the empty dataframe 
         assert isinstance(
             desc, pd.core.frame.DataFrame), "This input must be a pandas dataframe"
         assert isinstance(
             charge_descript, dict), "Stop right there, only dictionaries are allowed in these parts"
-
+        #print('here is charge descript thingy: ')
+        #print(charge_descript)
         # converts the dictionary of descriptors into a list of descriptors
         desc_ls = process.dict_2_list(charge_descript)
-
+        # still c but as a list 
+        #print('here is c but as a list: ')
+        #print(desc_ls)
+        # print('here is the desc_ls: ')
+        # print(desc_ls)
         # adds zeros to the end of each descriptor list to create
         # a list with 22 entries
         # also appends error parameters to the end of the descriptor list
         desc_app = desc_ls + \
             np.zeros(19-len(desc_ls)).tolist() + charge_descript['errorParams']
-
         # generates a dataframe of descriptors
         desc_df = pd.DataFrame([desc_app], columns=desc.columns)
         # combines row of a dataframe with previous dataframe
         desc = pd.concat([desc, desc_df], ignore_index=True)
+        # print('here is the desc.to_string(): ')
+        # print(desc.to_string())
 
         return desc
 
@@ -259,7 +280,6 @@ class process:
 
         # determines whether or not there are peaks in the datasent
         if 'peakSIGMA' in desc.keys():
-
             # iterates over the number of peaks
             for i in np.arange(len(desc['peakSIGMA'])):
                 # appends peak descriptors to the list in order of peak number
@@ -268,10 +288,11 @@ class process:
                 desc_ls.append(desc['peakSIGMA'][i])
         else:
             pass
-
+        #print('here is the desc_ls with peakloc in the dict_2_list definition: ')
+        #print(desc_ls)
         return desc_ls
 
-    def imp_one_cycle(file_val, cd, cyc_loop, battery):
+    def imp_one_cycle(testdf, cd, cyc_loop, battery):
         """imports and fits a single charge discharge cycle of a battery
 
         file_val = directory containing current cycle
@@ -282,10 +303,10 @@ class process:
         output: a dictionary of descriptors for a single battery"""
 
         # make sure this is an Excel spreadsheet by checking the file extension
-        assert file_val.split('.')[-1] == ('xlsx' or 'xls')
+        # assert file_val.split('.')[-1] == ('xlsx' or 'xls')
 
         # reads excel file into pandas
-        testdf = pd.read_excel(file_val)
+        # testdf = pd.read_excel(file_val)
 
         # extracts charge and discharge from the dataset
         charge, discharge = ccf.sep_char_dis(testdf)
@@ -312,6 +333,8 @@ class process:
                 ' had fewer than 10 datapoints and was removed from the dataset.'
             print(notice)
             c = 'throw'
+        # print('here is the c parameter in the imp_one_cycle: ')
+        # print(c)
         return c
 
 
@@ -325,7 +348,7 @@ class fitters:
         cd = either 'c' for charge and 'd' for discharge.
 
         Output:
-        dictionary with keys 'codfficients', 'peakLocation(V)',
+        dictionary with keys 'coefficients', 'peakLocation(V)',
         'peakHeight(dQdV)', 'peakSIGMA', 'errorParams"""
 
         # make sure a single column of the data frame is passed to
@@ -357,7 +380,7 @@ class fitters:
 
         # creates a dictionary of coefficients
         desc = {'coefficients': coefficients}
-
+        sig = []
         if len(i) > 0:
             # generates numpy array for peak calculation
             sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
@@ -365,20 +388,21 @@ class fitters:
             # determines peak location and height locations from raw data
             desc.update({'peakLocation(V)': sigx[i].tolist(
             ), 'peakHeight(dQdV)': sigy[i].tolist()})
+
             # initiates loop to extract
-            sig = []
+            #sig = []
             for index in i:
                 # determines appropriate string to call standard
                 # deviation object from model
-                center, sigma, amplitude, fraction, comb = fitters.label_gen(
-                    index)
+                center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
                 sig.append(model.best_values[sigma])
         else:
             pass
 
             # updates dictionary with sigma key and object
-            desc.update({'peakSIGMA': sig})
-
+        desc.update({'peakSIGMA': sig})
+        # print('Here is the desc within the descriptor_func function: ')
+        # print(desc)
         # adds keys for the error parameters of each fit
         desc.update({'errorParams': [model.aic, model.bic, model.redchi]})
 
@@ -413,7 +437,7 @@ class fitters:
         # (with a little wiggle room of 0.5)
         threshold = -0.5
         min_sigy = np.min(sigy)
-        assert min_sigy > threshold
+        #assert min_sigy > threshold
 
         return sigx, sigy
 
@@ -439,6 +463,7 @@ class fitters:
 
         i = peakutils.indexes(sigy_smooth, thres=.3 /
                               max(sigy_smooth), min_dist=9)
+        #print(i)
 
         return i
 
@@ -448,8 +473,9 @@ class fitters:
 
         output string format:
         'a' + index + "_" + parameter"""
-
-        assert isinstance(index, (float, int))
+        # print(index)
+        #print(type(index))
+        #assert isinstance(index, (float, int))
 
         # generates unique parameter strings based on index of peak
         pref = str(int(index))
@@ -465,8 +491,8 @@ class fitters:
         sigma = comb + sig
         amplitude = comb + amp
         fraction = comb + fract
-
-        assert isinstance((center, sigma, amplitude, fraction, comb), str)
+    
+        #assert isinstance((center, sigma, amplitude, fraction, comb), str)
 
         return center, sigma, amplitude, fraction, comb
 

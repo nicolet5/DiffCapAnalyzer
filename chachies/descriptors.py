@@ -29,11 +29,21 @@ def get_descriptors(import_dictionary):
     # creates dataframe of descriptors for the charge/discharge
     # cycles of all batteries
     df_ch = process.df_generate(import_dictionary, 'c')
+    #ther eare duplicates coming out of this function - does cycle 1 2 times (different numbers) then cycle 2 2 times 
+    #print('this is df_ch')
+    #print(df_ch.to_string())
+    #does all cycles charge cycle first, then all discharge cycles
     df_dc = process.df_generate(import_dictionary, 'd')
+    #print('this is df_dc')
+    #print(df_dc.to_string())
     # concats charge and discharge cycles
     df_final = pd.concat([df_ch, df_dc], axis=1)
+    #print('this is the df_final')
+    #print(df_final.to_string())
     # drops any duplicate rows
     df_final = df_final.T.drop_duplicates().T
+    #print('this is the df_final after dropping duplicates: ')
+    #print(df_final.to_string())
     # saves data to database
 
     return df_final
@@ -89,7 +99,8 @@ class process:
 
         # generates a blank dataframe of charge/discharge descriptors
         df_ch = process.pd_create(cd)
-
+        #print('here is list_bats')
+        #print(list_bats)
         # begins generating dataframe of descriptors
         name_ch = []
         for bat in list_bats:
@@ -105,8 +116,12 @@ class process:
             # column of the final dataframe
             #print('here is the df in the df_generate function: ')
             #print(df.to_string())
+            #this df has two rows 
+            #print('here is the bat param in the function : ')
+            #print(bat)
             name_ch = name_ch + [bat] * len(df.index)
-
+            #print('here is the name of that battery the df was just printed for above')
+            #print(name_ch)
             # concats dataframe from current battery with previous
             # batteries
             df_ch = pd.concat([df_ch, df])
@@ -170,10 +185,19 @@ class process:
         for k, v in import_dictionary.items():
             # cyc_loop is just the cycle number associated with the testdf - get from k
             # determines dictionary of descriptors from file data
+            print('here is the key in imp all')
+            print(k)
             cyc_loop = int(k.split('Cycle')[1])
             testdf = v
             c = process.imp_one_cycle(testdf, cd, cyc_loop, battery)
+            # c is a dictionary
+            print('here is c before appending: ')
+            print(c)
+            
             if c != 'throw':
+                c['name'] = k
+                print('here is c after apending: ')
+                print(c)
                 # generates list of dictionaries while rejecting any that
                 # return the 'throw' error
                 #print('here is c: ')
@@ -181,8 +205,8 @@ class process:
                 charge_descript = process.pd_update(charge_descript, c)
                # print('here is charge_descript: ')
                 #print(charge_descript)
-        # print('Here is the charge_descript parameter in the imp all function:  ')
-        # print(charge_descript)
+        print('Here is the charge_descript parameter in the imp all function:  ')
+        print(charge_descript.to_string())
         return charge_descript
 
     def pd_create(cd):
@@ -237,13 +261,13 @@ class process:
             desc, pd.core.frame.DataFrame), "This input must be a pandas dataframe"
         assert isinstance(
             charge_descript, dict), "Stop right there, only dictionaries are allowed in these parts"
-        #print('here is charge descript thingy: ')
-        #print(charge_descript)
+        print('here is charge descript thingy: ')
+        print(charge_descript)
         # converts the dictionary of descriptors into a list of descriptors
         desc_ls = process.dict_2_list(charge_descript)
         # still c but as a list 
-        #print('here is c but as a list: ')
-        #print(desc_ls)
+        print('here is c but as a list: ')
+        print(desc_ls)
         # print('here is the desc_ls: ')
         # print(desc_ls)
         # adds zeros to the end of each descriptor list to create
@@ -277,7 +301,7 @@ class process:
 
         # generates an initial list from the coefficients
         desc_ls = list(desc['coefficients'])
-
+        desc_ls.append(desc['name'])
         # determines whether or not there are peaks in the datasent
         if 'peakSIGMA' in desc.keys():
             # iterates over the number of peaks

@@ -14,6 +14,8 @@ import databasefuncs as dbfs
 # Import dictionary is format of {batcleancycle-1 : df1, batcleancycle-2: df2 ... and so on }
 # individual clean cycles 
 
+
+
 def get_descriptors(import_dictionary):
     """Generates a dataframe containing charge and discharge
     descriptors/error parameters. Also writes descriptors to an
@@ -38,21 +40,35 @@ def get_descriptors(import_dictionary):
     #print(df_dc.to_string())
     # concats charge and discharge cycles
     df_final = pd.concat([df_ch, df_dc], axis=1)
-    #print('this is the df_final')
-    #print(df_final.to_string())
+    df_final2 = dflists_to_dfind(df_final)
+
     # drops any duplicate rows
-    df_final = df_final.T.drop_duplicates().T
+    #df_final = df_final.T.drop_duplicates().T
     #print('this is the df_final after dropping duplicates: ')
     #print(df_final.to_string())
     # saves data to database
 
-    return df_final
+    return df_final2
 
 ############################
 # Sub - Wrapper Functions
 ############################
 # data processing that calls from fitting class
-
+def dflists_to_dfind(df):
+    """Takes the df of lists and based on max length of list in each column, 
+    puts each value into individual columns. This is the df that will be 
+    written to the database. """
+    df_new = pd.DataFrame()
+    for column in df.columns:
+        x = max(list(df[column].str.len()))
+        print(column)
+        new_cols = []
+        for i in range(x):
+            colname = column + str(i)
+            new_cols.append(colname)
+        print(new_cols)
+        df_new[new_cols]= pd.DataFrame(df[column].values.tolist())
+    return(df_new)
 
 class process:
 
@@ -76,41 +92,42 @@ class process:
         # iterate through dir to get excel file
 
         # generates a list of unique batteries
-        list_bats = []
+        #list_bats = []
 
-        for k, v in import_dictionary.items():
+        #for k, v in import_dictionary.items():
             #clean_set_df = clean_set_df.append(v, ignore_index = True)
 
             # splits file paths to get battery names
-            batname = k
+        #    batname = k
             # this batname is "batname-cleancycle#" individual cycles
             # name = os.path.split(file)[1].split('.')[0]
             # batname = name.split('-')[0]
 
             # adds unique battery names to the list of batteries
-            if batname not in list_bats:
-                list_bats.append(batname)
-            else:
-                None
+         #   if batname not in list_bats:
+         #       list_bats.append(batname)
+         #   else:
+         #       None
 
         # notifies user of successful import
-        notice = 'Successfully extracted all battery names for ' + cd
-        print(notice)
+        #notice = 'Successfully extracted all battery names for ' + cd
+        #print(notice)
 
         # generates a blank dataframe of charge/discharge descriptors
-        df_ch = process.pd_create(cd)
+        #df_ch = process.pd_create(cd)
+        #df_ch = pd.DataFrame()
         #print('here is list_bats')
         #print(list_bats)
         # begins generating dataframe of descriptors
-        name_ch = []
-        for bat in list_bats:
+        #name_ch = []
+        #for bat in list_bats:
             # bat is batnamecleancycle# - individual cycles
             # notifies user which battery is being fit
-            notice = 'Fitting battery: ' + bat + ' ' + cd
-            print(notice)
+            #notice = 'Fitting battery: ' + bat + ' ' + cd
+            #print(notice)
 
             # generates dataframe of descriptor fits for each battery
-            df = process.imp_all(import_dictionary, bat, cd)
+        df = process.imp_all(import_dictionary, cd)
             # get dataframe of descriptors from all the batcleancycle#'s'
             # generates an iterative list of names for the 'name'
             # column of the final dataframe
@@ -119,20 +136,21 @@ class process:
             #this df has two rows 
             #print('here is the bat param in the function : ')
             #print(bat)
-            name_ch = name_ch + [bat] * len(df.index)
+            #name_ch = name_ch + [bat] * len(df.index)
             #print('here is the name of that battery the df was just printed for above')
             #print(name_ch)
             # concats dataframe from current battery with previous
             # batteries
-            df_ch = pd.concat([df_ch, df])
+        df_ch = df
+        #df_ch = pd.concat([df_ch, df])
 
         # adds name column to the dataframe
-        df_ch['names'] = name_ch
+        #df_ch['names'] = name_ch
         #print('here is the df_ch in the df_generate function: ')
         #print(df_ch.to_string())
         return df_ch
 
-    def imp_all(import_dictionary, battery, cd):
+    def imp_all(import_dictionary, cd):
         """Generates a Pandas dataframe of descriptors for a single battery
 
         source = string containing directory with the excel sheets
@@ -178,35 +196,46 @@ class process:
          #   file_sort.append(file_list[indices])
 
         # this is the end of the shit that sorts by cycle
-        charge_descript = process.pd_create(cd)
+        #charge_descript = process.pd_create(cd)
+        charge_descript = pd.DataFrame()
         # this makes an empty dataframe to populate with the descriptors
         # iterates over the file list and the cycle number
         #for file_val, cyc_loop in zip(file_sort, cyc_sort):
         for k, v in import_dictionary.items():
             # cyc_loop is just the cycle number associated with the testdf - get from k
             # determines dictionary of descriptors from file data
-            print('here is the key in imp all')
-            print(k)
+            #print('here is the key in imp all')
+            #print(k)
             cyc_loop = int(k.split('Cycle')[1])
             testdf = v
+            battery = k 
             c = process.imp_one_cycle(testdf, cd, cyc_loop, battery)
-            # c is a dictionary
-            print('here is c before appending: ')
-            print(c)
+            # c is a dictionary of descriptors 
+            #print('here is c before appending: ')
+            #print(c)
             
             if c != 'throw':
-                c['name'] = k
-                print('here is c after apending: ')
-                print(c)
                 # generates list of dictionaries while rejecting any that
                 # return the 'throw' error
+                c['name' + '-'+ str(cd)] = list([k])
+                # this has to be in this format for when the dataframe is converted to 
+                # a dataframe of individual values to be written to the sql database
+                #print('here is c after apending: ')
+                #print(c)
+                c_df = pd.DataFrame(columns = c.keys())
+                for key1, val1 in c.items():
+                    c_df.at[0, key1] = c[key1]
+                    # populates a one line df with lists into the columns of keys 
+                #print('here is the c_df: ')
+                #print(c_df)
                 #print('here is c: ')
                 #print(c)
-                charge_descript = process.pd_update(charge_descript, c)
+                #charge_descript = process.pd_update(charge_descript, c)
+                charge_descript = pd.concat([charge_descript, c_df])
                # print('here is charge_descript: ')
                 #print(charge_descript)
-        print('Here is the charge_descript parameter in the imp all function:  ')
-        print(charge_descript.to_string())
+        #print('Here is the charge_descript parameter in the imp all function:  ')
+        #print(charge_descript.to_string())
         return charge_descript
 
     def pd_create(cd):
@@ -261,22 +290,23 @@ class process:
             desc, pd.core.frame.DataFrame), "This input must be a pandas dataframe"
         assert isinstance(
             charge_descript, dict), "Stop right there, only dictionaries are allowed in these parts"
-        print('here is charge descript thingy: ')
-        print(charge_descript)
+        #print('here is charge descript thingy: ')
+        #print(charge_descript)
         # converts the dictionary of descriptors into a list of descriptors
-        desc_ls = process.dict_2_list(charge_descript)
+        #desc_ls = process.dict_2_list(charge_descript)
+        desc_ls = pd.DataFrame(charge_descript)
         # still c but as a list 
-        print('here is c but as a list: ')
-        print(desc_ls)
+        #print('here is c but as a list: ')
+        #print(desc_ls)
         # print('here is the desc_ls: ')
         # print(desc_ls)
         # adds zeros to the end of each descriptor list to create
         # a list with 22 entries
         # also appends error parameters to the end of the descriptor list
-        desc_app = desc_ls + \
-            np.zeros(19-len(desc_ls)).tolist() + charge_descript['errorParams']
+        #desc_app = desc_ls + \
+        #    np.zeros(19-len(desc_ls)).tolist() + charge_descript['errorParams']
         # generates a dataframe of descriptors
-        desc_df = pd.DataFrame([desc_app], columns=desc.columns)
+        #desc_df = pd.DataFrame([desc_app], columns=desc.columns)
         # combines row of a dataframe with previous dataframe
         desc = pd.concat([desc, desc_df], ignore_index=True)
         # print('here is the desc.to_string(): ')
@@ -300,16 +330,16 @@ class process:
             desc, dict), "Stop right there, only dictionaries are allowed in these parts"
 
         # generates an initial list from the coefficients
-        desc_ls = list(desc['coefficients'])
-        desc_ls.append(desc['name'])
+        desc_ls = list(desc['coefficients' + '-' + str(cd)])
+        desc_ls.append(desc['name' +'-' +str(cd)])
         # determines whether or not there are peaks in the datasent
-        if 'peakSIGMA' in desc.keys():
+        if 'peakSIGMA'+'-' +str(cd) in desc.keys():
             # iterates over the number of peaks
-            for i in np.arange(len(desc['peakSIGMA'])):
+            for i in np.arange(len(desc['peakSIGMA' +'-' +str(cd)])):
                 # appends peak descriptors to the list in order of peak number
-                desc_ls.append(desc['peakLocation(V)'][i])
-                desc_ls.append(desc['peakHeight(dQdV)'][i])
-                desc_ls.append(desc['peakSIGMA'][i])
+                desc_ls.append(desc['peakLocation(V)' +'-' + str(cd)][i])
+                desc_ls.append(desc['peakHeight(dQdV)' +'-' + str(cd)][i])
+                desc_ls.append(desc['peakSIGMA'+'-' + str(cd)][i])
         else:
             pass
         #print('here is the desc_ls with peakloc in the dict_2_list definition: ')
@@ -351,6 +381,7 @@ class process:
             # generates a dictionary of descriptors
             c = fitters.descriptor_func(
                 df_run['Voltage(V)'], df_run['Smoothed_dQ/dV'], cd, cyc_loop, battery)
+            # c is the dictionary of descriptors here 
         # eliminates cycle number and notifies user of cycle removal
         else:
             notice = 'Cycle ' + str(cyc_loop) + ' in battery ' + battery + \
@@ -403,15 +434,15 @@ class fitters:
             coefficients.append(model.best_values[coef])
 
         # creates a dictionary of coefficients
-        desc = {'coefficients': coefficients}
+        desc = {'coefficients' + '-' +str(cd): list(coefficients)}
         sig = []
         if len(i) > 0:
             # generates numpy array for peak calculation
             sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
 
             # determines peak location and height locations from raw data
-            desc.update({'peakLocation(V)': sigx[i].tolist(
-            ), 'peakHeight(dQdV)': sigy[i].tolist()})
+            desc.update({'peakLocation(V)' +'-' +str(cd): list(sigx[i].tolist(
+            )), 'peakHeight(dQdV)'+'-' +str(cd): list(sigy[i].tolist())})
 
             # initiates loop to extract
             #sig = []
@@ -424,11 +455,11 @@ class fitters:
             pass
 
             # updates dictionary with sigma key and object
-        desc.update({'peakSIGMA': sig})
+        desc.update({'peakSIGMA'+ '-' +str(cd): list(sig)})
         # print('Here is the desc within the descriptor_func function: ')
         # print(desc)
         # adds keys for the error parameters of each fit
-        desc.update({'errorParams': [model.aic, model.bic, model.redchi]})
+        desc.update({'errorParams'+'-' +str(cd): list([model.aic, model.bic, model.redchi])})
 
         return desc
 

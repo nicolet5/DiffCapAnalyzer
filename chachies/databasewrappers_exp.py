@@ -27,8 +27,11 @@ def process_data(file_name, database_name):
 	for row in c.execute("""SELECT name FROM sqlite_master WHERE type='table'""" ):
 		names_list.append(row[0])
 	con.close()
-	name = file_name + 'Raw'
-	if name in names_list: 
+	file_name3 = file_name 
+	while '/' in file_name3:
+		file_name3 = file_name3.split('/', maxsplit = 1)[1]
+	name3 = file_name3.split('.')[0] 
+	if name3 + 'Raw' in names_list: 
 		print('That file name has already been uploaded into the database.')
 	else:
 		print('Processing that data')	
@@ -38,7 +41,7 @@ def process_data(file_name, database_name):
 		cycle_dict = ccf.load_sep_cycles(file_name, database_name)
 		clean_cycle_dict= ccf.get_clean_cycles(cycle_dict, file_name, database_name)
 		desc_df = descriptors.get_descriptors(clean_cycle_dict)
-		dbfs.update_database_newtable(desc_df, 'descriptors', database_name)
+		dbfs.update_database_newtable(desc_df, name3 + '-descriptors', database_name)
 		# pass this clean cycle dictionary to function to get descriptors - same as what we did with get clean setss
 		#for k,v in clean_cycle_dict.items():
 		#	print(k,v)
@@ -59,6 +62,6 @@ def parse_update_master(file_name, database_name):
 	dbfs.update_database_newtable(data, name + 'Raw', database_name)
 	update_dic ={'Dataset_Name': name,'Raw_Data_Prefix': name +'Raw',
 					'Cleaned_Data_Prefix': name + 'CleanSet', 
-					'Cleaned_Cycles_Prefix': name + '-CleanCycle'}
+					'Cleaned_Cycles_Prefix': name + '-CleanCycle', 'Descriptors_Prefix': name + '-descriptors'}
 	dbfs.update_master_table(update_dic, database_name)
 	return

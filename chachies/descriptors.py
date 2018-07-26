@@ -40,6 +40,8 @@ def get_descriptors(import_dictionary):
     #print(df_dc.to_string())
     # concats charge and discharge cycles
     df_final = pd.concat([df_ch, df_dc], axis=1)
+    print(df_final['peakHeight(dQdV)-d'].to_string())
+
     df_final2 = dflists_to_dfind(df_final)
 
     # drops any duplicate rows
@@ -58,13 +60,21 @@ def dflists_to_dfind(df):
     """Takes the df of lists and based on max length of list in each column, 
     puts each value into individual columns. This is the df that will be 
     written to the database. """
+    #add if NaN in df replace with [] (an empty list) (this will be a list instead of a float)
+    df.reset_index(drop = True)
+
+    print(df.to_string())
     df_new = pd.DataFrame()
     for column in df.columns:
-        x = max(list(df[column].str.len()))
-        print(column)
+        #for row in (df.loc[df[column].isnull(), column].index):
+         #   df.at[row, column] = []
+        x = int(max(list(df[column].str.len())))
+        print(x)
         new_cols = []
+        print(column)
         for i in range(x):
             colname = column + str(i)
+            print(colname)
             new_cols.append(colname)
         print(new_cols)
         df_new[new_cols]= pd.DataFrame(df[column].values.tolist())
@@ -452,7 +462,8 @@ class fitters:
                 center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
                 sig.append(model.best_values[sigma])
         else:
-            pass
+            desc.update({'peakLocation(V)' + '-' + str(cd): list([np.NaN]), 'peakHeight(dQdV)' + '-' + str(cd): list([np.NaN])})
+            #pass
 
             # updates dictionary with sigma key and object
         desc.update({'peakSIGMA'+ '-' +str(cd): list(sig)})

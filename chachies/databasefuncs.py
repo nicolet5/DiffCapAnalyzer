@@ -31,9 +31,9 @@ def update_master_table(update_dic, database_name):
         con = sql.connect(database_name)
         c = con.cursor()
         #add upload data filename in sql_master table
-        c.execute('''INSERT INTO master_table('Dataset_Name', 'Raw_Data_Prefix','Cleaned_Data_Prefix', 'Cleaned_Cycles_Prefix') 
-                     VALUES ('%s', '%s', '%s', '%s')
-                  ''' % (update_dic['Dataset_Name'], update_dic['Raw_Data_Prefix'], update_dic['Cleaned_Data_Prefix'], update_dic['Cleaned_Cycles_Prefix']))
+        c.execute('''INSERT INTO master_table('Dataset_Name', 'Raw_Data_Prefix','Cleaned_Data_Prefix', 'Cleaned_Cycles_Prefix', 'Descriptors_Prefix') 
+                     VALUES ('%s', '%s', '%s', '%s', '%s')
+                  ''' % (update_dic['Dataset_Name'], update_dic['Raw_Data_Prefix'], update_dic['Cleaned_Data_Prefix'], update_dic['Cleaned_Cycles_Prefix'], update_dic['Descriptors_Prefix']))
         # check if update_dic['Dataset_Name'] exists in master_table, if so, don't run the rest of the code. 
         #the above part updates the master table in the data frame
         con.commit()
@@ -49,7 +49,8 @@ def init_master_table(database_name):
 	mydf = pd.DataFrame({'Dataset_Name': [], 
                      	'Raw_Data_Prefix': [], 
                      	'Cleaned_Data_Prefix':[], 
-                     	'Cleaned_Cycles_Prefix': []})
+                     	'Cleaned_Cycles_Prefix': [], 
+                     	'Descriptors_Prefix': []})
 	mydf.to_sql('master_table', con, if_exists='replace')
 	#my_df is the name of the table within the database
 

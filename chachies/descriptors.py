@@ -30,6 +30,7 @@ def get_descriptors(import_dictionary):
 
     # creates dataframe of descriptors for the charge/discharge
     # cycles of all batteries
+    print('Generating descriptors from the data set.')
     df_ch = process.df_generate(import_dictionary, 'c')
     #ther eare duplicates coming out of this function - does cycle 1 2 times (different numbers) then cycle 2 2 times 
     #print('this is df_ch')
@@ -40,7 +41,7 @@ def get_descriptors(import_dictionary):
     #print(df_dc.to_string())
     # concats charge and discharge cycles
     df_final = pd.concat([df_ch, df_dc], axis=1)
-    print(df_final['peakHeight(dQdV)-d'].to_string())
+    #print(df_final['peakHeight(dQdV)-d'].to_string())
 
     df_final2 = dflists_to_dfind(df_final)
 
@@ -63,20 +64,20 @@ def dflists_to_dfind(df):
     #add if NaN in df replace with [] (an empty list) (this will be a list instead of a float)
     df.reset_index(drop = True)
 
-    print(df.to_string())
+    #print(df.to_string())
     df_new = pd.DataFrame()
     for column in df.columns:
         #for row in (df.loc[df[column].isnull(), column].index):
          #   df.at[row, column] = []
         x = int(max(list(df[column].str.len())))
-        print(x)
+        #print(x)
         new_cols = []
-        print(column)
+        #print(column)
         for i in range(x):
             colname = column + str(i)
-            print(colname)
+            #print(colname)
             new_cols.append(colname)
-        print(new_cols)
+        #print(new_cols)
         df_new[new_cols]= pd.DataFrame(df[column].values.tolist())
     return(df_new)
 

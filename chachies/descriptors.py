@@ -15,8 +15,7 @@ import databasefuncs as dbfs
 # individual clean cycles 
 
 
-
-def get_descriptors(import_dictionary):
+def get_descriptors(import_dictionary, datatype):
     """Generates a dataframe containing charge and discharge
     descriptors/error parameters. Also writes descriptors to an
     excel spreadsheet 'describe.xlsx' import_filepath = filepath
@@ -30,17 +29,19 @@ def get_descriptors(import_dictionary):
 
     # creates dataframe of descriptors for the charge/discharge
     # cycles of all batteries
-    df_ch = process.df_generate(import_dictionary, 'c')
+
+    print('Generating descriptors from the data set.')
+    df_ch = process.df_generate(import_dictionary, 'c', datatype)
     #ther eare duplicates coming out of this function - does cycle 1 2 times (different numbers) then cycle 2 2 times 
     #print('this is df_ch')
     #print(df_ch.to_string())
     #does all cycles charge cycle first, then all discharge cycles
-    df_dc = process.df_generate(import_dictionary, 'd')
+    df_dc = process.df_generate(import_dictionary, 'd', datatype)
     #print('this is df_dc')
     #print(df_dc.to_string())
     # concats charge and discharge cycles
     df_final = pd.concat([df_ch, df_dc], axis=1)
-    print(df_final['peakHeight(dQdV)-d'].to_string())
+    #print(df_final['peakHeight(dQdV)-d'].to_string())
 
     df_final2 = dflists_to_dfind(df_final)
 
@@ -63,27 +64,27 @@ def dflists_to_dfind(df):
     #add if NaN in df replace with [] (an empty list) (this will be a list instead of a float)
     df.reset_index(drop = True)
 
-    print(df.to_string())
+    #print(df.to_string())
     df_new = pd.DataFrame()
     for column in df.columns:
         #for row in (df.loc[df[column].isnull(), column].index):
          #   df.at[row, column] = []
         x = int(max(list(df[column].str.len())))
-        print(x)
+        #print(x)
         new_cols = []
-        print(column)
+        #print(column)
         for i in range(x):
             colname = column + str(i)
-            print(colname)
+            #print(colname)
             new_cols.append(colname)
-        print(new_cols)
+        #print(new_cols)
         df_new[new_cols]= pd.DataFrame(df[column].values.tolist())
     return(df_new)
 
 class process:
 
     # first function called by ML_generate
-    def df_generate(import_dictionary, cd):
+    def df_generate(import_dictionary, cd, datatype):
         """Creates a pandas dataframe for each battery's charge/
         discharge cycle in the import_filepath folder.
         import_filepath = filepath containing cleaned separated cycles
@@ -137,7 +138,7 @@ class process:
             #print(notice)
 
             # generates dataframe of descriptor fits for each battery
-        df = process.imp_all(import_dictionary, cd)
+        df = process.imp_all(import_dictionary, cd, datatype)
             # get dataframe of descriptors from all the batcleancycle#'s'
             # generates an iterative list of names for the 'name'
             # column of the final dataframe
@@ -160,7 +161,7 @@ class process:
         #print(df_ch.to_string())
         return df_ch
 
-    def imp_all(import_dictionary, cd):
+    def imp_all(import_dictionary, cd, datatype):
         """Generates a Pandas dataframe of descriptors for a single battery
 
         source = string containing directory with the excel sheets
@@ -219,7 +220,7 @@ class process:
             cyc_loop = int(k.split('Cycle')[1])
             testdf = v
             battery = k 
-            c = process.imp_one_cycle(testdf, cd, cyc_loop, battery)
+            c = process.imp_one_cycle(testdf, cd, cyc_loop, battery, datatype)
             # c is a dictionary of descriptors 
             #print('here is c before appending: ')
             #print(c)
@@ -356,7 +357,7 @@ class process:
         #print(desc_ls)
         return desc_ls
 
-    def imp_one_cycle(testdf, cd, cyc_loop, battery):
+    def imp_one_cycle(testdf, cd, cyc_loop, battery, datatype):
         """imports and fits a single charge discharge cycle of a battery
 
         file_val = directory containing current cycle
@@ -373,7 +374,8 @@ class process:
         # testdf = pd.read_excel(file_val)
 
         # extracts charge and discharge from the dataset
-        charge, discharge = ccf.sep_char_dis(testdf)
+        (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
+        charge, discharge = ccf.sep_char_dis(testdf, datatype)
 
         # determines if the charge, discharge indicator was inputted correctly
         # assigns daframe for fitting accordingly
@@ -387,10 +389,10 @@ class process:
 
         # determines if a cycle should be passed into the descriptor
         # fitting function
-        if (len(charge['Voltage(V)'].index) >= 10) and (len(discharge['Voltage(V)'].index) >= 10):
+        if (len(charge[volt_col].index) >= 10) and (len(discharge[volt_col].index) >= 10):
             # generates a dictionary of descriptors
             c = fitters.descriptor_func(
-                df_run['Voltage(V)'], df_run['Smoothed_dQ/dV'], cd, cyc_loop, battery)
+                df_run[volt_col], df_run['Smoothed_dQ/dV'], cd, cyc_loop, battery)
             # c is the dictionary of descriptors here 
         # eliminates cycle number and notifies user of cycle removal
         else:

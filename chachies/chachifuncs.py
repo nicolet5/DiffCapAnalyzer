@@ -93,8 +93,8 @@ def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
     # this separated out the discharging data and put it in 'raw_discharge'.
     # Reset the index as well.
 
-    clean_charge2 = drop_0_dv(raw_charge)
-    clean_discharge2 = drop_0_dv(raw_discharge)
+    clean_charge2 = drop_0_dv(raw_charge, 'c')
+    clean_discharge2 = drop_0_dv(raw_discharge, 'd')
     # apply the drop_0_dv function to clean out the wonky data points,
     # especially near the voltage corresponding to the end of a cycle.
 
@@ -165,7 +165,7 @@ def calc_dq_dqdv(cycle_df):
     cycle_df['Charge_dQ/dV'] = cycle_df['Charge_dQ']/cycle_df['dV']
     return cycle_df
 
-def drop_0_dv(cycle_df_dv):
+def drop_0_dv(cycle_df_dv, cd):
     '''Drop rows where dv=0 (or about 0) in a dataframe that has
     already had dv calculated. Then recalculate dv and calculate dq/dv'''
     # this will clean up the data points around V = 4.2V
@@ -178,6 +178,8 @@ def drop_0_dv(cycle_df_dv):
     cycle_df_dv['dv_close_to_zero'] = None
 
     #dropping values where current = 0
+    # change to dq/dv = 0 
+
     for i in range(1, len(cycle_df_dv)):
         if isclose(cycle_df_dv.loc[i, ('Current(A)')], 0, abs_tol=10**-3):
             cycle_df_dv = cycle_df_dv.drop(index=i)
@@ -201,12 +203,25 @@ def drop_0_dv(cycle_df_dv):
 
  #       cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
- #       for i in range(1, len(cycle_df_dv)):
-  #          if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
-   #             cycle_df_dv = cycle_df_dv.drop(index=i)
+    for i in range(1, len(cycle_df_dv)):
+       if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
+           cycle_df_dv = cycle_df_dv.drop(index=i)
 
-#        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+    cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
+    if cd == 'c':
+        #if we are looking at the charge cycle
+        for i in range(1, len(cycle_df_dv)):
+           if isclose(cycle_df_dv.loc[i, ('Charge_dQ')], 0, abs_tol=10**-3):
+               cycle_df_dv = cycle_df_dv.drop(index=i)
+
+        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+    if cd == 'd':
+    #if we are looking at the discharge cycle
+        for i in range(1, len(cycle_df_dv)):
+           if isclose(cycle_df_dv.loc[i, ('Discharge_dQ')], 0, abs_tol=10**-3):
+               cycle_df_dv = cycle_df_dv.drop(index=i)
+        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
  #       separate_dis_char = np.where(
   #          np.diff(np.sign(cycle_df_dv['Current(A)'])))
 

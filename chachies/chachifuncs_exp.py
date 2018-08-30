@@ -49,10 +49,11 @@ def get_clean_cycles(cycle_dict, file_name, database_name, datatype):
     clean_cycle_dict = {} 
     ex_data = input('Are there any voltages that should not be included? (y/n): ')
     if ex_data == 'y': 
-        thresh = input('Please enter a voltage to exclude from the data: ')
-        print('Datapoints within 0.03V of that voltage will be deleted')
+        thresh1 = input('Please enter the start voltage of the range to exclude from the data: ')
+        thresh2 = input('Please enter the end voltage of the range to exclude from the data: ')
+        #print('Datapoints within 0.03V of that voltage will be deleted')
     for i in range(1, len(cycle_dict)+1):
-    	charge, discharge = clean_calc_sep_smooth(cycle_dict[i], 9, 3, thresh, datatype)
+    	charge, discharge = clean_calc_sep_smooth(cycle_dict[i], 9, 3, thresh1, thresh2, datatype)
     	clean_data = charge.append(discharge, ignore_index=True)
     	clean_data = clean_data.sort_values([data_point_col], ascending = True)
     	clean_data = clean_data.reset_index(drop=True)
@@ -92,7 +93,7 @@ def get_clean_sets(clean_cycle_dict, file_name, database_name):
 # Component Functions
 ############################
 
-def clean_calc_sep_smooth(dataframe, windowlength, polyorder, thresh, datatype):
+def clean_calc_sep_smooth(dataframe, windowlength, polyorder, thresh1, thresh2, datatype):
     """Takes one cycle dataframe, calculates dq/dv, cleans the data,
     separates out charge and discharge, and applies sav-golay filter.
     Returns two dataframes, one charge and one discharge.
@@ -101,7 +102,7 @@ def clean_calc_sep_smooth(dataframe, windowlength, polyorder, thresh, datatype):
     #print(dataframe.columns)
     df = init_columns(dataframe, datatype)
     df1 = calc_dq_dqdv(df, datatype)
-    cleandf2 = drop_0_dv(df1, thresh, datatype)
+    cleandf2 = drop_0_dv(df1, thresh1, thresh2, datatype)
 
     charge, discharge = sep_char_dis(cleandf2, datatype)
     # separating into charge and discharge cycles
@@ -193,7 +194,7 @@ def calc_dq_dqdv(cycle_df, datatype):
 	#			cycle_df.loc[i, ('dQ/dV')] = cycle_df.loc[i, ('Charge_dQ')]/cycle_df.loc[i,('dV')]
 	return cycle_df
 
-def drop_0_dv(cycle_df_dv, thresh, datatype):
+def drop_0_dv(cycle_df_dv, thresh1, thresh2, datatype):
     '''Drop rows where dv=0 (or about 0) in a dataframe that has
     already had dv calculated. Then recalculate dv and calculate dq/dv'''
     # this will clean up the data points around V = 4.2V
@@ -204,8 +205,10 @@ def drop_0_dv(cycle_df_dv, thresh, datatype):
     cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
     for i in range(len(cycle_df_dv)):
-        if isclose(cycle_df_dv.loc[i, (volt_col)], float(thresh), abs_tol=0.03):
-            cycle_df_dv = cycle_df_dv.drop(index=i)
+    	if float(thresh1) < cycle_df_dv.loc[i, (volt_col)] < float(thresh2):
+    		cycle_df_dv = cycle_df_dv.drop(index=i)
+        #if isclose(cycle_df_dv.loc[i, (volt_col)], float(thresh), abs_tol=0.03):
+         #   cycle_df_dv = cycle_df_dv.drop(index=i)
 
 ######################new
     # for i in range(1, len(cycle_df_dv)):
@@ -265,11 +268,16 @@ def sep_char_dis(df_dqdv, datatype):
 		split = int(switch_cd_index[0])
 	else:
 		split = 0
-	charge = df_dqdv[:split] 
+	if datatype == 'CALCE':
+		charge = df_dqdv[:split] 
 	# returns the first part of the dataframe 
-	discharge = df_dqdv[split:]
+		discharge = df_dqdv[split:]
 	# returns the second part of the dataframe
-
+	elif datatype == 'MACCOR':
+		charge = df_dqdv[split:]
+		discharge = df_dqdv[:split]
+	else:
+		print('That is not a valid datatype.')
 	charge = charge.reset_index(drop=True)
 	discharge = discharge.reset_index(drop=True)
 	return charge, discharge

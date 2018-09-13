@@ -10,17 +10,18 @@ import io
 import json
 import plotly 
 import base64
-
+from unittest.mock import patch
 ##########################################
 #Load Data
 ##########################################
 #eventually add everything in folder and create a dropdown that loads that data into data 
-
+database = 'dqdvDataBase_sortedpeaks4.db'
+datatype = 'CALCE'
 #for now just use some data we have 
 #data = pd.read_excel('data/Clean_Whole_Sets/CS2_33_12_16_10CleanSet.xlsx')
-data = dbexp.dbfs.get_file_from_database('CS2_33_10_04_10_twocyclesCleanSet', 'somedatabase_cs233_twocycles50.db')
+data = dbexp.dbfs.get_file_from_database('CS2_33_10_04_10CleanSet', database)
 
-charge, discharge = dbexp.ccf.sep_char_dis(data)
+charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
 
 #df_dqdv = ccf.calc_dv_dqdv('data/CS2_33/CS2_33_10_04_10.xlsx')
 #df_dqdv = ccf.calc_dv_dqdv(data)
@@ -135,18 +136,27 @@ app.layout = html.Div([
 ##########################################
 #Interactive Parts
 ##########################################
+#@patch('databasewrappers_exp.process_data.input', create=True)
 
 def parse_contents(contents, filename, date):
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string)
     try:
-        if 'csv' in filename:
+        #mocked_input.side_effect = ['CALCE', 'y', '4.17', '4.25']
+        dbexp.process_data(filename, database)
+        #this should take a raw file and process it, then put it in the database
+        while '/' in file_name:
+            file_name = file_name.split('/', maxsplit = 1)[1]
+        cleanset_name = file_name.split('.')[0] + 'CleanSet'
+        #this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
+        df = dbexp.dbfs.get_file_from_database(cleanset_name, database)
+        #if 'csv' in filename:
             # Assume that the user uploaded a CSV file
-            df = pd.read_csv(
-                io.StringIO(decoded.decode('utf-8')))
-        elif 'xls' in filename:
+        #    df = pd.read_csv(
+        #        io.StringIO(decoded.decode('utf-8')))
+        #elif 'xls' in filename:
             # Assume that the user uploaded an excel file
-            df = pd.read_excel(io.BytesIO(decoded))
+        #    df = pd.read_excel(io.BytesIO(decoded))
     except Exception as e:
         print(e)
         return html.Div([
@@ -162,7 +172,7 @@ def parse_contents(contents, filename, date):
 
 def update_table1(contents, filename, date):
     data = parse_contents(contents, filename, date) 
-    charge, discharge = dbexp.ccf.sep_char_dis(data)
+    charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
     return charge.to_dict('records')
 
 @app.callback( #update discharge datatable
@@ -173,7 +183,7 @@ def update_table1(contents, filename, date):
 
 def update_table2(contents, filename, date):
     data = parse_contents(contents, filename, date)
-    charge, discharge = dbexp.ccf.sep_char_dis(data)
+    charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
     return discharge.to_dict('records')
 
 @app.callback( #update slider 
@@ -184,7 +194,7 @@ def update_table2(contents, filename, date):
 
 def update_slider_max(contents, filename, date):
     data = parse_contents(contents, filename, date)
-    charge, discharge = dbexp.ccf.sep_char_dis(data)
+    charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
     return charge['Cycle_Index'].max()
 
 @app.callback( #update slider 
@@ -195,7 +205,7 @@ def update_slider_max(contents, filename, date):
 
 def update_slider_value(contents,filename,date):
     data = parse_contents(contents, filename, date)
-    charge, discharge = dbexp.ccf.sep_char_dis(data)
+    charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
     return charge['Cycle_Index'].max()
 
 @app.callback( #decorator wrapper for table 
@@ -226,7 +236,7 @@ def update_selected_row_indices(clickData, selected_row_indices):
 
 def update_figure1(selected_step,contents,filename,date,selected_row_indices):
     data = parse_contents(contents, filename, date)
-    (charge, discharge) = dbexp.ccf.sep_char_dis(data)
+    (charge, discharge) = dbexp.ccf.sep_char_dis(data, datatype)
     filtered_data = charge[charge['Cycle_Index'] == selected_step]
     for i in filtered_data['Cycle_Index'].unique():
         dff = filtered_data[filtered_data['Cycle_Index'] == i]
@@ -282,7 +292,7 @@ def update_figure1(selected_step,contents,filename,date,selected_row_indices):
 
 def update_figure2(selected_step,contents,filename,date,selected_row_indices):
     data = parse_contents(contents, filename, date)
-    (charge, discharge) = dbexp.ccf.sep_char_dis(data)
+    (charge, discharge) = dbexp.ccf.sep_char_dis(data, datatype)
     filtered_data = discharge[discharge['Cycle_Index'] == selected_step]
     for i in filtered_data['Cycle_Index'].unique():
         dff = filtered_data[filtered_data['Cycle_Index'] == i]

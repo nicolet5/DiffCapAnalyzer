@@ -9,10 +9,13 @@ import descriptors
 import databasefuncs as dbfs
 # OVERALL Wrapper Function
 ################################
+# This version takes a path to a file instead of the decoded contents (like in version 
+# databasewrappers_exp). The decoded contents in the other version are needed because the 
+# file is being passed through the app. Here, we are using jupyter notebooks, so we can 
+# use the path to the file instead of decoded contents. 
 
 
-
-def process_data(file_name, database_name, decoded_contents, datatype, thresh1, thresh2):
+def process_data(file_name, database_name, path, datatype, thresh1, thresh2):
 	# Takes raw file 
 	# sep_cycles
 	# cleans cycles
@@ -37,7 +40,7 @@ def process_data(file_name, database_name, decoded_contents, datatype, thresh1, 
 	else:
 		#datatype = input('What datatype do you have (either CALCE or MACCOR)')
 		print('Processing that data')	
-		parse_update_master(file_name, database_name, datatype, decoded_contents)
+		parse_update_master(file_name, database_name, datatype, path)
 		#this takes the info from the filename and updates the master table in the database. 
 		# this also adds the raw data fram into the database
 		cycle_dict = ccf.load_sep_cycles(file_name, database_name, datatype)
@@ -46,9 +49,9 @@ def process_data(file_name, database_name, decoded_contents, datatype, thresh1, 
 		##################################################
 		#uncomment the below to get descriptors ###########
 		#####################################################
-		#desc_df = descriptors.get_descriptors(clean_cycle_dict, datatype)
-		#dbfs.update_database_newtable(desc_df, name3 + '-descriptors', database_name)
-		#print('Database updated with descriptors.')
+		desc_df = descriptors.get_descriptors(clean_cycle_dict, datatype)
+		dbfs.update_database_newtable(desc_df, name3 + '-descriptors', database_name)
+		print('Database updated with descriptors.')
 		###################################################################
 		#######################################################################
 		# pass this clean cycle dictionary to function to get descriptors - same as what we did with get clean setss
@@ -62,30 +65,27 @@ def process_data(file_name, database_name, decoded_contents, datatype, thresh1, 
 	return
 
 
-def parse_update_master(file_name, database_name, datatype, decoded_contents):
-	decoded = decoded_contents
+def parse_update_master(file_name, database_name, datatype, path):
+	#decoded = decoded_contents
 	file_name2 = file_name
 	while '/' in file_name2:
 		file_name2 = file_name2.split('/', maxsplit = 1)[1]
 	name = file_name2.split('.')[0]    
 	if datatype == 'CALCE':
-		data1 = pd.read_excel(io.BytesIO(decoded), 1)
-		data1['datatype'] = 'CALCE'
+		data1 = pd.read_excel(path, 1)
 	elif datatype == 'MACCOR':
-		data1 = pd.read_csv(io.StringIO(decoded.decode('utf-8')), header = 12, delimiter='\t', index_col=False)
-		dataheader = pd.read_fwf(io.StringIO(decoded.decode('utf-8')), delimiter = '\t')
+		data1 = pd.read_csv(path, header = 12, delimiter='\t', index_col=False)
+		dataheader = pd.read_fwf(path, delimiter = '\t')
 		weight = float(dataheader.iloc[2][0].split('mg')[0].split('_')[1].replace('p', '.'))
 		data1['Const_Weight[mg]'] = weight
 		#somehow set the Current column to negative when the 'Md' column has a D in it(current > 0 - charge)
 		data1['MaccCharLab'] = data1.apply(lambda row: macc_chardis(row), axis = 1)
 		data1['Current(A)'] = data1['Current [A]']*data1['MaccCharLab']
-		data1['datatype'] = 'MACCOR'
 
-		data1.rename(columns={'Cycle C': 'Cycle_Index', 'Voltage [V]': 'Voltage(V)', 'Current [A]': 'Abs_Current(A)', 'Cap. [Ah]': 'Cap(Ah)'}, inplace=True)
+		data1.rename(columns={'Voltage [V]': 'Voltage(V)', 'Current [A]': 'Abs_Current(A)', 'Cap. [Ah]': 'Cap(Ah)'}, inplace=True)
 		#print(data1.columns)
 	else: 
-		None
-		#print('please put in either "CALCE" or "MACCOR" for datatype.')
+		print('please put in either "CALCE" or "MACCOR" for datatype.')
 	# this is the only time the raw data file is read into the program from excel
 	data = ccf.calc_dq_dqdv(data1, datatype)
 	dbfs.update_database_newtable(data, name + 'Raw', database_name)

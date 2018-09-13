@@ -541,7 +541,9 @@ class fitters:
             sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, 3)
         elif len(sigy) > 10:
             sigy_smooth = sigy
-        i = peakutils.indexes(sigy_smooth, thres=.37, min_dist=lenmax/50)
+        # this used to be sigy_smooth in the .indexes function below -= changed it to just sigy for graphite
+        # change was made on 9.12.18  . also changed min_dist=lenmax/50 to min_dist= 10
+        i = peakutils.indexes(sigy, thres=.37, min_dist=10)
         #i = peakutils.indexes(sigy_smooth, thres=.3 /
         #                      max(sigy_smooth), min_dist=9)
         #print(i)
@@ -661,7 +663,8 @@ def dfsortpeakvals(mydf, cd):
     newdf.columns = ['allpeaks']
     sortdf = newdf.sort_values(by = 'allpeaks')
     sortdf = sortdf.reset_index(inplace = False)
-    newgroupindex = np.where(np.diff(sortdf['allpeaks'])>0.03)
+    newgroupindex = np.where(np.diff(sortdf['allpeaks'])>0.002)
+    #the above threshold used to be 0.03 - was changed on 9.12.18 for the graphite stuff 
     # this threshold should be changed to reflect the separation between peaks 
     listnew=newgroupindex[0].tolist()
     listnew.insert(0, 0)

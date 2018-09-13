@@ -37,7 +37,7 @@ def load_sep_cycles(file_name, database_name, datatype):
 
 
 
-def get_clean_cycles(cycle_dict, file_name, database_name, datatype):
+def get_clean_cycles(cycle_dict, file_name, database_name, datatype, thresh1, thresh2):
     """Imports all separated out cycles in given path and cleans them
     and saves them in the specified filepath"""
     #name = file_name.split('.')[0]
@@ -47,20 +47,23 @@ def get_clean_cycles(cycle_dict, file_name, database_name, datatype):
     name = file_name.split('.')[0]
 
     clean_cycle_dict = {} 
-    ex_data = input('Are there any voltages that should not be included? (y/n): ')
-    if ex_data == 'y': 
-        thresh1 = input('Please enter the start voltage of the range to exclude from the data: ')
-        thresh2 = input('Please enter the end voltage of the range to exclude from the data: ')
+    #ex_data = 'y'
+    #ex_data = input('Are there any voltages that should not be included? (y/n): ')
+    #if ex_data == 'y': 
+        #thresh1 = '4.17'
+        #thresh2 = '4.25'
+        #thresh1 = input('Please enter the start voltage of the range to exclude from the data: ')
+        #thresh2 = input('Please enter the end voltage of the range to exclude from the data: ')
         #print('Datapoints within 0.03V of that voltage will be deleted')
     for i in range(1, len(cycle_dict)+1):
-    	charge, discharge = clean_calc_sep_smooth(cycle_dict[i], 9, 3, thresh1, thresh2, datatype)
-    	clean_data = charge.append(discharge, ignore_index=True)
-    	clean_data = clean_data.sort_values([data_point_col], ascending = True)
-    	clean_data = clean_data.reset_index(drop=True)
-    	cyclename = name + '-CleanCycle' + str(i)
+        charge, discharge = clean_calc_sep_smooth(cycle_dict[i], 9, 3, thresh1, thresh2, datatype)
+        clean_data = charge.append(discharge, ignore_index=True)
+        clean_data = clean_data.sort_values([data_point_col], ascending = True)
+        clean_data = clean_data.reset_index(drop=True)
+        cyclename = name + '-CleanCycle' + str(i)
     	#print(cyclename)
-    	clean_cycle_dict.update({cyclename : clean_data})
-    	dbfs.update_database_newtable(clean_data, cyclename, database_name)
+        clean_cycle_dict.update({cyclename : clean_data})
+        dbfs.update_database_newtable(clean_data, cyclename, database_name)
     	#run the peak finding peak fitting part here 
     # for key in clean_cycle_dict:
     # 	print(key)
@@ -147,7 +150,7 @@ def calc_dq_dqdv(cycle_df, datatype):
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
 	pd.options.mode.chained_assignment = None
 	#to avoid the warning 
-
+    # this used to be 3, lets change it to two:
 	cycle_df['roundedV'] = round(cycle_df[volt_col], 3)
 	cycle_df = cycle_df.drop_duplicates(subset = ['roundedV', cycle_ind_col, charge_or_discharge])
 	cycle_df = cycle_df.reset_index(drop = True)
@@ -313,7 +316,7 @@ def col_variables(datatype):
 		# this is just used to make sure duplicate voltages are not removed from 
 		# repeats in charge and discharge 
 	elif datatype == 'MACCOR':
-		cycle_ind_col = 'Cycle C'
+		cycle_ind_col = 'Cycle_Index'
 		data_point_col = 'Rec'
 		volt_col = 'Voltage(V)'
 		curr_col = 'Current(A)'

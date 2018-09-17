@@ -11,12 +11,14 @@ import os
 import json
 import plotly 
 import base64
+from lmfit.model import save_modelresult
+from lmfit.model import load_modelresult
 #from unittest.mock import patch
 ##########################################
 #Load Data
 ##########################################
 #eventually add everything in folder and create a dropdown that loads that data into data 
-database = 'dqdvDataBase_0912APP_2.db'
+database = 'dqdvDataBase_0912APP_17.db'
 if not os.path.exists(database): 
 	print('That database does not exist-creating it now.')
 	dbexp.dbfs.init_master_table(database)
@@ -79,10 +81,18 @@ app.layout = html.Div([
         ]),
     
     html.Div(id = 'output-data-upload'),    
+
+    html.Div(id = 'model-output'),
+
+    html.Div(id = 'update-model-ans'), 
     
     html.Div([dcc.Dropdown(id ='available-data',
     					   options = 'options')]),
-
+    html.Div([dcc.Input(id = 'charge-newpeak', placeholder = 'charge new peak')]),
+    html.Div([dcc.Input(id = 'discharge-newpeak', placeholder = 'discharge new peak')]),
+    html.Button('Update Preview of Model', id = 'update-model-button'),
+    html.Button('Update Model in Database', id = 'update-model-indb-button'),
+    html.Div(id = 'gen-desc-confirmation'),
     html.Div([
         html.Br(),
         dcc.Slider(
@@ -119,8 +129,17 @@ app.layout = html.Div([
             }
         ),
     
-    html.Button('Find Descriptors', id = 'get-descript-button'),
-	html.Div(id = 'gen-desc-confirmation'),
+    html.Div([
+        html.Br(),
+        dcc.Graph(id='model-graph'), #initialize a simple plot
+        #html.Br(),
+        #dcc.Graph(id='discharge-graph'),
+        ],style={
+            'columnCount': 1,
+            'width':'98%',
+            'height': '80%',
+            }
+        ),
 
     html.Div([
         html.H4('DataTable'),
@@ -176,19 +195,26 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
     	cleanset_name = filename.split('.')[0] + 'CleanSet'
     	#this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
     		#check to see if the database exists, and if it does, check if the file exists.
-    	ans = dbexp.if_file_exists_in_db(database, filename)
-    	if ans == True: 
+    	ans_p = dbexp.if_file_exists_in_db(database, filename)
+    	if ans_p == True: 
+    		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
+    		v_toappend_c = []
+    		v_toappend_d = []
+    		feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename)
     		return html.Div(['That file exists in the database: ' + str(filename.split('.')[0])])
     		#df = dbexp.dbfs.get_file_from_database(cleanset_name, database)
     	else:
     		dbexp.process_data(filename, database, decoded, datatype, thresh1, thresh2)
+    		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
+    		v_toappend_c = []
+    		v_toappend_d = []
+    		feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename)
     		# maybe split the process data function into getting descriptors as well?
     		#since that is the slowest step 
     		return html.Div(['New file has been processed: ' + str(filename)])
     		
     		#df = dbexp.dbfs.get_file_from_database(cleanset_name, database)
     	#have to pass decoded to it so it has the contents of the file
-
     except Exception as e:
         print('THERE WAS A PROBLEM PROCESSING THE FILE: ' + str(e))
         #df = None
@@ -207,15 +233,107 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
 # this part should be ran everytime something is updated, keeping the filename. whenever the dropdown menu changes
 def pop_with_db(filename, database):
     cleanset_name = filename.split('.')[0] + 'CleanSet'
+    rawset_name = filename.split('.')[0] + 'Raw'
     #this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
     ans = dbexp.if_file_exists_in_db(database, filename)
     print(ans)
     if ans == True: 
     	# then the file exists in the database and we can just read it 
-    	df = dbexp.dbfs.get_file_from_database(cleanset_name, database)
+    	df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
+    	df_raw = dbexp.dbfs.get_file_from_database(rawset_name, database)
+    	datatype = df_clean.loc[0,('datatype')]
+    	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+    	# for each cycle in the clean set, separate into charge and discharge and find peak indices for every cycle
+    	#######################################comment all this out later
+    	# chargeloc_dict = {}
+    	# dischloc_dict = {}
+    	# windowlength = 11
+    	# polyorder = 1
+    	# # change these to be user inputs - they are just the windowlength and polyorder for peak finding - not the overall one
+    	# for each_cyc in df_clean[cycle_ind_col].unique():
+    	# 	clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==each_cyc], datatype)
+    	# 	i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
+    	# 	i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
+    	# 	#lenmax (equal to 200 here) does literally nothing as the code is written now on 9.13.18
+    	# 	# this returns the peak locations as found by peakutils -plot these as vertical lines on
+    	# 	chargeloc_dict.update({each_cyc: volts_i_ch})
+    	# 	dischloc_dict.update({each_cyc: volts_i_dc})
+    	############################################################
     else:
-    	df = None
-    return df
+    	df_clean = None
+    	df_raw = None
+    	peakloc_dict = {}
+    return df_clean, df_raw
+
+def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d):
+	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+	clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
+	windowlength = 3
+	polyorder = 1
+	# speed this up by moving the initial peak finder out of this, and just have those two things passed to it 
+	i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
+	#chargeloc_dict.update({cyc: volts_i_ch})
+	V_series_c = clean_charge[volt_col]
+	dQdV_series_c = clean_charge['Smoothed_dQ/dV']
+	par_c, mod_c, indices_c = dbexp.descriptors.fitters.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, v_toappend_c)
+	model_c = dbexp.descriptors.fitters.model_eval(V_series_c, dQdV_series_c, 'c', par_c, mod_c)			
+	mod_y_c = mod_c.eval(params = model_c.params, x = V_series_c)
+	mod_y_c = mod_y_c.rename('Model')
+
+	# now the discharge: 
+	i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
+	V_series_d = clean_discharge[volt_col]
+	dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
+	par_d, mod_d, indices_d = dbexp.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, v_toappend_d)
+	model_d = dbexp.descriptors.fitters.model_eval(V_series_d, dQdV_series_d, 'd', par_d, mod_d)			
+	mod_y_d = mod_d.eval(params = model_d.params, x = V_series_d)
+	mod_y_d = mod_y_d.rename('Model')
+	# save the model parameters in the database with the data
+	new_df_mody_c = pd.concat([mod_y_c, V_series_c, dQdV_series_c, clean_charge[cycle_ind_col]], axis = 1)
+	new_df_mody_d = pd.concat([-mod_y_d, V_series_d, dQdV_series_d, clean_discharge[cycle_ind_col]], axis = 1)
+	new_df_mody = pd.concat([new_df_mody_c, new_df_mody_d], axis = 0)
+
+	# combine the charge and discharge
+	model_c_vals = model_c.values
+	model_d_vals = model_d.values
+	return new_df_mody, model_c_vals, model_d_vals
+
+def generate_model(v_toappend_c, v_toappend_d, df_clean, filename):
+	# run this when get descriptors button is pushed, and re-run it when user puts in new voltage 
+	# create model based off of initial peaks 
+	# show user model, then ask if more peak locations should be used (shoulders etc)
+	datatype = df_clean.loc[0,('datatype')]
+	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+
+	chargeloc_dict = {}
+	param_df = pd.DataFrame(columns = ['Cycle','Model_Parameters'])
+	#ans = dbexp.if_file_exists_in_db(database, filename)
+	#if ans == True:
+		#return html.Div(['A model for that filename already exists in the database.'])
+	#else: 
+	mod_pointsdf = pd.DataFrame()
+	for cyc in df_clean[cycle_ind_col].unique():
+		######################################################################9.15.18
+		#i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
+		new_df_mody, model_c_vals, model_d_vals = get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d)
+		mod_pointsdf = mod_pointsdf.append(new_df_mody)
+		param_df = param_df.append({'Cycle': cyc, 'C/D': 'charge', 'Model_Parameters': str(model_c_vals)}, ignore_index = True)
+		param_df = param_df.append({'Cycle': cyc, 'C/D': 'discharge', 'Model_Parameters': str(model_d_vals)}, ignore_index = True)
+	# want this outside of for loop to update the db with the complete df of new params 
+	dbexp.dbfs.update_database_newtable(mod_pointsdf, filename.split('.')[0]+ '-ModPoints', database)
+	# this will replace the data table in there if it exists already 
+	dbexp.dbfs.update_database_newtable(param_df, filename.split('.')[0] + 'ModParams', database)
+			#save_model(model, path, saveas)
+			# for index in indices: hjkhj
+
+			# 	print('sigma for '+ str(index)+': '+ str(model.values['a'+str(index)+'_sigma']))
+			# 	print('fraction for '+ str(index)+': '+ str(model.values['a'+str(index)+'_fraction']))
+			# 	print('center for '+ str(index)+': '+ str(model.values['a'+str(index)+'_center']))
+			# 	print('amplitude for '+ str(index)+': '+ str(model.values['a'+str(index)+'_amplitude']))
+			# 	print('')
+			# then discharge cycle:
+#return html.Div([str(model.values)])
+	return html.Div(['That model has been added to the database'])
 
 ##############################################################################################
 #@app.callback(
@@ -244,27 +362,63 @@ def update_output(contents, filename, value, thresh1, thresh2):
 def update_dropdown(children):
 	options = [{'label':i[:-3], 'value':i[:-3]} for i in dbexp.get_db_filenames(database)]
 	return options
+
+@app.callback(Output('update-model-ans', 'children'), 
+			  [Input('available-data', 'value'), 
+			   Input('charge-newpeak', 'value'), 
+			   Input('discharge-newpeak', 'value'),
+			   Input('update-model-indb-button', 'n_clicks')])
+def update_model_indb(filename, new_charge_vals, new_discharge_vals, n_clicks):
+	if n_clicks is not None:
+		int_list_c = []
+		int_list_d = []
+		if new_charge_vals is not None: 
+			new_list_c = new_charge_vals.split(',')
+			for i in new_list_c:
+			    int_list_c.append(float(i))
+		else: 
+			None
+		if new_discharge_vals is not None: 
+			new_list_d = new_discharge_vals.split(',')
+			for i in new_list_d:
+			    int_list_d.append(float(i))
+		else: 
+			None
+		cleanset_name = filename.split('.')[0] + 'CleanSet'
+		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
+		feedback = generate_model(int_list_c, int_list_d, df_clean, filename)
+	else:
+		feedback = html.Div(['Model has not been updated yet.'])
+	return feedback
+	# maybe split the process data function into getting descriptors as well?
+    		#since that is the slowest step 
 # Make this app callback from a drop down menu selecting a filename in the database
 # populate dropdown using master_table column= Dataset_Name
+# sdksl
+#@app.callback(Output('model-output', 'children'), 
+#			  [Input('upload-data', 'filename')])
+#def get_model_feedback(filename):
+#	cleanset_name = filename.split('.')[0] + 'CleanSet'
+#	rawset_name = filename.split('.')[0] + 'Raw'
+#    #this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
+#	ans = dbexp.if_file_exists_in_db(database, filename)
+#	if ans == True: 
+ #		# then the file exists in the database and we can just read it 
+#		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
+#		v_toappend_c = [3.4]
+#		v_toappend_d = [3.7]
+#		feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename)
+#	else: 
+#		feedback = html.Div(['That did not work.'])
+#	return feedback
 
-
-@app.callback( #update charge datatable
-    Output('datatable', 'rows'),
-    [Input('available-data', 'value'),
-     #Input('upload-data', 'filename'),
-     #Input('upload-data', 'last_modified')
-     ])
-
-def update_table1(filename):
-    data = pop_with_db(filename, database) 
-    return data.to_dict('records')
 
 @app.callback( #update slider 
     Output('cycle--slider', 'max'),
     [Input('available-data', 'value')])
 
 def update_slider_max(filename):
-    data = pop_with_db(filename, database)
+    data, raw_data= pop_with_db(filename, database)
     #charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
     datatype = data.loc[0,('datatype')]
     (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
@@ -276,7 +430,7 @@ def update_slider_max(filename):
 	[Input('available-data', 'value')])
 
 def update_slider_marks(filename):
-	data = pop_with_db(filename, database)
+	data, raw_data= pop_with_db(filename, database)
 	return {str(each): str(each) for each in data['Cycle_Index'].unique()}
 
 @app.callback( #update slider 
@@ -284,7 +438,7 @@ def update_slider_marks(filename):
     [Input('available-data', 'value')])
 
 def update_slider_value(filename):
-    data = pop_with_db(filename, database)
+    data, raw_data = pop_with_db(filename, database)
     #charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
     datatype = data.loc[0,('datatype')]
     (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
@@ -318,29 +472,35 @@ def update_selected_row_indices(clickData, selected_row_indices):
         )
 
 def update_figure1(selected_step,filename, selected_row_indices):
-    data = pop_with_db(filename, database)
-    #(charge, discharge) = dbexp.ccf.sep_char_dis(data, datatype)
-    # grab datattype from file:
+    data, raw_data= pop_with_db(filename, database)
     datatype = data.loc[0,('datatype')]
     (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+    #stupid change
+    modset_name = filename.split('.')[0] + '-ModPoints'
+    df_model = dbexp.dbfs.get_file_from_database(modset_name, database)
+    filt_mod = df_model[df_model[cycle_ind_col] == selected_step]
+
+    #(charge, discharge) = dbexp.ccf.sep_char_dis(data, datatype)
+    # grab datattype from file:
 
     filtered_data = data[data[cycle_ind_col] == selected_step]
+    raw_filtered_data= raw_data[raw_data[cycle_ind_col]== selected_step]
+    
+    #filt_chargeloc = chargeloc_dict[selected_step] # this returns a list [] of peak indices
+    #filt_disloc = dischloc_dict[selected_step]
     for i in filtered_data[cycle_ind_col].unique():
         dff = filtered_data[filtered_data[cycle_ind_col] == i]
+        dff_raw = raw_filtered_data[raw_filtered_data[cycle_ind_col] == i]
+        dff_mod = filt_mod[filt_mod[cycle_ind_col] == i]
         fig = plotly.tools.make_subplots(
             rows=1,cols=2,
-            subplot_titles=('Cleaned dQ/dV Charge Cycle','Smoothed dQ/dV Charge Cycle'),
+            subplot_titles=('Raw Cycle','Smoothed Cycle'),
             shared_xaxes=True)
         marker = {'color': ['#0074D9']}
+                #fig.append_trace({'x': [2.0, 2.0],'y': [0, 2.0], 'type': 'line', 'name': 'Peak Position'}, 1, 2
+
         for i in (selected_row_indices or []):
             marker['color'][i] = '#FF851B'
-        fig.append_trace({
-            'x': dff[volt_col],
-            'y': dff['dQ/dV'],
-            'type': 'scatter',
-            'marker': marker,
-            'name': 'Cleaned Data'
-            }, 1, 1)
         fig.append_trace({
             'x': dff[volt_col],
             'y': dff['Smoothed_dQ/dV'],
@@ -348,7 +508,49 @@ def update_figure1(selected_step,filename, selected_row_indices):
             'marker': marker,
             'name': 'Smoothed Data'
             }, 1, 2)
+        fig.append_trace({
+            'x': dff_raw[volt_col],
+            'y': dff_raw['dQ/dV'],
+            'type': 'scatter',
+            'marker': marker,
+            'name': 'Raw Data'
+            }, 1, 1)
+           
+        fig.append_trace({
+            'x':dff_mod[volt_col], 
+            'y':dff_mod['Model'] ,
+            'type': 'scatter',
+            'name': 'Model'
+            }, 1,2)
+        #fig.append_trace({'x': (2.0, 2.0),'y': (0, 2.0), 'type': 'line', 'name': 'Peak Position'}, 1, 2)
+        # shapes = list()
+        # for vline in filt_chargeloc:
+        # 	shapes.append({'type':'line',
+        # 		   'x0' : vline, 
+        # 		   'y0':0, 
+        # 		   'x1':vline, 
+        # 		   'y1': dff['dQ/dV'].max(), 
+        # 		   'line': {
+        # 		   	   'color':'rgb(128, 0, 128)',
+        # 		   	   'width': 2, 
+        # 		   	   'dash': 'dashdot'}})
+        # for vline in filt_disloc:
+        # 	shapes.append({'type':'line',
+        # 		   'x0' : vline, 
+        # 		   'y0':0, 
+        # 		   'x1':vline, 
+        # 		   'y1': dff['dQ/dV'].min(), 
+        # 		   'line': {
+        # 		   	   'color':'rgb(128, 0, 128)',
+        # 		   	   'width': 2, 
+        # 		   	   'dash': 'dashdot'}})
+        
         fig['layout']['showlegend'] = False
+        #fig['layout']['shapes'] = shapes
+        fig['layout']['xaxis1'].update(title = 'Voltage (V)')
+        fig['layout']['xaxis2'].update(title = 'Voltage (V)')
+        fig['layout']['yaxis1'].update(title = 'dQ/dV')
+        fig['layout']['yaxis2'].update(title = 'dQ/dV')
         fig['layout']['height'] = 600
         fig['layout']['margin'] = {
             'l': 40,
@@ -356,17 +558,127 @@ def update_figure1(selected_step,filename, selected_row_indices):
             't': 60,
             'b': 200
             }
-        fig['layout']['yaxis'] = {'title': 'dQ/dV'}
+        #fig['layout']['yaxis'] = {'title': 'dQ/dV'}
     return fig
 
-@app.callback(
-    Output('gen-desc-confirmation', 'children'),
-    [Input('get-descript-button', 'n_clicks')])
-def update_output(n_clicks):
-    if n_clicks> 0:
-    	return 'Generating descriptors'
-    else:
-    	return 'Descriptors have not been generated yet.'
+@app.callback( #decorator wrapper for plot
+        Output('model-graph','figure'),
+        [
+         Input('available-data', 'value'), # this will be the filename of the file 
+         #Input('input-datatype', 'value'),
+         #Input('datatable','selected_row_indices'),
+         Input('charge-newpeak', 'value'), 
+         Input('discharge-newpeak', 'value'), 
+         Input('update-model-button', 'n_clicks')]
+         #Input('upload-data','contents')]
+        )
+
+def update_figure2(filename, charge_newpeaks, discharge_newpeaks, n_clicks):
+    """ This is  a function to evaluate the model on a sample plot before updating the database"""
+    data, raw_data= pop_with_db(filename, database)
+    datatype = data.loc[0,('datatype')]
+    (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+    selected_step = data[cycle_ind_col].max()/2 +1 
+    # select a cycle in the middle of the set
+    dff_data= data[data[cycle_ind_col] == selected_step]
+    dff_raw = raw_data[raw_data[cycle_ind_col]==selected_step]
+    if n_clicks is not None:
+    	# if the user has hit the update-model-button - remake model
+        int_list_c = []
+        int_list_d = []
+        if charge_newpeaks is not None: 
+            new_list_c = charge_newpeaks.split(',')
+            for i in new_list_c:
+                int_list_c.append(float(i))
+        else: 
+            None
+        if discharge_newpeaks is not None: 
+            new_list_d = discharge_newpeaks.split(',')
+            for i in new_list_d:
+                int_list_d.append(float(i))
+        else: 
+            None
+        new_df_mody, model_c_vals, model_d_vals = get_model_dfs(dff_data, datatype, selected_step, int_list_c, int_list_d)
+        dff_mod = new_df_mody
+    else: 
+    	# if user hasn't pushed the button, populate with original model from database
+        modset_name = filename.split('.')[0] + '-ModPoints'
+        df_model = dbexp.dbfs.get_file_from_database(modset_name, database)
+        dff_mod = df_model[df_model[cycle_ind_col] == selected_step]
+    
+    #(charge, discharge) = dbexp.ccf.sep_char_dis(data, datatype)
+    # grab datattype from file:
+    
+    
+    #raw_filtered_data= raw_data[raw_data[cycle_ind_col]== selected_step]
+    
+    #filt_chargeloc = chargeloc_dict[selected_step] # this returns a list [] of peak indices
+    #filt_disloc = dischloc_dict[selected_step]
+    #for i in filtered_data[cycle_ind_col].unique():
+    fig = plotly.tools.make_subplots(
+        rows=1,cols=2,
+        subplot_titles=('Raw Cycle','Smoothed Cycle'),
+        shared_xaxes=True)
+    marker = {'color': ['#0074D9']}
+            #fig.append_trace({'x': [2.0, 2.0],'y': [0, 2.0], 'type': 'line', 'name': 'Peak Position'}, 1, 2
+    fig.append_trace({
+        'x': dff_data[volt_col],
+        'y': dff_data['Smoothed_dQ/dV'],
+        'type': 'scatter',
+        'marker': marker,
+        'name': 'Smoothed Data'
+        }, 1, 2)
+    fig.append_trace({
+        'x': dff_raw[volt_col],
+        'y': dff_raw['dQ/dV'],
+        'type': 'scatter',
+        'marker': marker,
+        'name': 'Raw Data'
+        }, 1, 1)
+       
+    fig.append_trace({
+        'x':dff_mod[volt_col], 
+        'y':dff_mod['Model'] ,
+        'type': 'scatter',
+        'name': 'Model of One Cycle'
+        }, 1,2)
+
+    fig['layout']['showlegend'] = False
+    #fig['layout']['shapes'] = shapes
+    fig['layout']['xaxis1'].update(title = 'Voltage (V)')
+    fig['layout']['xaxis2'].update(title = 'Voltage (V)')
+    fig['layout']['yaxis1'].update(title = 'dQ/dV')
+    fig['layout']['yaxis2'].update(title = 'dQ/dV')
+    fig['layout']['height'] = 600
+    fig['layout']['margin'] = {
+        'l': 40,
+        'r': 10,
+        't': 60,
+        'b': 200
+        }
+        #fig['layout']['yaxis'] = {'title': 'dQ/dV'}
+    return fig
+
+@app.callback( #update charge datatable
+    Output('datatable', 'rows'),
+    [Input('available-data', 'value'),
+     #Input('upload-data', 'filename'),
+     #Input('upload-data', 'last_modified')
+     ])
+
+def update_table1(filename):
+    data, raw_data = pop_with_db(filename, database) 
+    return data.to_dict('records')
+
+
+#@app.callback(
+#    Output('gen-desc-confirmation', 'children'),
+#    [Input('update-model-button-button', 'n_clicks')])
+#def update_output(n_clicks):
+#    if n_clicks> 0:
+#    	return 'Generating descriptors'
+#    else:
+#    	return 'Descriptors have not been generated yet.'
 
 # #@app.callback( #decorator wrapper for plot
 # #        Output('discharge-graph','figure'),

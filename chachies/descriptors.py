@@ -15,7 +15,7 @@ import databasefuncs as dbfs
 # individual clean cycles 
 
 
-def get_descriptors(import_dictionary, datatype):
+def get_descriptors(import_dictionary, datatype, windowlength, polyorder):
     """Generates a dataframe containing charge and discharge
     descriptors/error parameters. Also writes descriptors to an
     excel spreadsheet 'describe.xlsx' import_filepath = filepath
@@ -31,12 +31,12 @@ def get_descriptors(import_dictionary, datatype):
     # cycles of all batteries
 
     print('Generating descriptors from the data set.')
-    df_ch = process.df_generate(import_dictionary, 'c', datatype)
+    df_ch = process.df_generate(import_dictionary, 'c', datatype, windowlength, polyorder)
     #ther eare duplicates coming out of this function - does cycle 1 2 times (different numbers) then cycle 2 2 times 
     #print('this is df_ch')
     #print(df_ch.to_string())
     #does all cycles charge cycle first, then all discharge cycles
-    df_dc = process.df_generate(import_dictionary, 'd', datatype)
+    df_dc = process.df_generate(import_dictionary, 'd', datatype, windowlength, polyorder)
     #print('this is df_dc')
     #print(df_dc.to_string())
     # concats charge and discharge cycles
@@ -86,7 +86,7 @@ def dflists_to_dfind(df):
 class process:
 
     # first function called by ML_generate
-    def df_generate(import_dictionary, cd, datatype):
+    def df_generate(import_dictionary, cd, datatype, windowlength, polyorder):
         """Creates a pandas dataframe for each battery's charge/
         discharge cycle in the import_filepath folder.
         import_filepath = filepath containing cleaned separated cycles
@@ -96,74 +96,18 @@ class process:
         df_ch = pandas dataframe for all cycles of all batteries in a
         col_ch = list of numbers of columns for each battery"""
 
-        #assert cd == (
-        #    'c' or 'd'), 'This must be charge (c) or discharge (d) data'
-
-        # generates a list of datafiles to analyze
-        # rootdir = import_filepath
-        # file_list = [f for f in glob.glob(os.path.join(rootdir, '*.xlsx'))]
-        # iterate through dir to get excel file
-
-        # generates a list of unique batteries
-        #list_bats = []
-
-        #for k, v in import_dictionary.items():
-            #clean_set_df = clean_set_df.append(v, ignore_index = True)
-
-            # splits file paths to get battery names
-        #    batname = k
-            # this batname is "batname-cleancycle#" individual cycles
-            # name = os.path.split(file)[1].split('.')[0]
-            # batname = name.split('-')[0]
-
-            # adds unique battery names to the list of batteries
-         #   if batname not in list_bats:
-         #       list_bats.append(batname)
-         #   else:
-         #       None
-
-        # notifies user of successful import
-        #notice = 'Successfully extracted all battery names for ' + cd
-        #print(notice)
-
-        # generates a blank dataframe of charge/discharge descriptors
-        #df_ch = process.pd_create(cd)
-        #df_ch = pd.DataFrame()
-        #print('here is list_bats')
-        #print(list_bats)
-        # begins generating dataframe of descriptors
-        #name_ch = []
-        #for bat in list_bats:
-            # bat is batnamecleancycle# - individual cycles
-            # notifies user which battery is being fit
-            #notice = 'Fitting battery: ' + bat + ' ' + cd
-            #print(notice)
-
+        
             # generates dataframe of descriptor fits for each battery
-        df = process.imp_all(import_dictionary, cd, datatype)
+        df = process.imp_all(import_dictionary, cd, datatype, windowlength, polyorder)
             # get dataframe of descriptors from all the batcleancycle#'s'
             # generates an iterative list of names for the 'name'
             # column of the final dataframe
-            #print('here is the df in the df_generate function: ')
-            #print(df.to_string())
-            #this df has two rows 
-            #print('here is the bat param in the function : ')
-            #print(bat)
-            #name_ch = name_ch + [bat] * len(df.index)
-            #print('here is the name of that battery the df was just printed for above')
-            #print(name_ch)
-            # concats dataframe from current battery with previous
-            # batteries
+          
         df_ch = df
-        #df_ch = pd.concat([df_ch, df])
-
-        # adds name column to the dataframe
-        #df_ch['names'] = name_ch
-        #print('here is the df_ch in the df_generate function: ')
-        #print(df_ch.to_string())
+       
         return df_ch
 
-    def imp_all(import_dictionary, cd, datatype):
+    def imp_all(import_dictionary, cd, datatype, windowlength, polyorder):
         """Generates a Pandas dataframe of descriptors for a single battery
 
         source = string containing directory with the excel sheets
@@ -173,42 +117,9 @@ class process:
 
         Output:
         charge_descript = pandas dataframe of charge descriptors"""
-        # battery is the name "batcleancycle#"
-        # check that the battery label is a string
-        # check that the whatever is passed to ML_generate is a string
-        # check that 'c' or 'd' is passed
-        #assert isinstance(source, str), 'The input should be a string'
-        #assert isinstance(battery, str), 'The input should be a string'
-        #assert cd == (
-         #   'c' or 'd'), 'This must be charge (c) or discharge (d) data'
 
-        # generates list of battery files for import
-        #file_pref = battery + '*.xlsx'
-        #file_list = [f for f in glob.glob(os.path.join(source, file_pref))]
-
-        # sorts by cycle
         cycle = []
 
-        # extracts cycle number from file name using known pattern
-        # for file in file_list:
-        #for k, v in import_dictionary:
-        #    cyc = k.split('Cycle')[1]
-        #    cycle.append(int(cyc))
-
-        # sorts cycle numbers
-        # cyc_sort = sorted(cycle)
-
-        # determines order of indexes that will properly sort the data
-        # cyc_index = []
-        # for cyc in cyc_sort:
-        #   cyc_index.append(cycle.index(cyc))
-
-        # reindexes file list using the lists of indices from above
-        # file_sort = []
-        # for indices in cyc_index:
-         #   file_sort.append(file_list[indices])
-
-        # this is the end of the shit that sorts by cycle
         #charge_descript = process.pd_create(cd)
         charge_descript = pd.DataFrame()
         # this makes an empty dataframe to populate with the descriptors
@@ -225,7 +136,7 @@ class process:
             cyc_loop = int(k.split('Cycle')[1])
             testdf = v
             battery = k 
-            c = process.imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, lenmax)
+            c = process.imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, windowlength, polyorder)
             # c is a dictionary of descriptors 
             #print('here is c before appending: ')
             #print(c)
@@ -362,7 +273,7 @@ class process:
         #print(desc_ls)
         return desc_ls
 
-    def imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, lenmax):
+    def imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, windowlength, polyorder):
         """imports and fits a single charge discharge cycle of a battery
 
         file_val = directory containing current cycle
@@ -396,9 +307,9 @@ class process:
         # fitting function
         if (len(charge[volt_col].index) >= 10) and (len(discharge[volt_col].index) >= 10):
             # generates a dictionary of descriptors
-            c = fitters.descriptor_func(
-                df_run[volt_col], df_run['Smoothed_dQ/dV'], cd, cyc_loop, battery, lenmax)
-            # c is the dictionary of descriptors here 
+            c = fitters.descriptor_func(df_run, cd, cyc_loop, battery, windowlength, polyorder, datatype)
+            # df_run[volt_col], df_run['Smoothed_dQ/dV']
+            #c is the dictionary of descriptors here 
         # eliminates cycle number and notifies user of cycle removal
         else:
             notice = 'Cycle ' + str(cyc_loop) + ' in battery ' + battery + \
@@ -411,8 +322,8 @@ class process:
 
 
 class fitters:
-
-    def descriptor_func(V_series, dQdV_series, cd, cyc, battery, lenmax):
+# run peak finder first, to feed i (indices of peaks) into this function 
+    def descriptor_func(df_run, cd, cyc, battery, windowlength, polyorder, datatype):
         """Generates dictionary of descriptors/error parameters
 
         V_series = Pandas series of voltage data
@@ -422,7 +333,10 @@ class fitters:
         Output:
         dictionary with keys 'coefficients', 'peakLocation(V)',
         'peakHeight(dQdV)', 'peakSIGMA', 'errorParams"""
+        (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
 
+        V_series = df_run[volt_col]
+        dQdV_series = df_run['Smoothed_dQ/dV']
         # make sure a single column of the data frame is passed to
         # the function
         assert isinstance(V_series, pd.core.series.Series)
@@ -432,16 +346,20 @@ class fitters:
         sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
 
         # returns the indices of the peaks for the dataset
-        i = fitters.peak_finder(V_series, dQdV_series, cd, lenmax)
+        i, volts_of_i = fitters.peak_finder(df_run, cd, windowlength, polyorder, datatype)
         #print('Here are the peak finder fitters - indices of peaks in dataset')
         #print(i)
+
+        # THIS is where we will append whatever user inputted indices - they 
+        # will be the same for each cycle (but allowed to vary in the model gen section)
         # generates the necessary model parameters for the fit calculation
-        par, mod = fitters.model_gen(
-            V_series, dQdV_series, cd, i, cyc, battery)
+        v_toappend = []
+        par, mod, indices = fitters.model_gen(
+            V_series, dQdV_series, cd, i, cyc, v_toappend)
 
         # returns a fitted lmfit model object from the parameters and data
         model = fitters.model_eval(V_series, dQdV_series, cd, par, mod)
-
+############################ SPLIT  here - have user evaluate model before adding coefficients into df 
         # initiates collection of coefficients
         coefficients = []
 
@@ -515,40 +433,35 @@ class fitters:
 
         return sigx, sigy
 
-    def peak_finder(V_series, dQdV_series, cd, lenmax):
+    def peak_finder(df_run, cd, windowlength, polyorder, datatype):
         """Determines the index of each peak in a dQdV curve
 
         V_series = Pandas series of voltage data
         dQdV_series = Pandas series of differential capacity data
         cd = either 'c' for charge and 'd' for discharge.
-
+        
         Output:
         i = list of indexes for each found peak"""
-
+        (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
+        V_series = df_run[volt_col]
+        dQdV_series = df_run['Smoothed_dQ/dV']
         assert len(dQdV_series) > 10
 
         sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
         #the below is to make sure the window length ends up an odd number - even though we are basing it on the length of the df
-        wl = lenmax/20
-        wlint = int(round(wl))
-        if wlint%2 == 0:
-            windowlength = wlint + 1
-        else: 
-            windowlength = wlint
-        # window length used to be 25 8-16-18 
         if len(sigy) > windowlength:
             #has to be larger than 69 so that windowlength > 3 - necessary for sav golay function  
-            sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, 3)
+            sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, polyorder)
         elif len(sigy) > 10:
             sigy_smooth = sigy
         # this used to be sigy_smooth in the .indexes function below -= changed it to just sigy for graphite
         # change was made on 9.12.18  . also changed min_dist=lenmax/50 to min_dist= 10
-        i = peakutils.indexes(sigy, thres=.37, min_dist=10)
+        i = peakutils.indexes(sigy_smooth, thres=.37, min_dist=10)
         #i = peakutils.indexes(sigy_smooth, thres=.3 /
         #                      max(sigy_smooth), min_dist=9)
         #print(i)
 
-        return i
+        return i, sigx[i]
 
     def label_gen(index):
         """Generates label set for individual gaussian
@@ -579,17 +492,18 @@ class fitters:
 
         return center, sigma, amplitude, fraction, comb
 
-    def model_gen(V_series, dQdV_series, cd, i, cyc, battery):
+    def model_gen(V_series, dQdV_series, cd, i, cyc, v_toappend):
         """Develops initial model and parameters for battery data fitting.
 
         V_series = Pandas series of voltage data
         dQdV_series = Pandas series of differential capacity data
         cd = either 'c' for charge and 'd' for discharge.
-
+        v_toappend is the list of voltages to append to the peak indices 
         Output:
         par = lmfit parameters object
         mod = lmfit model object"""
 
+        
         # generates numpy arrays for use in fitting
         sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
 
@@ -603,11 +517,22 @@ class fitters:
         # prints a notice if no peaks are found
         if all(i) is False:
             notice = 'Cycle ' + str(cyc) + cd + \
-                ' in battery ' + battery + ' has no peaks.'
+                ' in battery ' + ' has no peaks.'
             print(notice)
-
         # iterates over all peak indices
         else:
+            # have to convert from inputted voltages to indices of peaks within sigx_bot
+            user_appended_ind = []
+            if len(v_toappend) > 0: 
+                for vapp in v_toappend:
+                    if sigx_bot.min()<=vapp<=sigx_bot.max():
+                        #check if voltage given is valid
+                        ind_app= np.where(np.isclose(sigx_bot, float(vapp), atol = 0.1))[0][0]
+                        user_appended_ind.append(ind_app)
+                    # this gives a final list of user appended indices 
+                i = i.tolist() + user_appended_ind # combine the two lists of indices to get the final set of peak locations
+            else:
+                i = i.tolist()
             for index in i:
 
                 # generates unique parameter strings based on index of peak
@@ -622,15 +547,19 @@ class fitters:
                 # with initial guesses
                 # in this model, the center of the peak is locked at the
                 # peak location determined from PeakUtils
-
-                par[center].set(sigx_bot[index], vary=False)
+                if index in user_appended_ind:
+                    par[center].set(sigx_bot[index], vary = True)
+                    # allow the centers of user set peaks to vary based off of best fit 
+                else:
+                    par[center].set(sigx_bot[index], vary=False)
+                    # don't allow the centers of the peaks found by peakutils to vary 
                 par[sigma].set(0.01)
                 par[amplitude].set(.05, min=0)
                 par[fraction].set(.5, min=0, max=1)
 
                 mod = mod + gaus_loop
 
-        return par, mod
+        return par, mod, i
 
     def model_eval(V_series, dQdV_series, cd, par, mod):
         """evaluate lmfit model generated in model_gen function

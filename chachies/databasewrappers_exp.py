@@ -46,7 +46,7 @@ def process_data(file_name, database_name, decoded_contents, datatype, thresh1, 
 		##################################################
 		#uncomment the below to get descriptors ###########
 		#####################################################
-		#desc_df = descriptors.get_descriptors(clean_cycle_dict, datatype)
+		#desc_df = descriptors.get_descriptors(clean_cycle_dict, datatype, windowlength, polyorder)
 		#dbfs.update_database_newtable(desc_df, name3 + '-descriptors', database_name)
 		#print('Database updated with descriptors.')
 		###################################################################

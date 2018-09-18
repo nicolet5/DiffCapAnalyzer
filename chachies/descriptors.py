@@ -385,7 +385,7 @@ class fitters:
             for index in i:
                 # determines appropriate string to call standard
                 # deviation object from model
-                center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
+                center, sigma, amplitude, fraction, comb = fitters.label_gen(index, cyc, cd)
                 sig.append(model.best_values[sigma])
         else:
             desc.update({'peakLocation(V)' + '-' + str(cd): list([np.NaN]), 'peakHeight(dQdV)' + '-' + str(cd): list([np.NaN])})
@@ -440,30 +440,33 @@ class fitters:
         dQdV_series = Pandas series of differential capacity data
         cd = either 'c' for charge and 'd' for discharge.
         
-        Output:
+        Output:kjlj
         i = list of indexes for each found peak"""
         (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
         V_series = df_run[volt_col]
         dQdV_series = df_run['Smoothed_dQ/dV']
-        assert len(dQdV_series) > 10
+        #assert len(dQdV_series) > 10
 
         sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
         #the below is to make sure the window length ends up an odd number - even though we are basing it on the length of the df
         if len(sigy) > windowlength:
             #has to be larger than 69 so that windowlength > 3 - necessary for sav golay function  
-            sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, polyorder)
+            #sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, polyorder)
+            sigy_smooth = sigy
         elif len(sigy) > 10:
+            sigy_smooth = sigy
+        else:
             sigy_smooth = sigy
         # this used to be sigy_smooth in the .indexes function below -= changed it to just sigy for graphite
         # change was made on 9.12.18  . also changed min_dist=lenmax/50 to min_dist= 10
-        i = peakutils.indexes(sigy_smooth, thres=.37, min_dist=10)
+        i = peakutils.indexes(sigy_smooth, thres=.37, min_dist=3)
         #i = peakutils.indexes(sigy_smooth, thres=.3 /
         #                      max(sigy_smooth), min_dist=9)
         #print(i)
 
         return i, sigx[i]
 
-    def label_gen(index):
+    def label_gen(index, cyc, cd):
         """Generates label set for individual gaussian
         index = index of peak location
 
@@ -471,11 +474,11 @@ class fitters:
         'a' + index + "_" + parameter"""
         # print(index)
         #print(type(index))
-        #assert isinstance(index, (float, int))
+        #assert isinstance(index, (float, intffdf))
 
         # generates unique parameter strings based on index of peak
         pref = str(int(index))
-        comb = 'a' + pref + '_'
+        comb = 'a' +str(int(cyc)) + cd+ pref + '_'
 
         cent = 'center'
         sig = 'sigma'
@@ -527,17 +530,33 @@ class fitters:
                 for vapp in v_toappend:
                     if sigx_bot.min()<=vapp<=sigx_bot.max():
                         #check if voltage given is valid
-                        ind_app= np.where(np.isclose(sigx_bot, float(vapp), atol = 0.1))[0][0]
-                        user_appended_ind.append(ind_app)
+                        volt_list = np.where(np.isclose(sigx_bot, float(vapp), atol = 0.01))[0]
+                        if len(volt_list)>0:
+                            ind_app= volt_list[0]
+                        else:
+                            volt_list2 = np.where(np.isclose(sigx_bot, float(vapp), atol = 0.02))[0]
+                            if len(volt_list2) > 0:
+                                ind_app = volt_list2[0]
+                            else: 
+                                volt_list3 = np.where(np.isclose(sigx_bot, float(vapp), atol = 0.05))[0]
+                                if len(volt_list3) >0:
+                                    ind_app = volt_list3[0]
+                                else: 
+                                    ind_app = None
+                        if ind_app not in i.tolist():         
+                            user_appended_ind.append(ind_app)
+                        else: 
+                            None
                     # this gives a final list of user appended indices 
                 i = i.tolist() + user_appended_ind # combine the two lists of indices to get the final set of peak locations
             else:
                 i = i.tolist()
+            i.sort() # so the peaks are in a sort of order 
             for index in i:
 
                 # generates unique parameter strings based on index of peak
                 center, sigma, amplitude, fraction, comb = fitters.label_gen(
-                    index)
+                    index, cyc, cd)
 
                 # generates a pseudo voigt fitting model
                 gaus_loop = models.PseudoVoigtModel(prefix=comb)
@@ -573,9 +592,11 @@ class fitters:
         output:
         model = lmfit model object fitted to dataset"""
         sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
-
-        model = mod.fit(sigy_bot, par, x=sigx_bot)
-
+        try:
+            model = mod.fit(sigy_bot, par, x=sigx_bot)
+        except Exception as e:
+            model = None
+            # maybe this will work? or not unclear
         return model
 
 

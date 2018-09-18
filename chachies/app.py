@@ -15,10 +15,10 @@ from lmfit.model import save_modelresult
 from lmfit.model import load_modelresult
 #from unittest.mock import patch
 ##########################################
-#Load Data
+#Load Dataklj
 ##########################################
-#eventually add everything in folder and create a dropdown that loads that data into data 
-database = 'dqdvDataBase_0912APP_17.db'
+#eventually add everything in folder and create a dropdown jfklsjdthat loads that data into data 
+database = 'dqdvDataBase_0912APP_34.db'
 if not os.path.exists(database): 
 	print('That database does not exist-creating it now.')
 	dbexp.dbfs.init_master_table(database)
@@ -219,7 +219,7 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
         print('THERE WAS A PROBLEM PROCESSING THE FILE: ' + str(e))
         #df = None
         return html.Div([
-            'There was an error processing this file.'+ str(filename)
+            'There was an error processing this file: '+ str(filename) + str(e)
         ])
     #return html.Div([
     #        'Something else happened.'
@@ -277,8 +277,13 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d):
 	dQdV_series_c = clean_charge['Smoothed_dQ/dV']
 	par_c, mod_c, indices_c = dbexp.descriptors.fitters.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, v_toappend_c)
 	model_c = dbexp.descriptors.fitters.model_eval(V_series_c, dQdV_series_c, 'c', par_c, mod_c)			
-	mod_y_c = mod_c.eval(params = model_c.params, x = V_series_c)
-	mod_y_c = mod_y_c.rename('Model')
+	if model_c is not None:
+		mod_y_c = mod_c.eval(params = model_c.params, x = V_series_c)
+		mod_y_c = mod_y_c.rename('Model')
+		model_c_vals = model_c.values
+	else:
+		mod_y_c = None 
+		model_c_vals = None
 
 	# now the discharge: 
 	i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
@@ -286,20 +291,27 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d):
 	dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
 	par_d, mod_d, indices_d = dbexp.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, v_toappend_d)
 	model_d = dbexp.descriptors.fitters.model_eval(V_series_d, dQdV_series_d, 'd', par_d, mod_d)			
-	mod_y_d = mod_d.eval(params = model_d.params, x = V_series_d)
-	mod_y_d = mod_y_d.rename('Model')
+	if model_d is not None:
+		mod_y_d = mod_d.eval(params = model_d.params, x = V_series_d)
+		mod_y_d = mod_y_d.rename('Model')
+		model_d_vals = model_d.values
+		mod_y_d = -mod_y_d # because discharge 
+	else:
+		mod_y_d = None
+		model_d_vals = None
+		# still not working
 	# save the model parameters in the database with the data
 	new_df_mody_c = pd.concat([mod_y_c, V_series_c, dQdV_series_c, clean_charge[cycle_ind_col]], axis = 1)
-	new_df_mody_d = pd.concat([-mod_y_d, V_series_d, dQdV_series_d, clean_discharge[cycle_ind_col]], axis = 1)
+	new_df_mody_d = pd.concat([mod_y_d, V_series_d, dQdV_series_d, clean_discharge[cycle_ind_col]], axis = 1)
 	new_df_mody = pd.concat([new_df_mody_c, new_df_mody_d], axis = 0)
 
-	# combine the charge and discharge
-	model_c_vals = model_c.values
-	model_d_vals = model_d.values
+	# combine the charge and discharge together
+	
+
 	return new_df_mody, model_c_vals, model_d_vals
 
 def generate_model(v_toappend_c, v_toappend_d, df_clean, filename):
-	# run this when get descriptors button is pushed, and re-run it when user puts in new voltage 
+	# run this when get descriptors button is pushed, andfd re-run it when user puts in new voltage 
 	# create model based off of initial peaks 
 	# show user model, then ask if more peak locations should be used (shoulders etc)
 	datatype = df_clean.loc[0,('datatype')]
@@ -334,6 +346,59 @@ def generate_model(v_toappend_c, v_toappend_d, df_clean, filename):
 			# then discharge cycle:
 #return html.Div([str(model.values)])
 	return html.Div(['That model has been added to the database'])
+
+
+
+def param_dicts_to_df(mod_params_name, database):
+    mod_paramsgraphit = dbexp.dbfs.get_file_from_database(mod_params_name, database)
+    #charge_df = mod_paramsgraphit[mod_paramsgraphit['C/D'] == 'discharge']
+    #charge_df = charge_df.reset_index(drop = True)
+    charge_df = mod_paramsgraphit
+    charge_descript = pd.DataFrame()
+    for i in range(len(charge_df)):
+        param_dict = ast.literal_eval(charge_df.loc[i, ('Model_Parameters')])
+
+        charge_keys =[]
+        for key, value in param_dict.items(): 
+            if '_amplitude' in key:
+                #print(int(key.split('_')[0].split('a')[1]))
+                charge_keys.append(key.split('_')[0])
+        print(charge_keys) 
+        new_dict = {}
+        new_dict.update({'poly_coef1': param_dict['c0'],
+                         'poly_coef2': param_dict['c1'], 
+                         'poly_coef3': param_dict['c2'], 
+                         'poly_coef4': param_dict['c3'], 
+                         'poly_coef5': param_dict['c4']})
+        new_dict.update({'charge/discharge': mod_paramsgraphit.loc[i, ('C/D')], 
+                         'cycle_number': str(mod_paramsgraphit.loc[i, ('Cycle')])})
+        peaknum = 0
+        for item in charge_keys:
+            peaknum = peaknum +1 
+            center = param_dict[item + '_center']
+            amp = param_dict[item + '_amplitude']
+            fract = param_dict[item + '_fraction']
+            sigma = param_dict[item + '_sigma']
+            height = param_dict[item + '_height']
+            fwhm = param_dict[item + '_fwhm']
+            #print('center' + str(center))
+            PeakArea, PeakAreaError = scipy.integrate.quad(my_pseudovoigt, 0.0, 100, args=(center, amp, fract, sigma))
+            #print('peak location is : ' + str(center) + ' Peak area is: ' + str(PeakArea))
+            new_dict.update({'area_peak_'+str(peaknum): PeakArea, 
+                             'center_peak_' +str(peaknum):center, 
+                             'amp_peak_' +str(peaknum):amp,
+                             'fract_peak_' +str(peaknum):fract, 
+                             'sigma_peak_' +str(peaknum):sigma, 
+                             'height_peak_' +str(peaknum):height, 
+                             'fwhm_peak_' +str(peaknum):fwhm})      
+        #print(new_dict)
+        new_dict_df = pd.DataFrame(columns = new_dict.keys())
+        for key1, val1 in new_dict.items():
+            new_dict_df.at[0, key1] = new_dict[key1]
+        charge_descript = pd.concat([charge_descript, new_dict_df])
+        charge_descript = charge_descript.reset_index(drop = True)
+        dbexp.dbfs.update_database_newtable(charge_descript, mod_params_name +'-descriptors', database)
+    return charge_descript
 
 ##############################################################################################
 #@app.callback(
@@ -393,7 +458,7 @@ def update_model_indb(filename, new_charge_vals, new_discharge_vals, n_clicks):
 	# maybe split the process data function into getting descriptors as well?
     		#since that is the slowest step 
 # Make this app callback from a drop down menu selecting a filename in the database
-# populate dropdown using master_table column= Dataset_Name
+# populate dropdown using master_table column= Dataslket_Name
 # sdksl
 #@app.callback(Output('model-output', 'children'), 
 #			  [Input('upload-data', 'filename')])
@@ -478,7 +543,8 @@ def update_figure1(selected_step,filename, selected_row_indices):
     #stupid change
     modset_name = filename.split('.')[0] + '-ModPoints'
     df_model = dbexp.dbfs.get_file_from_database(modset_name, database)
-    filt_mod = df_model[df_model[cycle_ind_col] == selected_step]
+    if df_model is not None: 
+    	filt_mod = df_model[df_model[cycle_ind_col] == selected_step]
 
     #(charge, discharge) = dbexp.ccf.sep_char_dis(data, datatype)
     # grab datattype from file:
@@ -491,7 +557,8 @@ def update_figure1(selected_step,filename, selected_row_indices):
     for i in filtered_data[cycle_ind_col].unique():
         dff = filtered_data[filtered_data[cycle_ind_col] == i]
         dff_raw = raw_filtered_data[raw_filtered_data[cycle_ind_col] == i]
-        dff_mod = filt_mod[filt_mod[cycle_ind_col] == i]
+        if df_model is not None:
+        	dff_mod = filt_mod[filt_mod[cycle_ind_col] == i]
         fig = plotly.tools.make_subplots(
             rows=1,cols=2,
             subplot_titles=('Raw Cycle','Smoothed Cycle'),
@@ -515,13 +582,13 @@ def update_figure1(selected_step,filename, selected_row_indices):
             'marker': marker,
             'name': 'Raw Data'
             }, 1, 1)
-           
-        fig.append_trace({
-            'x':dff_mod[volt_col], 
-            'y':dff_mod['Model'] ,
-            'type': 'scatter',
-            'name': 'Model'
-            }, 1,2)
+        if df_model is not None:   
+	        fig.append_trace({
+	            'x':dff_mod[volt_col], 
+	            'y':dff_mod['Model'] ,
+	            'type': 'scatter',
+	            'name': 'Model'
+	            }, 1,2)
         #fig.append_trace({'x': (2.0, 2.0),'y': (0, 2.0), 'type': 'line', 'name': 'Peak Position'}, 1, 2)
         # shapes = list()
         # for vline in filt_chargeloc:
@@ -578,7 +645,7 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, n_clicks):
     data, raw_data= pop_with_db(filename, database)
     datatype = data.loc[0,('datatype')]
     (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
-    selected_step = data[cycle_ind_col].max()/2 +1 
+    selected_step = round(data[cycle_ind_col].max()/2) +1 
     # select a cycle in the middle of the set
     dff_data= data[data[cycle_ind_col] == selected_step]
     dff_raw = raw_data[raw_data[cycle_ind_col]==selected_step]
@@ -604,10 +671,12 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, n_clicks):
     	# if user hasn't pushed the button, populate with original model from database
         modset_name = filename.split('.')[0] + '-ModPoints'
         df_model = dbexp.dbfs.get_file_from_database(modset_name, database)
-        dff_mod = df_model[df_model[cycle_ind_col] == selected_step]
-    
+        if df_model is not None: 
+        	dff_mod = df_model[df_model[cycle_ind_col] == selected_step]
+        else: 
+        	dff_mod = None
     #(charge, discharge) = dbexp.ccf.sep_char_dis(data, datatype)
-    # grab datattype from file:
+    # grab datattype from file:dfd
     
     
     #raw_filtered_data= raw_data[raw_data[cycle_ind_col]== selected_step]
@@ -635,13 +704,13 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, n_clicks):
         'marker': marker,
         'name': 'Raw Data'
         }, 1, 1)
-       
-    fig.append_trace({
-        'x':dff_mod[volt_col], 
-        'y':dff_mod['Model'] ,
-        'type': 'scatter',
-        'name': 'Model of One Cycle'
-        }, 1,2)
+    if dff_mod is not None:
+        fig.append_trace({
+            'x':dff_mod[volt_col], 
+            'y':dff_mod['Model'] ,
+            'type': 'scatter',
+            'name': 'Model of One Cycle'
+            }, 1,2)
 
     fig['layout']['showlegend'] = False
     #fig['layout']['shapes'] = shapes

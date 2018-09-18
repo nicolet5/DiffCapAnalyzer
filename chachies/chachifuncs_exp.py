@@ -147,27 +147,30 @@ def init_columns(cycle_df, datatype):
     return cycle_df
 
 def calc_dq_dqdv(cycle_df, datatype):
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
-	pd.options.mode.chained_assignment = None
+    (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
+    pd.options.mode.chained_assignment = None
 	#to avoid the warning 
-    # this used to be 3, lets change it to two:
-	cycle_df['roundedV'] = round(cycle_df[volt_col], 3)
-	cycle_df = cycle_df.drop_duplicates(subset = ['roundedV', cycle_ind_col, charge_or_discharge])
-	cycle_df = cycle_df.reset_index(drop = True)
-	cycle_df['dV'] = cycle_df[volt_col].diff()
+    cycle_df['roundedV'] = round(cycle_df[volt_col], 2)
+    cycle_df = cycle_df.drop_duplicates(subset = ['roundedV', cycle_ind_col, charge_or_discharge])
+    cycle_df = cycle_df.reset_index(drop = True)
+    cycle_df['dV'] = cycle_df[volt_col].diff()
 	# try: 
 	#     for i in range(1, len(cycle_df)):
 	#         newdv = cycle_df.loc[i, (volt_col)] - cycle_df.loc[i-1, (volt_col)]
 	#         while abs(newdv) < 0.0001:
-	#         	cycle_df = cycle_df.drop(index = i)
+	#         	cycle_df = cycle_df.drop(index = i)kjk
 	#         	cycle_df = cycle_df.reset_index(drop = True)
 	#         	newdv = cycle_df.loc[i, (volt_col)] - cycle_df.loc[i-1, (volt_col)]
 	#         cycle_df.loc[i, ('dV')] = newdv
 	# except KeyError:j
 	#     pass
-	cycle_df['Discharge_dQ'] = cycle_df[dis_cap_col].diff()
-	cycle_df['Charge_dQ'] = cycle_df[char_cap_col].diff()
-	#df3 = df2[df2['a'] > 4]
+	
+
+    #cycle_df['Discharge_dQ'] = cycle_df[dis_cap_col].diff()
+	#cycle_df['Charge_dQ'] = cycle_df[char_cap_col].diff()
+	
+
+    #df3 = df2[df2['a'] > 4]
 	#df4 = df2[df2['a'] <= 4]
 	#print(df3)
 	#df3['f'] = df3['b']/df3['e']
@@ -176,12 +179,17 @@ def calc_dq_dqdv(cycle_df, datatype):
 	#print(df4)
 	#df5 = pd.concat((df3,df4))
 	#df5.sort_index()
-	cycle_df_charge = cycle_df[cycle_df[curr_col] > 0]
-	cycle_df_charge['dQ/dV'] = cycle_df_charge['Charge_dQ']/cycle_df_charge['dV']
-	cycle_df_discharge = cycle_df[cycle_df[curr_col] <= 0]
-	cycle_df_discharge['dQ/dV'] = cycle_df_discharge['Discharge_dQ']/cycle_df_discharge['dV']
-	cycle_df = pd.concat((cycle_df_charge, cycle_df_discharge ))
-	cycle_df = cycle_df.sort_index()
+    cycle_df_charge = cycle_df[cycle_df[curr_col] > 0]
+    cycle_df_charge['Charge_dQ'] = cycle_df_charge[char_cap_col].diff()
+    cycle_df_charge['dQ/dV'] = cycle_df_charge['Charge_dQ']/cycle_df_charge['dV']
+    cycle_df_charge = cycle_df_charge[cycle_df_charge['dQ/dV']>0]
+
+    cycle_df_discharge = cycle_df[cycle_df[curr_col] <= 0]
+    cycle_df_discharge['Discharge_dQ'] = cycle_df_discharge[dis_cap_col].diff()
+    cycle_df_discharge['dQ/dV'] = cycle_df_discharge['Discharge_dQ']/cycle_df_discharge['dV']
+    cycle_df_discharge = cycle_df_discharge[cycle_df_discharge['dQ/dV']<0]
+    cycle_df = pd.concat((cycle_df_charge, cycle_df_discharge ))
+    cycle_df = cycle_df.sort_index()
 	#cycle_df = cycle_df.dropna(subset = ['dQ/dV'])
 	#cycle_df = cycle_df.reset_index(drop = True)
 	#for i in range(1, len(cycle_df)):
@@ -195,7 +203,7 @@ def calc_dq_dqdv(cycle_df, datatype):
 	#		 	cycle_df.loc[i, ('dQ/dV')] = cycle_df.loc[i, ('Discharge_dQ')]/cycle_df.loc[i, ('dV')]
 	#		else: 
 	#			cycle_df.loc[i, ('dQ/dV')] = cycle_df.loc[i, ('Charge_dQ')]/cycle_df.loc[i,('dV')]
-	return cycle_df
+    return cycle_df
 
 def drop_0_dv(cycle_df_dv, thresh1, thresh2, datatype):
     '''Drop rows where dv=0 (or about 0) in a dataframe that has
@@ -272,13 +280,13 @@ def sep_char_dis(df_dqdv, datatype):
 	else:
 		split = 0
 	if datatype == 'CALCE':
-		charge = df_dqdv[:split] 
+		charge = df_dqdv[:split+1] 
 	# returns the first part of the dataframe 
-		discharge = df_dqdv[split:]
+		discharge = df_dqdv[split+1:]
 	# returns the second part of the dataframe
 	elif datatype == 'MACCOR':
-		charge = df_dqdv[split:]
-		discharge = df_dqdv[:split]
+		charge = df_dqdv[split+1:]
+		discharge = df_dqdv[:split+1]
 	else:
 		print('That is not a valid datatype.')
 	charge = charge.reset_index(drop=True)
@@ -298,8 +306,9 @@ def my_savgolay(dataframe, windowlength, polyorder):
     unfilt = pd.concat([dataframe['dQ/dV']])
     unfiltar = unfilt.values
     # converts into an array
-    dataframe['Smoothed_dQ/dV'] = scipy.signal.savgol_filter(
-        unfiltar, windowlength, polyorder)
+    dataframe['Smoothed_dQ/dV'] = dataframe['dQ/dV']
+    #dataframe['Smoothed_dQ/dV'] = scipy.signal.savgol_filter(
+    #    unfiltar, windowlength, polyorder)
     # had windowlength = 21 and polyorder = 3 before
     return dataframe
 

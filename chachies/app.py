@@ -15,10 +15,10 @@ from lmfit.model import save_modelresult
 from lmfit.model import load_modelresult
 #from unittest.mock import patch
 ##########################################
-#Load Dataklj
-##########################################
-#eventually add everything in folder and create a dropdown jfklsjdthat loads that data into data 
-database = 'dqdvDataBase_0912APP_34.db'
+#Load Datakljkjjkj
+##############################################
+#eventually add everything in folder and creates a dropdowssn jfsklsjsjdsthadtl loads that data into data 
+database = 'dqdvDataBase_0912APP_85.db'
 if not os.path.exists(database): 
 	print('That database does not exist-creating it now.')
 	dbexp.dbfs.init_master_table(database)
@@ -191,7 +191,7 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
     else: 
     	content_type, content_string = contents.split(',')
     	decoded = base64.b64decode(content_string)
-    try: 
+    #try: 
     	cleanset_name = filename.split('.')[0] + 'CleanSet'
     	#this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
     		#check to see if the database exists, and if it does, check if the file exists.
@@ -215,12 +215,12 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
     		
     		#df = dbexp.dbfs.get_file_from_database(cleanset_name, database)
     	#have to pass decoded to it so it has the contents of the file
-    except Exception as e:
-        print('THERE WAS A PROBLEM PROCESSING THE FILE: ' + str(e))
+    #except Exception as e:
+    #    print('THERE WAS A PROBLEM PROCESSING THE FILE: ' + str(e))
         #df = None
-        return html.Div([
-            'There was an error processing this file: '+ str(filename) + str(e)
-        ])
+     #   return html.Div([
+     #       'There was an error processing this file: '+ str(filename) + str(e)
+      #  ])
     #return html.Div([
     #        'Something else happened.'
     #    ])
@@ -265,13 +265,15 @@ def pop_with_db(filename, database):
     	peakloc_dict = {}
     return df_clean, df_raw
 
-def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d):
+def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, max_char_ind, max_dischar_ind):
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
 	clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
 	windowlength = 3
 	polyorder = 1
 	# speed this up by moving the initial peak finder out of this, and just have those two things passed to it 
-	i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
+	#i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
+	i_charge = max_char_ind
+	i_discharge = max_dischar_ind
 	#chargeloc_dict.update({cyc: volts_i_ch})
 	V_series_c = clean_charge[volt_col]
 	dQdV_series_c = clean_charge['Smoothed_dQ/dV']
@@ -281,12 +283,14 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d):
 		mod_y_c = mod_c.eval(params = model_c.params, x = V_series_c)
 		mod_y_c = mod_y_c.rename('Model')
 		model_c_vals = model_c.values
+		model_c_errors = {'aic' : model_c.aic, 'bic': model_c.bic, 'redchi':model_c.redchi}
 	else:
 		mod_y_c = None 
 		model_c_vals = None
+		model_c_errors = None
 
 	# now the discharge: 
-	i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
+	#i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
 	V_series_d = clean_discharge[volt_col]
 	dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
 	par_d, mod_d, indices_d = dbexp.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, v_toappend_d)
@@ -296,9 +300,11 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d):
 		mod_y_d = mod_y_d.rename('Model')
 		model_d_vals = model_d.values
 		mod_y_d = -mod_y_d # because discharge 
+		model_d_errors = {'aic' : model_d.aic, 'bic': model_d.bic, 'redchi':model_d.redchi}
 	else:
 		mod_y_d = None
 		model_d_vals = None
+		model_d_errors = None
 		# still not working
 	# save the model parameters in the database with the data
 	new_df_mody_c = pd.concat([mod_y_c, V_series_c, dQdV_series_c, clean_charge[cycle_ind_col]], axis = 1)
@@ -308,7 +314,7 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d):
 	# combine the charge and discharge together
 	
 
-	return new_df_mody, model_c_vals, model_d_vals
+	return new_df_mody, model_c_vals, model_d_vals, model_c_errors, model_d_errors
 
 def generate_model(v_toappend_c, v_toappend_d, df_clean, filename):
 	# run this when get descriptors button is pushed, andfd re-run it when user puts in new voltage 
@@ -324,13 +330,68 @@ def generate_model(v_toappend_c, v_toappend_d, df_clean, filename):
 		#return html.Div(['A model for that filename already exists in the database.'])
 	#else: 
 	mod_pointsdf = pd.DataFrame()
+	charge_i_dict = {}
+	discharge_i_dict = {} 
+	# for cyc in df_clean[cycle_ind_col].unique():
+	# 	# run peak finder to find inital number + locations of max number peaks  
+	# 	if cyc != 1 and cyc != df_clean[cycle_ind_col].max():
+	# 		# we don't want to use the first cycle since thats got some funny stuff goin on 
+	# 		clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
+	# 		windowlength = 3
+	# 		polyorder = 1
+	# 		#print(type(clean_charge))
+	# 		#print(type(clean_discharge))
+	# 		#print("just before peak finder in generate model")
+	# 		i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
+	# 		i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
+	# 		#print('got the descriptors')
+	# 		if i_charge is not None: 
+	# 			charge_i_dict.update({cyc: i_charge})
+	# 		#	print('updated charge dict')
+	# 		if i_discharge is not None:
+	# 			discharge_i_dict.update({cyc:i_discharge})
+	# 		#	print('updated discharge dict')
+	# 		#print(charge_i_dict)d
+	# 		#print(type(i_discharge))
+	# 		#print(discharge_i_dict)
+	# 	#max_char_cyc = 2
+	# 	#max_dischar_cyc = 2
+	# if len(charge_i_dict) > 0:
+	# 	max_char_cyc = max(charge_i_dict, key= lambda x: len(set(charge_i_dict[x])))
+	# 	max_char_ind = charge_i_dict[max_char_cyc]
+	# else:
+	# 	clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==2], datatype)
+	# 	windowlength = 3
+	# 	polyorder = 1
+	# 	i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
+	# 	max_char_ind = i_charge
+	# 	#print('got the descriptors')
+	# 	#max_char_cyc = df_clean[cycle_ind_col].max()
+
+	# if len(discharge_i_dict) > 0:
+	# 	max_dischar_cyc = max(discharge_i_dict, key= lambda x: len(set(discharge_i_dict[x])))
+	# 	max_dischar_ind = discharge_i_dict[max_dischar_cyc]
+	# else: 
+	# 	clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==2], datatype)
+	# 	windowlength = 3
+	# 	polyorder = 1
+	# 	i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
+	# 	max_dischar_ind = i_discharge
+	# use max_char_ind as the indicies for dpeaks, but allow them to vary 
+	# use max_dischar_cyc as the indices for the discharge peaks, but allow them to vary 
 	for cyc in df_clean[cycle_ind_col].unique():
 		######################################################################9.15.18
-		#i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
-		new_df_mody, model_c_vals, model_d_vals = get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d)
+		clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==2], datatype)
+		windowlength = 3
+		polyorder = 1
+		i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
+		max_char_ind = i_charge
+		i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
+		max_dischar_ind = i_discharge
+		new_df_mody, model_c_vals, model_d_vals, model_c_errors, model_d_errors = get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, max_char_ind, max_dischar_ind)
 		mod_pointsdf = mod_pointsdf.append(new_df_mody)
-		param_df = param_df.append({'Cycle': cyc, 'C/D': 'charge', 'Model_Parameters': str(model_c_vals)}, ignore_index = True)
-		param_df = param_df.append({'Cycle': cyc, 'C/D': 'discharge', 'Model_Parameters': str(model_d_vals)}, ignore_index = True)
+		param_df = param_df.append({'Cycle': cyc, 'C/D': 'charge', 'Model_Parameters': str(model_c_vals), 'Model_Error_Params': str(model_c_errors)}, ignore_index = True)
+		param_df = param_df.append({'Cycle': cyc, 'C/D': 'discharge', 'Model_Parameters': str(model_d_vals), 'Model_Error_Params': str(model_d_errors)}, ignore_index = True)
 	# want this outside of for loop to update the db with the complete df of new params 
 	dbexp.dbfs.update_database_newtable(mod_pointsdf, filename.split('.')[0]+ '-ModPoints', database)
 	# this will replace the data table in there if it exists already 
@@ -665,7 +726,48 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, n_clicks):
                 int_list_d.append(float(i))
         else: 
             None
-        new_df_mody, model_c_vals, model_d_vals = get_model_dfs(dff_data, datatype, selected_step, int_list_c, int_list_d)
+        charge_i_dict = {}
+        discharge_i_dict = {} 
+        for cyc in data[cycle_ind_col].unique():
+		# run peak finder to find inital number + locations of max number peaks  
+            if cyc != 1 and cyc != data[cycle_ind_col].max():
+                # we don't want to use the first or the last cycle since thats got some funny stuff goin on 
+                clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(data[data[cycle_ind_col] ==cyc], datatype)
+                windowlength = 3
+                polyorder = 1
+                i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
+                i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
+                #print('got the descriptors')
+                if i_charge is not None: 
+                    charge_i_dict.update({cyc: i_charge})
+				#	print('updated charge dict')
+                if i_discharge is not None:
+                    discharge_i_dict.update({cyc:i_discharge})
+#
+        if len(charge_i_dict) > 0:
+            max_char_cyc = max(charge_i_dict, key= lambda x: len(set(charge_i_dict[x])))
+            max_char_ind = charge_i_dict[max_char_cyc]
+        else:
+          clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(data[data[cycle_ind_col] ==2], datatype)
+          windowlength = 3
+          polyorder = 1
+          i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
+          max_char_ind = i_charge
+			#print('got the descriptors')
+			#max_char_cyc = df_clean[cycle_ind_col].max()
+
+        if len(discharge_i_dict) > 0:
+          max_dischar_cyc = max(discharge_i_dict, key= lambda x: len(set(discharge_i_dict[x])))
+          max_dischar_ind = discharge_i_dict[max_dischar_cyc]
+        else: 
+          clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(data[data[cycle_ind_col] ==2], datatype)
+          windowlength = 3
+          polyorder = 1
+          i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
+          max_dischar_ind = i_discharge
+	# use max_char_ind as the indicies for peaks, but allow them to vary
+	# use max_dischar_cyc as the indices for the diskcharge peaks, but allow them to vary 
+        new_df_mody, model_c_vals, model_d_vals, model_c_errors, model_d_errors = get_model_dfs(dff_data, datatype, selected_step, int_list_c, int_list_d,  max_char_ind, max_dischar_ind)
         dff_mod = new_df_mody
     else: 
     	# if user hasn't pushed the button, populate with original model from database

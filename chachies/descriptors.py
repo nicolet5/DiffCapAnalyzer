@@ -385,7 +385,8 @@ class fitters:
             for index in i:
                 # determines appropriate string to call standard
                 # deviation object from model
-                center, sigma, amplitude, fraction, comb = fitters.label_gen(index, cyc, cd)
+                # ua = user appended or not:
+                center, sigma, amplitude, fraction, comb = fitters.label_gen(index, cyc, cd, ua)
                 sig.append(model.best_values[sigma])
         else:
             desc.update({'peakLocation(V)' + '-' + str(cd): list([np.NaN]), 'peakHeight(dQdV)' + '-' + str(cd): list([np.NaN])})
@@ -463,10 +464,17 @@ class fitters:
         #i = peakutils.indexes(sigy_smooth, thres=.3 /
         #                      max(sigy_smooth), min_dist=9)
         #print(i)
+        if i is not None:
+            if len(i) > 0:
+                volt_sigx = sigx[i]
+            else: 
+                volt_sigx = []
+        else: 
+            volt_sigx = []
 
-        return i, sigx[i]
+        return i, volt_sigx
 
-    def label_gen(index, cyc, cd):
+    def label_gen(index, cyc, cd, ua):
         """Generates label set for individual gaussian
         index = index of peak location
 
@@ -478,7 +486,7 @@ class fitters:
 
         # generates unique parameter strings based on index of peak
         pref = str(int(index))
-        comb = 'a' +str(int(cyc)) + cd+ pref + '_'
+        comb = 'a' +str(int(cyc)) + ua + cd+ pref + '_'
 
         cent = 'center'
         sig = 'sigma'
@@ -512,6 +520,8 @@ class fitters:
 
         # creates a polynomial fitting object
         mod = models.PolynomialModel(4)
+        #mod = None
+        #par = {}
 
         # sets polynomial parameters based on a
         # guess of a polynomial fit to the data with no peaks
@@ -542,41 +552,90 @@ class fitters:
                                 if len(volt_list3) >0:
                                     ind_app = volt_list3[0]
                                 else: 
-                                    ind_app = None
-                        if ind_app not in i.tolist():         
-                            user_appended_ind.append(ind_app)
-                        else: 
-                            None
+                                    ind_app = None 
+                    else: 
+                        ind_app = None     
+                user_appended_ind.append(ind_app)
                     # this gives a final list of user appended indices 
-                i = i.tolist() + user_appended_ind # combine the two lists of indices to get the final set of peak locations
-            else:
-                i = i.tolist()
+                #i = i.tolist() + user_appended_ind # combine the two lists of indices to get the final set of peak locations
+            for index in user_appended_ind:
+                if index is not None and index <= len(sigx_bot):
+                    # generates unique parameter strings based on index of peak
+                    ua = 'ua' # because this is a user appended index 
+                    center, sigma, amplitude, fraction, comb = fitters.label_gen(
+                        index, cyc, cd, ua)
+
+                    # generates a pseudo voigt fitting model
+                    gaus_loop = models.PseudoVoigtModel(prefix=comb)
+                    par.update(gaus_loop.make_params())
+
+                    # uses unique parameter strings to generate parameters
+                    # with initial guesses
+                    # in this model, the center of the peak is locked at the
+                    # peak location determined from PeakUtils
+                    if index in user_appended_ind:
+                        if index < sigx_bot.size:
+                            par[center].set(sigx_bot[index], vary=True, min = (sigx_bot[index] - 0.02), max = (sigx_bot[index] + 0.02))
+                        else:
+                            par[center].set(sigx_bot[sigx_bot.size-1], vary=True, min = (sigx_bot[sigx_bot.size-1] - 0.02), max = (sigx_bot[sigx_bot.size-1] + 0.02))
+                        # allow the centers of user set peaks to vary based off of best fit 
+                        print('here is min : ' + str(sigx_bot[index] - 5))
+                        print('here is max: ' + str(sigx_bot[index]  + 5))
+                    else:
+                        if index < sigx_bot.size:
+                            par[center].set(sigx_bot[index], vary=True, min = (sigx_bot[index] - 0.02), max = (sigx_bot[index] + 0.02))
+                        else:
+                            par[center].set(sigx_bot[sigx_bot.size-1], vary=True, min = (sigx_bot[sigx_bot.size-1] - 0.02), max = (sigx_bot[sigx_bot.size-1] + 0.02))
+                        print('here is min : ' + str(sigx_bot[index] - 5))
+                        print('here is max: ' + str(sigx_bot[index]  + 5))
+                        # don't allow the centers of tdhe peaks found by peakutils to vary maybe
+                    par[sigma].set(0.01)
+                    par[amplitude].set(.05, min=0)
+                    par[fraction].set(.5, min=0, max=1)
+
+                    mod = mod + gaus_loop
+            i = i.tolist()
             i.sort() # so the peaks are in a sort of order 
             for index in i:
+                if index <= len(sigx_bot):
+                    # generates unique parameter strings based on index of peak
+                    ua = 'na'
+                    center, sigma, amplitude, fraction, comb = fitters.label_gen(
+                        index, cyc, cd, ua)
 
-                # generates unique parameter strings based on index of peak
-                center, sigma, amplitude, fraction, comb = fitters.label_gen(
-                    index, cyc, cd)
+                    # generates a pseudo voigt fitting model
+                    gaus_loop = models.PseudoVoigtModel(prefix=comb)
+                    par.update(gaus_loop.make_params())
 
-                # generates a pseudo voigt fitting model
-                gaus_loop = models.PseudoVoigtModel(prefix=comb)
-                par.update(gaus_loop.make_params())
+                    # uses unique parameter strings to generate parameters
+                    # with initial guesses
+                    # in this model, the center of the peak is locked at the
+                    # peak location determined from PeakUtils
+                    if index in user_appended_ind:
+                        if index < sigx_bot.size:
+                            par[center].set(sigx_bot[index], vary=False)
+                                #min = (sigx_bot[index] - 0.02), max = (sigx_bot[index] + 0.02))
+                        else:
+                            par[center].set(sigx_bot[sigx_bot.size-1], vary=False)
+                            #, min = (sigx_bot[sigx_bot.size-1] - 0.02), max = (sigx_bot[sigx_bot.size-1] + 0.02))
+                        # allow the centers of user set peaks to vary based off of best fit 
+                        #print('here is min : ' + str(sigx_bot[index] - 5))
+                        #print('here is max: ' + str(sigx_bot[index]  + 5))
+                    else:
+                        if index < sigx_bot.size:
+                            par[center].set(sigx_bot[index], vary=False)
+                            #, min = (sigx_bot[index] - 0.02), max = (sigx_bot[index] + 0.02))
+                        else:
+                            par[center].set(sigx_bot[sigx_bot.size-1], vary=False)
+                            #, min = (sigx_bot[sigx_bot.size-1] - 0.02), max = (sigx_bot[sigx_bot.size-1] + 0.02))
+                        #print('here is min : ' + str(sigx_bot[index] - 5))
+                        #print('here is max: ' + str(sigx_bot[index]  + 5))
+                        # don't allow the centers of tdhe peaks found by peakutils to vary maybe
+                    par[sigma].set(0.01)
+                    par[amplitude].set(.05, min=0)
+                    par[fraction].set(.5, min=0, max=1)
 
-                # uses unique parameter strings to generate parameters
-                # with initial guesses
-                # in this model, the center of the peak is locked at the
-                # peak location determined from PeakUtils
-                if index in user_appended_ind:
-                    par[center].set(sigx_bot[index], vary = True)
-                    # allow the centers of user set peaks to vary based off of best fit 
-                else:
-                    par[center].set(sigx_bot[index], vary=False)
-                    # don't allow the centers of the peaks found by peakutils to vary 
-                par[sigma].set(0.01)
-                par[amplitude].set(.05, min=0)
-                par[fraction].set(.5, min=0, max=1)
-
-                mod = mod + gaus_loop
+                    mod = mod + gaus_loop
 
         return par, mod, i
 

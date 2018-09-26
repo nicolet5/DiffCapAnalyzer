@@ -150,7 +150,7 @@ def calc_dq_dqdv(cycle_df, datatype):
     (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
     pd.options.mode.chained_assignment = None
 	#to avoid the warning 
-    cycle_df['roundedV'] = round(cycle_df[volt_col], 2)
+    cycle_df['roundedV'] = round(cycle_df[volt_col], 3)
     cycle_df = cycle_df.drop_duplicates(subset = ['roundedV', cycle_ind_col, charge_or_discharge])
     cycle_df = cycle_df.reset_index(drop = True)
     cycle_df['dV'] = cycle_df[volt_col].diff()
@@ -265,33 +265,41 @@ def drop_0_dv(cycle_df_dv, thresh1, thresh2, datatype):
 
 
 def sep_char_dis(df_dqdv, datatype):
-	'''Takes a dataframe of one cycle with calculated dq/dv and
-	separates into charge and discharge differential capacity curves'''
-	#assert 'Charge_dQ/dV' in df_dqdv.columns
-	#assert 'Discharge_dQ/dV' in df_dqdv.columns
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
-	switch_cd_index = np.where(np.diff(np.sign(df_dqdv[curr_col])))
+    '''Takes a dataframe of one cycle with calculated dq/dv and
+    separates into charge and discharge differential capacity curves'''
+    #assert 'Charge_dQ/dV' in df_dqdv.columns
+    #assert 'Discharge_dQ/dV' in df_dqdv.columns
+    (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
+    switch_cd_index = np.where(np.diff(np.sign(df_dqdv[curr_col])))
 	#print(switch_cd_index)
-	if len(switch_cd_index[0]) > 1:
-		split = min(switch_cd_index[0], key=lambda x:abs(x-(len(df_dqdv)/2)))
-		# this chooses the split point which is closest to the halfway point of datapoints in the dataframe
-	elif len(switch_cd_index[0])>0: 
-		split = int(switch_cd_index[0])
-	else:
-		split = 0
-	if datatype == 'CALCE':
-		charge = df_dqdv[:split+1] 
+    if len(switch_cd_index[0]) > 1:
+        split = min(switch_cd_index[0], key=lambda x:abs(x-(len(df_dqdv)/2)))
+    	# this chooses the split point which is closest to the halfway point of datapoints in the dataframe
+    elif len(switch_cd_index[0])>0: 
+        split = int(switch_cd_index[0])
+    else:
+        split = 0
+	#if datatype == 'CALCE':
+    firstpart = df_dqdv[:split+1] 
 	# returns the first part of the dataframe 
-		discharge = df_dqdv[split+1:]
-	# returns the second part of the dataframe
-	elif datatype == 'MACCOR':
-		charge = df_dqdv[split+1:]
-		discharge = df_dqdv[:split+1]
-	else:
-		print('That is not a valid datatype.')
-	charge = charge.reset_index(drop=True)
-	discharge = discharge.reset_index(drop=True)
-	return charge, discharge
+    secondpart = df_dqdv[split+1:]
+    if firstpart['dQ/dV'].mean() < secondpart['dQ/dV'].mean():
+            # then the first part has more negative values
+        discharge = firstpart
+        charge = secondpart
+    else:
+        charge = firstpart
+        discharge = secondpart
+
+	# # returns the second part of the dataframe
+	# elif datatype == 'MACCOR':
+	# 	charge = df_dqdv[split+1:]
+	# 	discharge = df_dqdv[:split+1]
+    # else:
+    #    print('That is not a valid datatype.')
+    charge = charge.reset_index(drop=True)
+    discharge = discharge.reset_index(drop=True)
+    return charge, discharge
 
 
 def my_savgolay(dataframe, windowlength, polyorder):
@@ -306,9 +314,8 @@ def my_savgolay(dataframe, windowlength, polyorder):
     unfilt = pd.concat([dataframe['dQ/dV']])
     unfiltar = unfilt.values
     # converts into an array
-    dataframe['Smoothed_dQ/dV'] = dataframe['dQ/dV']
-    #dataframe['Smoothed_dQ/dV'] = scipy.signal.savgol_filter(
-    #    unfiltar, windowlength, polyorder)
+    #dataframe['Smoothed_dQ/dV'] = dataframe['dQ/dV']
+    dataframe['Smoothed_dQ/dV'] = scipy.signal.savgol_filter(unfiltar, windowlength, polyorder)
     # had windowlength = 21 and polyorder = 3 before
     return dataframe
 

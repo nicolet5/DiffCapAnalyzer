@@ -1,3 +1,4 @@
+
 import scipy.signal
 import pandas as pd
 import numpy as np
@@ -91,7 +92,6 @@ class process:
         discharge cycle in the import_filepath folder.
         import_filepath = filepath containing cleaned separated cycles
         cd = 'c' for charge and 'd' for discharge
-
         Output:
         df_ch = pandas dataframe for all cycles of all batteries in a
         col_ch = list of numbers of columns for each battery"""
@@ -109,12 +109,10 @@ class process:
 
     def imp_all(import_dictionary, cd, datatype, windowlength, polyorder):
         """Generates a Pandas dataframe of descriptors for a single battery
-
         source = string containing directory with the excel sheets
         for individual cycle data
         battery = string containing excel spreadsheet of file name
         cd = either 'c' for charge or 'd' for discharge
-
         Output:
         charge_descript = pandas dataframe of charge descriptors"""
 
@@ -168,9 +166,7 @@ class process:
     def pd_create(cd):
         """Creates a blank dataframe containing either charge or
         discharge descriptors/error parameters
-
         cd = either 'c' for charge or 'd' for discharge
-
         Output:
         blank pandas dataframe with descriptor columns and cycle number rows"""
 
@@ -204,10 +200,8 @@ class process:
 
     def pd_update(desc, charge_descript):
         """adds a list of charge descriptors to a pandas dataframe
-
         desc = dataframe from pd_create
         charge_descript = descriptor dictionaries
-
         Output:
         pandas dataframe with a row of descriptors appended on"""
 
@@ -245,9 +239,7 @@ class process:
     def dict_2_list(desc):
         """Converts a dictionary of descriptors into a list for
         pandas assignment
-
         desc = dictionary containing descriptors
-
         Output:
         list of descriptors"""
 
@@ -275,12 +267,10 @@ class process:
 
     def imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, windowlength, polyorder):
         """imports and fits a single charge discharge cycle of a battery
-
         file_val = directory containing current cycle
         cd = either 'c' for charge or 'd' for discharge
         cyc_loop = cycle number
         battery = battery name
-
         output: a dictionary of descriptors for a single battery"""
 
         # make sure this is an Excel spreadsheet by checking the file extension
@@ -325,11 +315,9 @@ class fitters:
 # run peak finder first, to feed i (indices of peaks) into this function 
     def descriptor_func(df_run, cd, cyc, battery, windowlength, polyorder, datatype):
         """Generates dictionary of descriptors/error parameters
-
         V_series = Pandas series of voltage data
         dQdV_series = Pandas series of differential capacity data
         cd = either 'c' for charge and 'd' for discharge.
-
         Output:
         dictionary with keys 'coefficients', 'peakLocation(V)',
         'peakHeight(dQdV)', 'peakSIGMA', 'errorParams"""
@@ -385,8 +373,7 @@ class fitters:
             for index in i:
                 # determines appropriate string to call standard
                 # deviation object from model
-                # ua = user appended or not:
-                center, sigma, amplitude, fraction, comb = fitters.label_gen(index, cyc, cd, ua)
+                center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
                 sig.append(model.best_values[sigma])
         else:
             desc.update({'peakLocation(V)' + '-' + str(cd): list([np.NaN]), 'peakHeight(dQdV)' + '-' + str(cd): list([np.NaN])})
@@ -407,11 +394,9 @@ class fitters:
 
     def cd_dataframe(V_series, dQdV_series, cd):
         """Classifies and flips differential capactity data.
-
         V_series = Pandas series of voltage data
         dQdV_series = Pandas series of differential capacity data
         cd = either 'c' for charge and 'd' for discharge.
-
         Output:
         sigx = numpy array of signal x values
         sigy = numpy array of signal y values"""
@@ -436,15 +421,16 @@ class fitters:
 
     def peak_finder(df_run, cd, windowlength, polyorder, datatype):
         """Determines the index of each peak in a dQdV curve
-
         V_series = Pandas series of voltage data
         dQdV_series = Pandas series of differential capacity data
         cd = either 'c' for charge and 'd' for discharge.
         
-        Output:kjlj
+        Output:
         i = list of indexes for each found peak"""
         (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
         V_series = df_run[volt_col]
+        #dQdV_series = df_run['dQ/dV']
+        # this makes the peak finding smoothing independent of any smoothing that has already occured. 
         dQdV_series = df_run['Smoothed_dQ/dV']
         #assert len(dQdV_series) > 10
 
@@ -452,41 +438,35 @@ class fitters:
         #the below is to make sure the window length ends up an odd number - even though we are basing it on the length of the df
         if len(sigy) > windowlength:
             #has to be larger than 69 so that windowlength > 3 - necessary for sav golay function  
-            #sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, polyorder)
-            sigy_smooth = sigy
+            sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, polyorder)
         elif len(sigy) > 10:
             sigy_smooth = sigy
         else:
             sigy_smooth = sigy
         # this used to be sigy_smooth in the .indexes function below -= changed it to just sigy for graphite
         # change was made on 9.12.18  . also changed min_dist=lenmax/50 to min_dist= 10
-        i = peakutils.indexes(sigy_smooth, thres=.37, min_dist=3)
+        i = peakutils.indexes(sigy_smooth, thres=0.7, min_dist=50) # used to be 0.25
         #i = peakutils.indexes(sigy_smooth, thres=.3 /
         #                      max(sigy_smooth), min_dist=9)
         #print(i)
-        if i is not None:
-            if len(i) > 0:
-                volt_sigx = sigx[i]
-            else: 
-                volt_sigx = []
-        else: 
-            volt_sigx = []
+        if i is not None and len(i)>0:
+            sigx_volts = sigx[i]
+        else:
+            sigx_volts = []
+        return i, sigx_volts
 
-        return i, volt_sigx
-
-    def label_gen(index, cyc, cd, ua):
+    def label_gen(index):
         """Generates label set for individual gaussian
         index = index of peak location
-
         output string format:
         'a' + index + "_" + parameter"""
         # print(index)
         #print(type(index))
-        #assert isinstance(index, (float, intffdf))
+        #assert isinstance(index, (float, int))
 
         # generates unique parameter strings based on index of peak
         pref = str(int(index))
-        comb = 'a' +str(int(cyc)) + ua + cd+ pref + '_'
+        comb = 'a' + pref + '_'
 
         cent = 'center'
         sig = 'sigma'
@@ -505,7 +485,6 @@ class fitters:
 
     def model_gen(V_series, dQdV_series, cd, i, cyc, v_toappend):
         """Develops initial model and parameters for battery data fitting.
-
         V_series = Pandas series of voltage data
         dQdV_series = Pandas series of differential capacity data
         cd = either 'c' for charge and 'd' for discharge.
@@ -520,8 +499,6 @@ class fitters:
 
         # creates a polynomial fitting object
         mod = models.PolynomialModel(4)
-        #mod = None
-        #par = {}
 
         # sets polynomial parameters based on a
         # guess of a polynomial fit to the data with no peaks
@@ -540,171 +517,122 @@ class fitters:
                 for vapp in v_toappend:
                     if sigx_bot.min()<=vapp<=sigx_bot.max():
                         #check if voltage given is valid
-                        volt_list = np.where(np.isclose(sigx_bot, float(vapp), atol = 0.01))[0]
-                        if len(volt_list)>0:
-                            ind_app= volt_list[0]
-                        else:
-                            volt_list2 = np.where(np.isclose(sigx_bot, float(vapp), atol = 0.02))[0]
-                            if len(volt_list2) > 0:
-                                ind_app = volt_list2[0]
-                            else: 
-                                volt_list3 = np.where(np.isclose(sigx_bot, float(vapp), atol = 0.05))[0]
-                                if len(volt_list3) >0:
-                                    ind_app = volt_list3[0]
-                                else: 
-                                    ind_app = None 
-                    else: 
-                        ind_app = None     
-                user_appended_ind.append(ind_app)
+                        ind_app= np.where(np.isclose(sigx_bot, float(vapp), atol = 0.1))[0][0]
+                        user_appended_ind.append(ind_app)
                     # this gives a final list of user appended indices 
-                #i = i.tolist() + user_appended_ind # combine the two lists of indices to get the final set of peak locations
-            for index in user_appended_ind:
-                if index is not None and index <= len(sigx_bot):
-                    # generates unique parameter strings based on index of peak
-                    ua = 'ua' # because this is a user appended index 
-                    center, sigma, amplitude, fraction, comb = fitters.label_gen(
-                        index, cyc, cd, ua)
-
-                    # generates a pseudo voigt fitting model
-                    gaus_loop = models.PseudoVoigtModel(prefix=comb)
-                    par.update(gaus_loop.make_params())
-
-                    # uses unique parameter strings to generate parameters
-                    # with initial guesses
-                    # in this model, the center of the peak is locked at the
-                    # peak location determined from PeakUtils
-                    if index in user_appended_ind:
-                        if index < sigx_bot.size:
-                            par[center].set(sigx_bot[index], vary=True, min = (sigx_bot[index] - 0.02), max = (sigx_bot[index] + 0.02))
-                        else:
-                            par[center].set(sigx_bot[sigx_bot.size-1], vary=True, min = (sigx_bot[sigx_bot.size-1] - 0.02), max = (sigx_bot[sigx_bot.size-1] + 0.02))
-                        # allow the centers of user set peaks to vary based off of best fit 
-                        print('here is min : ' + str(sigx_bot[index] - 5))
-                        print('here is max: ' + str(sigx_bot[index]  + 5))
-                    else:
-                        if index < sigx_bot.size:
-                            par[center].set(sigx_bot[index], vary=True, min = (sigx_bot[index] - 0.02), max = (sigx_bot[index] + 0.02))
-                        else:
-                            par[center].set(sigx_bot[sigx_bot.size-1], vary=True, min = (sigx_bot[sigx_bot.size-1] - 0.02), max = (sigx_bot[sigx_bot.size-1] + 0.02))
-                        print('here is min : ' + str(sigx_bot[index] - 5))
-                        print('here is max: ' + str(sigx_bot[index]  + 5))
-                        # don't allow the centers of tdhe peaks found by peakutils to vary maybe
-                    par[sigma].set(0.01)
-                    par[amplitude].set(.05, min=0)
-                    par[fraction].set(.5, min=0, max=1)
-
-                    mod = mod + gaus_loop
-            i = i.tolist()
-            i.sort() # so the peaks are in a sort of order 
+                i = i.tolist() + user_appended_ind # combine the two lists of indices to get the final set of peak locations
+            else:
+                i = i.tolist()
             for index in i:
-                if index <= len(sigx_bot):
-                    # generates unique parameter strings based on index of peak
-                    ua = 'na'
-                    center, sigma, amplitude, fraction, comb = fitters.label_gen(
-                        index, cyc, cd, ua)
 
-                    # generates a pseudo voigt fitting model
-                    gaus_loop = models.PseudoVoigtModel(prefix=comb)
-                    par.update(gaus_loop.make_params())
+                # generates unique parameter strings based on index of peak
+                center, sigma, amplitude, fraction, comb = fitters.label_gen(
+                    index)
 
-                    # uses unique parameter strings to generate parameters
-                    # with initial guesses
-                    # in this model, the center of the peak is locked at the
-                    # peak location determined from PeakUtils
-                    if index in user_appended_ind:
-                        if index < sigx_bot.size:
-                            par[center].set(sigx_bot[index], vary=False)
-                                #min = (sigx_bot[index] - 0.02), max = (sigx_bot[index] + 0.02))
-                        else:
-                            par[center].set(sigx_bot[sigx_bot.size-1], vary=False)
-                            #, min = (sigx_bot[sigx_bot.size-1] - 0.02), max = (sigx_bot[sigx_bot.size-1] + 0.02))
-                        # allow the centers of user set peaks to vary based off of best fit 
-                        #print('here is min : ' + str(sigx_bot[index] - 5))
-                        #print('here is max: ' + str(sigx_bot[index]  + 5))
-                    else:
-                        if index < sigx_bot.size:
-                            par[center].set(sigx_bot[index], vary=False)
-                            #, min = (sigx_bot[index] - 0.02), max = (sigx_bot[index] + 0.02))
-                        else:
-                            par[center].set(sigx_bot[sigx_bot.size-1], vary=False)
-                            #, min = (sigx_bot[sigx_bot.size-1] - 0.02), max = (sigx_bot[sigx_bot.size-1] + 0.02))
-                        #print('here is min : ' + str(sigx_bot[index] - 5))
-                        #print('here is max: ' + str(sigx_bot[index]  + 5))
-                        # don't allow the centers of tdhe peaks found by peakutils to vary maybe
-                    par[sigma].set(0.01)
-                    par[amplitude].set(.05, min=0)
-                    par[fraction].set(.5, min=0, max=1)
+                # generates a pseudo voigt fitting model
+                gaus_loop = models.PseudoVoigtModel(prefix=comb)
+                par.update(gaus_loop.make_params())
 
-                    mod = mod + gaus_loop
+                # uses unique parameter strings to generate parameters
+                # with initial guesses
+                # in this model, the center of the peak is locked at the
+                # peak location determined from PeakUtils
+                if index in user_appended_ind:
+                    par[center].set(sigx_bot[index], vary = False)
+                    # allow the centers of user set peaks to vary based off of best fit 
+                else:
+                    par[center].set(sigx_bot[index], vary=False)
+                    # don't allow the centers of the peaks found by peakutils to vary 
+                par[sigma].set(0.01)
+                par[amplitude].set(.05, min=0)
+                par[fraction].set(.5, min=0, max=1)
+
+                mod = mod + gaus_loop
 
         return par, mod, i
 
     def model_eval(V_series, dQdV_series, cd, par, mod):
         """evaluate lmfit model generated in model_gen function
-
         V_series = Pandas series of voltage data
         dQdV_series = Pandas series of differential capacity data
         cd = either 'c' for charge and 'd' for discharge.
         par = lmfit parameters object
         mod = lmfit model object
-
         output:
         model = lmfit model object fitted to dataset"""
         sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
-        try:
+        try: 
             model = mod.fit(sigy_bot, par, x=sigx_bot)
-        except Exception as e:
+        except Exception:
             model = None
-            # maybe this will work? or not unclear
         return model
 
 
 def dfsortpeakvals(mydf, cd):
     """This sorts the peak values based off of all the other values in the df, so that 
-    all that belong to peak 1 are in the peak one column etc. """
+    all that belong to peak 1 are in the peak one column etc. Mydf has to be of only charge or
+    discharge data. Filter for that first then feed into this function"""
 
-    filter_col_loc=[col for col in mydf if str(col).startswith('peakLocation(V)-'+cd)]
-    filter_col_height = [col for col in mydf if str(col).startswith('peakHeight(dQdV)-'+cd)]
-    filter_col_sigma = [col for col in mydf if str(col).startswith('peakSIGMA-'+cd)]
+    filter_col_loc=[col for col in mydf if str(col).startswith(cd + '_center')]
+    filter_col_height = [col for col in mydf if str(col).startswith(cd + '_height')]
+    filter_col_area = [col for col in mydf if str(col).startswith(cd + '_area')]
+    filter_col_sigma = [col for col in mydf if str(col).startswith(cd + '_sigma')]
+    filter_col_ampl= [col for col in mydf if str(col).startswith(cd + '_amp')]
+    filter_col_fwhm = [col for col in mydf if str(col).startswith(cd + '_fwhm')]
+    filter_col_fract = [col for col in mydf if str(col).startswith(cd + '_fract')]
     newdf = pd.DataFrame(None)
     for col in filter_col_loc:
         newdf = pd.concat([newdf, mydf[col]])
-    newdf.columns = ['allpeaks']
-    sortdf = newdf.sort_values(by = 'allpeaks')
-    sortdf = sortdf.reset_index(inplace = False)
-    newgroupindex = np.where(np.diff(sortdf['allpeaks'])>0.002)
-    #the above threshold used to be 0.03 - was changed on 9.12.18 for the graphite stuff 
-    # this threshold should be changed to reflect the separation between peaks 
-    listnew=newgroupindex[0].tolist()
-    listnew.insert(0, 0)
-    listnew.append(len(sortdf))
-    #to make sure we get the last group 
-    groupdict = {}
-    for i in range(1, len(listnew)):
-        if i ==1: 
-            newgroup = sortdf[listnew[i-1]:listnew[i]+1]
-        else: 
-            newgroup = sortdf[listnew[i-1]+1:listnew[i]+1]  
-        newkey = newgroup.allpeaks.mean()
-        groupdict.update({newkey: newgroup})
-    #print(groupdict)
+    if len(newdf)>0:
+        newdf.columns = ['allpeaks']
+        sortdf = newdf.sort_values(by = 'allpeaks')
+        sortdf = sortdf.reset_index(inplace = False)
+        newgroupindex = np.where(np.diff(sortdf['allpeaks'])>0.01)
 
-    count = 0
-    for key in groupdict:
-        count = count + 1
-        mydf['sortedloc-'+cd+'-'+str(count)] = None
-        mydf['sortedheight-'+cd+'-'+str(count)] = None
-        mydf['sortedSIGMA-'+cd+'-'+str(count)] = None 
-        for j in range(len(filter_col_loc)):
-        #iterate over the names of columns in mydf - ex[peakloc1, peakloc2, peakloc3..]
-            # this is where we sort the values in the df based on if they appear in the group
+        #the above threshold used to be 0.03 - was changed on 9.12.18 for the graphite stuff 
+        # this threshold should be changed to reflect the separation between peaks 
+        listnew=newgroupindex[0].tolist()
+        listnew.insert(0, 0)
+        listnew.append(len(sortdf))
+        #to make sure we get the last group 
+        groupdict = {}
+        for i in range(1, len(listnew)):
+            if i ==1: 
+                newgroup = sortdf[listnew[i-1]:listnew[i]+1]
+            else: 
+                newgroup = sortdf[listnew[i-1]+1:listnew[i]+1]  
+            newkey = newgroup.allpeaks.mean()
+            groupdict.update({newkey: newgroup})
+        #print(groupdict)
 
-            for i in range(len(mydf)):
-                #iterate over rows in the dataframe
-                if mydf.loc[i,(filter_col_loc[j])] in list(groupdict[key].allpeaks):
-                    mydf.loc[i, ('sortedloc-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_loc[j])]
-                    mydf.loc[i, ('sortedheight-'+cd+'-' + str(count))] = mydf.loc[i, (filter_col_height[j])]
-                    mydf.loc[i, ('sortedSIGMA-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_sigma[j])]
-                else:
-                    None
+        count = 0
+        for key in groupdict:
+            count = count + 1
+            mydf['sortedloc-'+cd+'-'+str(count)] = None
+            mydf['sortedheight-'+cd+'-'+str(count)] = None
+            mydf['sortedarea-'+cd+'-'+str(count)] = None
+            mydf['sortedSIGMA-'+cd+'-'+str(count)] = None 
+            mydf['sortedamplitude-'+cd+'-'+str(count)] = None 
+            mydf['sortedfwhm-'+cd+'-'+str(count)] = None 
+            mydf['sortedfraction-'+cd+'-'+str(count)] = None 
+            for j in range(len(filter_col_loc)):
+            #iterate over the names of columns in mydf - ex[peakloc1, peakloc2, peakloc3..]
+                # this is where we sort the values in the df based on if they appear in the group
+                for i in range(len(mydf)):
+                    #iterate over rows in the dataframe
+                    if mydf.loc[i,(filter_col_loc[j])] >= min(list(groupdict[key].allpeaks)) and mydf.loc[i,(filter_col_loc[j])] <= max(list(groupdict[key].allpeaks)):
+                        mydf.loc[i, ('sortedloc-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_loc[j])]
+                        mydf.loc[i, ('sortedheight-'+cd+'-' + str(count))] = mydf.loc[i, (filter_col_height[j])]
+                        mydf.loc[i, ('sortedarea-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_area[j])]
+                        mydf.loc[i, ('sortedSIGMA-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_sigma[j])]
+                        mydf.loc[i, ('sortedamplitude-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_ampl[j])]
+                        mydf.loc[i, ('sortedfwhm-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_fwhm[j])] 
+                        mydf.loc[i, ('sortedfraction-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_fract[j])] 
+                    else:
+                        None
+    else: 
+        None 
+        # this will just return the original df  - nothing sorted 
     return mydf
+
+

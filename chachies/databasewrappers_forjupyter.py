@@ -82,7 +82,7 @@ def parse_update_master(file_name, database_name, datatype, path):
 		data1['MaccCharLab'] = data1.apply(lambda row: macc_chardis(row), axis = 1)
 		data1['Current(A)'] = data1['Current [A]']*data1['MaccCharLab']
 
-		data1.rename(columns={'Voltage [V]': 'Voltage(V)', 'Current [A]': 'Abs_Current(A)', 'Cap. [Ah]': 'Cap(Ah)'}, inplace=True)
+		data1.rename(columns={'Cycle C': 'Cycle_Index', 'Voltage [V]': 'Voltage(V)', 'Current [A]': 'Abs_Current(A)', 'Cap. [Ah]': 'Cap(Ah)'}, inplace=True)
 		#print(data1.columns)
 	else: 
 		print('please put in either "CALCE" or "MACCOR" for datatype.')

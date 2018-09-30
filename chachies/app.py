@@ -145,7 +145,7 @@ app.layout = html.Div([
         ),
     
     html.Div([
-    	html.H6(['Explore Descriptors']),
+    	html.H4(['Explore Descriptors']),
         dcc.Checklist(id = 'show-poly', 
             options=[
                 {'label': 'Show Polynomial Baseline', 'value': 'show'},
@@ -189,6 +189,7 @@ app.layout = html.Div([
             'height': '80%',
             }
         ),
+    html.H4(['Update Model']),
     html.Div(['New Peak Detection Threshold (default is 0.7, must be between 0 and 1): '], style={'font-style':'italic'}), 
     html.Div([dcc.Input(id = 'new-peak-threshold', placeholder = 'threshold for peak detection')]),
     html.Div(['Location of new charge peak(s), separate each with a commma (V): '], style={'font-style':'italic'}), 

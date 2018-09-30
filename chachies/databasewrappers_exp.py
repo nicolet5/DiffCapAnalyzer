@@ -164,7 +164,8 @@ def param_dicts_to_df(mod_params_name, database):
         
         param_dict_charge = ast.literal_eval(mod_params_df.loc[i, ('Model_Parameters_charge')])
         param_dict_discharge = ast.literal_eval(mod_params_df.loc[i, ('Model_Parameters_discharge')])
-
+        charge_peak_heights = ast.literal_eval(mod_params_df.loc[i, ('charge_peak_heights')])
+        discharge_peak_heights = ast.literal_eval(mod_params_df.loc[i, ('discharge_peak_heights')])
         charge_keys =[]
         if param_dict_charge is not None:
             for key, value in param_dict_charge.items(): 
@@ -190,6 +191,7 @@ def param_dicts_to_df(mod_params_name, database):
             sigma = param_dict_charge[item + '_sigma']
             height = param_dict_charge[item + '_height']
             fwhm = param_dict_charge[item + '_fwhm']
+            raw_peakheight = charge_peak_heights[peaknum-1]
             #print('center' + str(center))
             PeakArea, PeakAreaError = scipy.integrate.quad(my_pseudovoigt, 0.0, 100, args=(center, amp, fract, sigma))
             #print('peak location is : ' + str(center) + ' Peak area is: ' + str(PeakArea))
@@ -199,7 +201,8 @@ def param_dicts_to_df(mod_params_name, database):
                              'c_fract_peak_' +str(peaknum):fract, 
                              'c_sigma_peak_' +str(peaknum):sigma, 
                              'c_height_peak_' +str(peaknum):height, 
-                             'c_fwhm_peak_' +str(peaknum):fwhm})      
+                             'c_fwhm_peak_' +str(peaknum):fwhm, 
+                             'c_rawheight_peak_' + str(peaknum):raw_peakheight})      
         #print(new_dict)
         new_dict_df = pd.DataFrame(columns = new_dict_charge.keys())
         for key1, val1 in new_dict_charge.items():
@@ -234,6 +237,7 @@ def param_dicts_to_df(mod_params_name, database):
             sigma = param_dict_discharge[item + '_sigma']
             height = param_dict_discharge[item + '_height']
             fwhm = param_dict_discharge[item + '_fwhm']
+            raw_peakheight = discharge_peak_heights[peaknum-1]
             #print('center' + str(center))
             PeakArea, PeakAreaError = scipy.integrate.quad(my_pseudovoigt, 0.0, 100, args=(center, amp, fract, sigma))
             #print('peak location is : ' + str(center) + ' Peak area is: ' + str(PeakArea))
@@ -243,7 +247,8 @@ def param_dicts_to_df(mod_params_name, database):
                              'd_fract_peak_' +str(peaknum):fract, 
                              'd_sigma_peak_' +str(peaknum):sigma, 
                              'd_height_peak_' +str(peaknum):height, 
-                             'd_fwhm_peak_' +str(peaknum):fwhm})      
+                             'd_fwhm_peak_' +str(peaknum):fwhm, 
+                             'd_rawheight_peak_' + str(peaknum):raw_peakheight})      
         #print(new_dict)
         new_dict_df_d = pd.DataFrame(columns = new_dict_discharge.keys())
         for key1, val1 in new_dict_discharge.items():

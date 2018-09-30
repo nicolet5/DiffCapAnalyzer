@@ -134,7 +134,7 @@ class process:
             cyc_loop = int(k.split('Cycle')[1])
             testdf = v
             battery = k 
-            c = process.imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, windowlength, polyorder)
+            c = process.imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, windowlength, polyorder, lenmax)
             # c is a dictionary of descriptors 
             #print('here is c before appending: ')
             #print(c)
@@ -265,7 +265,7 @@ class process:
         #print(desc_ls)
         return desc_ls
 
-    def imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, windowlength, polyorder):
+    def imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, windowlength, polyorder, lenmax):
         """imports and fits a single charge discharge cycle of a battery
         file_val = directory containing current cycle
         cd = either 'c' for charge or 'd' for discharge
@@ -297,7 +297,7 @@ class process:
         # fitting function
         if (len(charge[volt_col].index) >= 10) and (len(discharge[volt_col].index) >= 10):
             # generates a dictionary of descriptors
-            c = fitters.descriptor_func(df_run, cd, cyc_loop, battery, windowlength, polyorder, datatype)
+            c = fitters.descriptor_func(df_run, cd, cyc_loop, battery, windowlength, polyorder, datatype, lenmax)
             # df_run[volt_col], df_run['Smoothed_dQ/dV']
             #c is the dictionary of descriptors here 
         # eliminates cycle number and notifies user of cycle removal
@@ -313,7 +313,7 @@ class process:
 
 class fitters:
 # run peak finder first, to feed i (indices of peaks) into this function 
-    def descriptor_func(df_run, cd, cyc, battery, windowlength, polyorder, datatype):
+    def descriptor_func(df_run, cd, cyc, battery, windowlength, polyorder, datatype, lenmax):
         """Generates dictionary of descriptors/error parameters
         V_series = Pandas series of voltage data
         dQdV_series = Pandas series of differential capacity data
@@ -332,9 +332,9 @@ class fitters:
 
         # appropriately reclassifies data from pandas to numpy
         sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
-
+        peak_thresh = 0.3
         # returns the indices of the peaks for the dataset
-        i, volts_of_i = fitters.peak_finder(df_run, cd, windowlength, polyorder, datatype)
+        i, volts_of_i, peak_heights = fitters.peak_finder(df_run, cd, windowlength, polyorder, datatype, lenmax, peak_thresh)
         #print('Here are the peak finder fitters - indices of peaks in dataset')
         #print(i)
 
@@ -419,7 +419,7 @@ class fitters:
 
         return sigx, sigy
 
-    def peak_finder(df_run, cd, windowlength, polyorder, datatype):
+    def peak_finder(df_run, cd, windowlength, polyorder, datatype, lenmax, peak_thresh):
         """Determines the index of each peak in a dQdV curve
         V_series = Pandas series of voltage data
         dQdV_series = Pandas series of differential capacity data
@@ -435,25 +435,38 @@ class fitters:
         #assert len(dQdV_series) > 10
 
         sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
+        ################################################
+        wl = lenmax/20
+        wlint = int(round(wl))
+        if wlint%2 == 0:
+            windowlength_new = wlint + 1
+        else: 
+            windowlength_new = wlint
+        ###############################################
         #the below is to make sure the window length ends up an odd number - even though we are basing it on the length of the df
-        if len(sigy) > windowlength:
+        if len(sigy) > windowlength_new:
             #has to be larger than 69 so that windowlength > 3 - necessary for sav golay function  
-            sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength, polyorder)
-        elif len(sigy) > 10:
-            sigy_smooth = sigy
+            sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength_new, polyorder)
         else:
             sigy_smooth = sigy
         # this used to be sigy_smooth in the .indexes function below -= changed it to just sigy for graphite
         # change was made on 9.12.18  . also changed min_dist=lenmax/50 to min_dist= 10
-        i = peakutils.indexes(sigy_smooth, thres=0.7, min_dist=50) # used to be 0.25
+        ###################################################
+        peak_thresh_ft = float(peak_thresh)
+        i = peakutils.indexes(sigy_smooth, thres=peak_thresh_ft, min_dist=lenmax/50)
+        ###################################################
+        #i = peakutils.indexes(sigy_smooth, thres=0.7, min_dist=50) # used to be 0.25
         #i = peakutils.indexes(sigy_smooth, thres=.3 /
         #                      max(sigy_smooth), min_dist=9)
         #print(i)
+
         if i is not None and len(i)>0:
             sigx_volts = sigx[i]
+            peak_heights = list(sigy[i].tolist())
         else:
             sigx_volts = []
-        return i, sigx_volts
+            peak_heights = []
+        return i, sigx_volts, peak_heights
 
     def label_gen(index):
         """Generates label set for individual gaussian
@@ -580,6 +593,7 @@ def dfsortpeakvals(mydf, cd):
     filter_col_ampl= [col for col in mydf if str(col).startswith(cd + '_amp')]
     filter_col_fwhm = [col for col in mydf if str(col).startswith(cd + '_fwhm')]
     filter_col_fract = [col for col in mydf if str(col).startswith(cd + '_fract')]
+    filter_col_actheight = [col for col in mydf if str(col).startswith(cd+'_rawheight')]
     newdf = pd.DataFrame(None)
     for col in filter_col_loc:
         newdf = pd.concat([newdf, mydf[col]])
@@ -614,7 +628,8 @@ def dfsortpeakvals(mydf, cd):
             mydf['sortedSIGMA-'+cd+'-'+str(count)] = None 
             mydf['sortedamplitude-'+cd+'-'+str(count)] = None 
             mydf['sortedfwhm-'+cd+'-'+str(count)] = None 
-            mydf['sortedfraction-'+cd+'-'+str(count)] = None 
+            mydf['sortedfraction-'+cd+'-'+str(count)] = None
+            mydf['sortedactheight-'+cd+'-'+str(count)] = None  
             for j in range(len(filter_col_loc)):
             #iterate over the names of columns in mydf - ex[peakloc1, peakloc2, peakloc3..]
                 # this is where we sort the values in the df based on if they appear in the group
@@ -628,6 +643,7 @@ def dfsortpeakvals(mydf, cd):
                         mydf.loc[i, ('sortedamplitude-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_ampl[j])]
                         mydf.loc[i, ('sortedfwhm-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_fwhm[j])] 
                         mydf.loc[i, ('sortedfraction-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_fract[j])] 
+                        mydf.loc[i, ('sortedactheight-'+cd+'-'+str(count))] = mydf.loc[i, (filter_col_actheight[j])]
                     else:
                         None
     else: 

@@ -17,8 +17,8 @@ from lmfit.model import load_modelresult
 ##########################################
 #Load Data
 ##########################################
-#eventually add everything in folder and create a dropdown that loads that data into data 
-database = 'dqdvDataBase_92118_1.db'
+#eventually add everything in folder and create a dropdown that loads that data sinto data 
+database = 'dqdvDataBaseDemo.db'
 if not os.path.exists(database): 
 	print('That database does not exist-creating it now.')
 	dbexp.dbfs.init_master_table(database)
@@ -43,50 +43,73 @@ slidmax2 = 15
 app = dash.Dash() #initialize dash 
 
 Introduction= dcc.Markdown('''
-        # ChaChi
+        # dQ/dV
         ## Interface for visualizing battery cycle data
         #'''), #Add some Markdown
 
 
 app.layout = html.Div([
     html.Div([
-        html.H1('ChaChi Battery Cycle Visualization'),
+        html.H1('Quantitative dQ/dV Analysis and Visualization'),
         ]),
 
     html.Div([
         html.Br(),
-        dcc.Dropdown(id='input-datatype', options =[{'label':'Arbin', 'value':'CALCE'},{'label':'MACCOR', 'value':'MACCOR'}],  placeholder='datatype'),
-        html.H4('Input lower voltage range to exclude from the clean data: '),
-        dcc.Input(id='input-voltrange1', type='text', placeholder='0' ),
-        html.H4('Input upper voltage range to exclude from the clean data: '),
-        dcc.Input(id ='input-voltrange2', type='text', placeholder='0.03'),
-        dcc.Upload(
-            id='upload-data',
-            children=html.Div([
-                'Drag and Drop or ',
-                html.A('Select Files')
-            ]),
-            style={
-                'width': '98%',
-                'height': '60px',
-                'lineHeight': '60px',
-                'borderWidth': '1px',
-                'borderStyle': 'dashed',
-                'borderRadius': '5px',
-                'textAlign': 'center',
-                #'margin': '10px'
-            },
-            multiple=False),
+        html.Div([html.H3('Choose existing data: '), 
+		html.Div([html.Div([html.H6('Here are the files currently available in the database: ')],
+	    style={'width': '90%', 'textAlign': 'left', 'margin-left':'50px'}),
+	    html.Div([dcc.Dropdown(id ='available-data', options = 'options')], style={'width': '80%', 'vertical-align':'center', 'margin-left': '50px'}),
+		html.Div(id = 'gen-desc-confirmation')])], style = {'width':'43%', 'display': 'inline-block', 'vertical-align': 'top'}),
+
+        html.Div([html.H3('Or load in your own data: '),
+        html.Div([html.Div([html.H5('1. Input your datatype: ')],style={'width': '40%', 'textAlign': 'left', 'display': 'inline-block', 'margin-left':'50px'}),
+        		html.Div([dcc.Dropdown(id='input-datatype', 
+        			options =[{'label':'Arbin', 'value':'CALCE'},{'label':'MACCOR', 'value':'MACCOR'}],  
+        			placeholder='datatype')], 
+        		style={'width': '40%', 'vertical-align':'top', 'display': 'inline-block', 
+        		'margin-right': '10px', 'margin-left': '10px'})],
+        		),
+
+        html.Div([html.Div([html.H5('2. Upload your data: ')], style={'width': '40%', 'textAlign': 'left', 'display': 'inline-block', 'margin-left':'50px'}), 
+            	html.Div([dcc.Upload(
+                id='upload-data',
+                children=html.Div([
+                    'Drag and Drop or ',
+                    html.A('Select Files')
+                ]),
+                style={
+                    'width': '98%',
+                    'height': '60px',
+                    'lineHeight': '60px',
+                    'borderWidth': '1px',
+                    'borderStyle': 'dashed',
+                    'borderRadius': '5px',
+                    'textAlign': 'center',
+                    #'margin': '10px'
+                },
+                multiple=False)], style= {'width': '40.2%', 'display': 'inline-block', 'margin-right': '10px', 'margin-left': '10px'}),
+                html.Div(id = 'output-data-upload', style={'margin-left':'50px', 'font-size': '20px'}),
+                html.Div(['Note: data will be saved in database with the original filename.'],
+                	style={'margin-left':'50px', 'font-style':'italic'}), 
+                html.Div(['Once data is uploaded, refresh this page and select the new data from the dropdown menu to the left.'],
+                	style={'margin-left':'50px', 'font-style': 'italic'})],
+                )], style = {'width': '55%', 'display': 'inline-block'}),
+	        
+        #html.H6('Input lower voltage range to exclude from the clean data: '),
+        #dcc.Input(id='input-voltrange1', type='text', placeholder='0' ),
+        #html.H6('Input upper voltage range to exclude from the clean data: '),
+        #dcc.Input(id ='input-voltrange2', type='text', placeholder='0.03'),
+        
         ##################
-        ]),
+
     
-    html.Div(id = 'output-data-upload'),     
-    
-    html.Div([dcc.Dropdown(id ='available-data',
-    					   options = 'options')]),
-    html.Div(id = 'gen-desc-confirmation'),
+     
+#################################################################3
+    ]),
+
     html.Div([
         html.Br(),
+        html.Div([html.H6('Cycle Number')], style ={'textAlign': 'left'}),
         dcc.Slider(
             id='cycle--slider',
             min=0,
@@ -122,7 +145,7 @@ app.layout = html.Div([
         ),
     
     html.Div([
-    	html.Br(), 
+    	html.H6(['Explore Descriptors']),
         dcc.Checklist(id = 'show-poly', 
             options=[
                 {'label': 'Show Polynomial Baseline', 'value': 'show'},
@@ -137,7 +160,7 @@ app.layout = html.Div([
     dcc.RadioItems(id = 'desc-to-plot', options=[
         {'label': 'Peak Locations', 'value': 'sortedloc-'}, 
         {'label': 'Peak Areas', 'value': 'sortedarea-'},
-        {'label': 'Peak Height', 'value': 'sortedheight-'},
+        {'label': 'Peak Height', 'value': 'sortedactheight-'},
     ],
     value = ['sortedloc-'], labelStyle={'display': 'inline-block'}),
     dcc.Checklist(id = 'desc-peaknum-to-plot', 
@@ -146,6 +169,12 @@ app.layout = html.Div([
             {'label': 'Peak 2', 'value': '2'},
             {'label': 'Peak 3', 'value': '3'},
             {'label': 'Peak 4', 'value': '4'},
+            {'label': 'Peak 5', 'value': '5'}, 
+            {'label': 'Peak 6', 'value': '6'}, 
+            {'label': 'Peak 7', 'value': '7'}, 
+            {'label': 'Peak 8', 'value': '8'}, 
+            {'label': 'Peak 9', 'value': '9'}, 
+            {'label': 'Peak 10', 'value': '10'},
         ],
         values=['1'], labelStyle={'display': 'inline-block'})]),
 
@@ -160,8 +189,14 @@ app.layout = html.Div([
             'height': '80%',
             }
         ),
+    html.Div(['New Peak Detection Threshold (default is 0.7, must be between 0 and 1): '], style={'font-style':'italic'}), 
+    html.Div([dcc.Input(id = 'new-peak-threshold', placeholder = 'threshold for peak detection')]),
+    html.Div(['Location of new charge peak(s), separate each with a commma (V): '], style={'font-style':'italic'}), 
     html.Div([dcc.Input(id = 'charge-newpeak', placeholder = 'charge new peak')]),
+    html.Div(['Location of new discharge peak(s), separate each with a commma (V): '], style={'font-style':'italic'}), 
     html.Div([dcc.Input(id = 'discharge-newpeak', placeholder = 'discharge new peak')]),
+    html.Div(['After updating the threshold or new peak locations, you can update the preview of the model (one cycle shown here),'+
+    	' and then update the model in the database once the model appears to be optimal.'], style={'font-style':'italic'}), 
     html.Div(id = 'update-model-ans'),
     html.Button('Update Preview of Model', id = 'update-model-button'),
     html.Button('Update Model in Database', id = 'update-model-indb-button'),    
@@ -210,6 +245,7 @@ app.layout = html.Div([
 
 def parse_contents(contents, filename, datatype, thresh1, thresh2):
 	# this is just to be used to get a df from an uploaded file
+
     if contents == None:
     	return html.Div(['No file has been uploaded, or the file uploaded was empty.'])
     else: 
@@ -224,7 +260,8 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
     		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
     		v_toappend_c = []
     		v_toappend_d = []
-    		feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename)
+    		new_peak_thresh = 0.7 # just as a starter value 
+    		feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh)
     		return html.Div(['That file exists in the database: ' + str(filename.split('.')[0])])
     		#df = dbexp.dbfs.get_file_from_database(cleanset_name, database)
     	else:
@@ -232,7 +269,8 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
     		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
     		v_toappend_c = []
     		v_toappend_d = []
-    		feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename)
+    		new_peak_thresh = 0.7 # just as a starter value
+    		feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh)
     		# maybe split the process data function into getting descriptors as well?
     		#since that is the slowest step 
     		return html.Div(['New file has been processed: ' + str(filename)])
@@ -289,13 +327,17 @@ def pop_with_db(filename, database):
     	peakloc_dict = {}
     return df_clean, df_raw
 
-def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d):
+def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, peak_thresh):
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
 	clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
 	windowlength = 75
 	polyorder = 3
+	#####################################
+	# length_dict = {key: len(value) for key, value in import_dictionary.items()}
+ #    lenmax = max(length_dict.values())
+    ######################################
 	# speed this up by moving the initial peak finder out of this, and just have those two things passed to it 
-	i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
+	i_charge, volts_i_ch, peak_heights_c = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype, lenmax, peak_thresh)
 	#chargeloc_dict.update({cyc: volts_i_ch})
 	V_series_c = clean_charge[volt_col]
 	dQdV_series_c = clean_charge['Smoothed_dQ/dV']
@@ -312,7 +354,7 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d):
 		new_df_mody_c = None
 		model_c_vals = None
 	# now the discharge: 
-	i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
+	i_discharge, volts_i_dc, peak_heights_d= dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype, lenmax, peak_thresh)
 	V_series_d = clean_discharge[volt_col]
 	dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
 	par_d, mod_d, indices_d = dbexp.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, v_toappend_d)
@@ -328,15 +370,16 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d):
 		new_df_mody_d = None
 		model_d_vals = None
 	# save the model parameters in the database with the data
-	
-	new_df_mody = pd.concat([new_df_mody_c, new_df_mody_d], axis = 0)
-
+	if new_df_mody_c is not None or new_df_mody_d is not None: 
+		new_df_mody = pd.concat([new_df_mody_c, new_df_mody_d], axis = 0)
+	else: 
+		new_df_mody = None
 	# combine the charge and discharge
+	# update model_c_vals and model_d_vals with peak heights 
 	
-	
-	return new_df_mody, model_c_vals, model_d_vals
+	return new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d
 
-def generate_model(v_toappend_c, v_toappend_d, df_clean, filename):
+def generate_model(v_toappend_c, v_toappend_d, df_clean, filename, peak_thresh):
 	# run this when get descriptors button is pushed, and re-run it when user puts in new voltage 
 	# create model based off of initial peaks 
 	# show user model, then ask if more peak locations should be used (shoulders etc)
@@ -349,13 +392,17 @@ def generate_model(v_toappend_c, v_toappend_d, df_clean, filename):
 	#if ans == True:
 		#return html.Div(['A model for that filename already exists in the database.'])
 	#else: 
+	####################################################################
+	length_list = [len(df_clean[df_clean[cycle_ind_col]==cyc]) for cyc in df_clean[cycle_ind_col].unique() if cyc != 1]
+	lenmax = max(length_list)
+	####################################################################
 	mod_pointsdf = pd.DataFrame()
 	for cyc in df_clean[cycle_ind_col].unique():
 		#######################################################################9.15.18
 		#i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
-		new_df_mody, model_c_vals, model_d_vals = get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d)
+		new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d = get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, peak_thresh)
 		mod_pointsdf = mod_pointsdf.append(new_df_mody)
-		param_df = param_df.append({'Cycle': cyc, 'Model_Parameters_charge': str(model_c_vals), 'Model_Parameters_discharge': str(model_d_vals)}, ignore_index = True)
+		param_df = param_df.append({'Cycle': cyc, 'Model_Parameters_charge': str(model_c_vals), 'Model_Parameters_discharge': str(model_d_vals), 'charge_peak_heights': str(peak_heights_c), 'discharge_peak_heights': str(peak_heights_d)}, ignore_index = True)
 		#param_df = param_df.append({'Cycle': cyc, 'C/D': 'discharge', 'Model_Parameters': str(model_d_vals)}, ignore_index = True)
 	# want this outside of for loop to update the db with the complete df of new params 
 	dbexp.dbfs.update_database_newtable(mod_pointsdf, filename.split('.')[0]+ '-ModPoints', database)
@@ -389,11 +436,13 @@ def generate_model(v_toappend_c, v_toappend_d, df_clean, filename):
 @app.callback(Output('output-data-upload', 'children'),
               [Input('upload-data', 'contents'),
                Input('upload-data', 'filename'), 
-               Input('input-datatype', 'value'), 
-               Input('input-voltrange1', 'value'), 
-               Input('input-voltrange2', 'value')])
-def update_output(contents, filename, value, thresh1, thresh2):
+               Input('input-datatype', 'value')]) 
+               #Input('input-voltrange1', 'value'), 
+               #Input('input-voltrange2', 'value')])
+def update_output(contents, filename, value):
 	#value here is the datatype, then voltagerange1, then voltagerange2
+    thresh1 = 0
+    thresh2 = 0
     children = parse_contents(contents, filename, value, thresh1, thresh2)
     return children
 
@@ -407,8 +456,9 @@ def update_dropdown(children):
 			  [Input('available-data', 'value'), 
 			   Input('charge-newpeak', 'value'), 
 			   Input('discharge-newpeak', 'value'),
-			   Input('update-model-indb-button', 'n_clicks')])
-def update_model_indb(filename, new_charge_vals, new_discharge_vals, n_clicks):
+			   Input('update-model-indb-button', 'n_clicks'), 
+			   Input('new-peak-threshold', 'value')])
+def update_model_indb(filename, new_charge_vals, new_discharge_vals, n_clicks, new_peak_thresh):
 	if n_clicks is not None:
 		int_list_c = []
 		int_list_d = []
@@ -426,7 +476,7 @@ def update_model_indb(filename, new_charge_vals, new_discharge_vals, n_clicks):
 			None
 		cleanset_name = filename.split('.')[0] + 'CleanSet'
 		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
-		feedback = generate_model(int_list_c, int_list_d, df_clean, filename)
+		feedback = generate_model(int_list_c, int_list_d, df_clean, filename, new_peak_thresh)
 	else:
 		feedback = html.Div(['Model has not been updated yet.'])
 	return feedback
@@ -615,7 +665,8 @@ def update_figure1(selected_step,filename, selected_row_indices):
          #Input('input-datatype', 'value'),
          #Input('datatable','selected_row_indices'),
          Input('charge-newpeak', 'value'), 
-         Input('discharge-newpeak', 'value'), 
+         Input('discharge-newpeak', 'value'),
+         Input('new-peak-threshold', 'value'), 
          Input('update-model-button', 'n_clicks'), 
          Input('show-poly', 'values'), 
          Input('desc-to-plot', 'value'),
@@ -624,7 +675,7 @@ def update_figure1(selected_step,filename, selected_row_indices):
          #Input('upload-data','contents')]
         )
 
-def update_figure2(filename, charge_newpeaks, discharge_newpeaks, n_clicks, show_poly, desc_to_plot, cd_to_plot, peaknum_to_plot):
+def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n_clicks, show_poly, desc_to_plot, cd_to_plot, peaknum_to_plot):
     """ This is  a function to evaluate the model on a sample plot before updating the database"""
     data, raw_data= pop_with_db(filename, database)
     datatype = data.loc[0,('datatype')]
@@ -632,6 +683,10 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, n_clicks, show
     selected_step = round(data[cycle_ind_col].max()/2) +1 
     # select a cycle in the middle of the set
     dff_data= data[data[cycle_ind_col] == selected_step]
+    ###################################################
+    length_list = [len(data[data[cycle_ind_col]==cyc]) for cyc in data[cycle_ind_col].unique() if cyc != 1]
+    lenmax = max(length_list)
+	###################################################
     dff_raw = raw_data[raw_data[cycle_ind_col]==selected_step]
     peak_vals_df = dbexp.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
     if n_clicks is not None:
@@ -650,7 +705,7 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, n_clicks, show
                 int_list_d.append(float(i))
         else: 
             None
-        new_df_mody, model_c_vals, model_d_vals = get_model_dfs(dff_data, datatype, selected_step, int_list_c, int_list_d)
+        new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d = get_model_dfs(dff_data, datatype, selected_step, int_list_c, int_list_d, lenmax, peak_thresh)
         dff_mod = new_df_mody
         c_c0 = model_c_vals['c0']
         c_c1 = model_c_vals['c1']

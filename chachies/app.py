@@ -19,6 +19,7 @@ from lmfit.model import load_modelresult
 ##########################################
 #eventually add everything in folder and create a dropdown that loads that data sinto data 
 database = 'dqdvDataBaseDemo.db'
+#database = 'dqdvDataBase_checkDemoFile.db'
 if not os.path.exists(database): 
 	print('That database does not exist-creating it now.')
 	dbexp.dbfs.init_master_table(database)
@@ -124,11 +125,17 @@ app.layout = html.Div([
             marks={str(each): str(each) for each in range(slidmax)},
             #data['Cycle_Index'].unique()},
             #includes a mark for each step
-            )
+            ),
+        html.Br(),
+        html.Br(),
+        html.Div([html.Br()], style = {'width':'89%', 'display': 'inline-block'}),
+        html.Div([dcc.RadioItems(id = 'show-model-fig1', options = [{'label': 'Show Model', 'value': 'showmodel'}, 
+        															{'label': 'Hide Model', 'value': 'hidemodel'},
+        		], labelStyle = {'display': 'inline-block'}, value = ['showmodel'])], style ={'width':'10%', 'textAlign': 'left', 'display':'inline-block'}),
         ],
         style={
                 'width': '98%',
-                'margin': '10px'
+                'margin': '10px',
                 }
         ),
 
@@ -146,24 +153,23 @@ app.layout = html.Div([
     
     html.Div([
     	html.H4(['Explore Descriptors']),
-        dcc.Checklist(id = 'show-poly', 
-            options=[
-                {'label': 'Show Polynomial Baseline', 'value': 'show'},
-            ],
-            values=['show'])]),
-    html.Div([ 
+    html.Div([
+    html.Div(['Specify charge/discharge, locations/areas/heights, and peak number(s).'], style = {'width':'75%', 'font-style': 'italic'}),
+    html.Br(), 
 	dcc.RadioItems(id = 'cd-to-plot', options=[ # 'sortedloc-c-1'
             {'label': '(+) dQ/dV', 'value': 'c-'}, 
             {'label': '(-) dQ/dV', 'value': 'd-'}
         ],
         value = ['c-'], labelStyle={'display': 'inline-block'}),
+	html.Br(),
     dcc.RadioItems(id = 'desc-to-plot', options=[
         {'label': 'Peak Locations', 'value': 'sortedloc-'}, 
         {'label': 'Peak Areas', 'value': 'sortedarea-'},
         {'label': 'Peak Height', 'value': 'sortedactheight-'},
     ],
     value = ['sortedloc-'], labelStyle={'display': 'inline-block'}),
-    dcc.Checklist(id = 'desc-peaknum-to-plot', 
+    html.Br(), 
+    html.Div([dcc.Checklist(id = 'desc-peaknum-to-plot', 
         options=[
             {'label': 'Peak 1', 'value': '1'}, 
             {'label': 'Peak 2', 'value': '2'},
@@ -176,8 +182,35 @@ app.layout = html.Div([
             {'label': 'Peak 9', 'value': '9'}, 
             {'label': 'Peak 10', 'value': '10'},
         ],
-        values=['1'], labelStyle={'display': 'inline-block'})]),
+        values=['1'], labelStyle={'display': 'inline-block'})], style = {'width':'55%'}), 
+    html.Br(),
+    dcc.Checklist(id = 'show-poly', 
+    options=[
+        {'label': 'Show Polynomial Baseline', 'value': 'show'},
+    ],
+    values=['show']),
 
+    ]),
+    ], style = {'display': 'inline-block', 'width':'49%', 'margin':'10px'}),  #25% and 100px margin
+############################################
+    html.Div([
+    	html.H4(['Update Model']),
+    html.Div(['New Peak Detection Threshold (default is 0.7, must be between 0 and 1): ']), 
+    html.Div([dcc.Input(id = 'new-peak-threshold', placeholder = 'threshold for peak detection')]),
+    html.Br(), 
+    html.Div(['Location of new charge/discharge peak(s), separate each with a commma (V): ']), 
+    html.Div([dcc.Input(id = 'charge-newpeak', placeholder = 'new (+) dq/dv peak(s)', style = {'width': '98%'})], style = {'display': 'inline-block', 'width': '40%'}), 
+    html.Div([dcc.Input(id = 'discharge-newpeak', placeholder = 'new (-) dq/dv peak(s)', style = {'width': '98%'})], style ={'display': 'inline-block', 'width':'40%', 'margin-left': '10px'}),
+    html.Br(),
+    html.Div(['After updating the threshold or new peak locations, you can update the preview of the model'+
+    	' and then update the database once the model appears to be optimal.'], style={'font-style':'italic'}), 
+    html.Br(), 
+    html.Div(id = 'update-model-ans'),
+    html.Button('Update Preview of Model', id = 'update-model-button'),
+    html.Button('Update Model in Database', id = 'update-model-indb-button'),
+    ], style = {'display':'inline-block', 'width':'49%'}),    
+
+###########################################
     html.Div([
         html.Br(),
         dcc.Graph(id='model-graph'), #initialize a simple plot
@@ -189,20 +222,15 @@ app.layout = html.Div([
             'height': '80%',
             }
         ),
-    html.H4(['Update Model']),
-    html.Div(['New Peak Detection Threshold (default is 0.7, must be between 0 and 1): '], style={'font-style':'italic'}), 
-    html.Div([dcc.Input(id = 'new-peak-threshold', placeholder = 'threshold for peak detection')]),
-    html.Div(['Location of new charge peak(s), separate each with a commma (V): '], style={'font-style':'italic'}), 
-    html.Div([dcc.Input(id = 'charge-newpeak', placeholder = 'charge new peak')]),
-    html.Div(['Location of new discharge peak(s), separate each with a commma (V): '], style={'font-style':'italic'}), 
-    html.Div([dcc.Input(id = 'discharge-newpeak', placeholder = 'discharge new peak')]),
-    html.Div(['After updating the threshold or new peak locations, you can update the preview of the model (one cycle shown here),'+
-    	' and then update the model in the database once the model appears to be optimal.'], style={'font-style':'italic'}), 
-    html.Div(id = 'update-model-ans'),
-    html.Button('Update Preview of Model', id = 'update-model-button'),
-    html.Button('Update Model in Database', id = 'update-model-indb-button'),    
+
     html.Div([
         html.H4('DataTable'),
+        html.Div([dcc.RadioItems(id = 'data-table-selection', options = [{'label': 'Raw Data', 'value': 'raw_data'},
+        																 {'label': 'Clean Data', 'value': 'clean_data'}, 
+        																 {'label': 'Descriptors', 'value': 'descript_data'}],
+        																 value = ['raw_data'], labelStyle={'display': 'inline-block'},
+
+        																 )], style = {'display': 'inline-block'}),
         dt.DataTable(
             #rows=charge.to_dict('records'), #converts df to dict
             rows=[{}],
@@ -556,13 +584,14 @@ def update_selected_row_indices(clickData, selected_row_indices):
 @app.callback( #decorator wrapper for plot
         Output('charge-graph','figure'),
         [Input('cycle--slider','value'),
-         Input('available-data', 'value'), # this will be the filename of the file 
+         Input('available-data', 'value'), 
+         Input('show-model-fig1', 'value'),# this will be the filename of the file 
          #Input('input-datatype', 'value'),
          Input('datatable','selected_row_indices')]
          #Input('upload-data','contents')]
         )
 
-def update_figure1(selected_step,filename, selected_row_indices):
+def update_figure1(selected_step,filename, showmodel, selected_row_indices):
     data, raw_data= pop_with_db(filename, database)
     datatype = data.loc[0,('datatype')]
     (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
@@ -613,7 +642,7 @@ def update_figure1(selected_step,filename, selected_row_indices):
                 'marker': marker,
                 'name': 'Raw Data'
                 }, 1, 1)
-        if df_model is not None:   
+        if df_model is not None and showmodel == 'showmodel':   
             fig.append_trace({
                 'x':dff_mod[volt_col], 
                 'y':dff_mod['Model'] ,
@@ -743,7 +772,7 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
     #for i in filtered_data[cycle_ind_col].unique():
     fig = plotly.tools.make_subplots(
         rows=1,cols=2,
-        subplot_titles=('Descriptors','Smoothed Cycle'),
+        subplot_titles=('Descriptors','Example Data for Model Tuning (Cycle ' + str(int(selected_step)) + ')'),
         shared_xaxes=True)
     marker = {'color': ['#0074D9']}
             #fig.append_trace({'x': [2.0, 2.0],'y': [0, 2.0], 'type': 'line', 'name': 'Peak Position'}, 1, 2
@@ -798,13 +827,22 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
 @app.callback( #update charge datatable
     Output('datatable', 'rows'),
     [Input('available-data', 'value'),
+     Input('data-table-selection', 'value'),
      #Input('upload-data', 'filename'),
      #Input('upload-data', 'last_modified')
      ])
 
-def update_table1(filename):
-    data, raw_data = pop_with_db(filename, database) 
-    return data.to_dict('records')
+def update_table1(filename, data_to_show):
+    data, raw_data = pop_with_db(filename, database)  # returns clean data and raw data
+    peak_vals_df = dbexp.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
+    if data_to_show == 'raw_data':
+    	return raw_data.to_dict('records')
+    elif data_to_show == 'clean_data':
+    	return data.to_dict('records')
+    elif data_to_show == 'descript_data':
+    	return peak_vals_df.to_dict('records')
+    else: 
+    	return data.to_dict('records')
 
 
 #@app.callback(

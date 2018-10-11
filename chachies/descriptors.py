@@ -351,11 +351,21 @@ class fitters:
         # initiates collection of coefficients
         coefficients = []
 
-        for k in np.arange(4):
+        for k in np.arange(1): # this was 4 for polynomial changed 10-10-18
             # key calculation for coefficient collection
-            coef = 'c' + str(k)
+            #coef = 'c' + str(k)
+            coef1 = 'base_sigma'
+            coef2 = 'base_amplitude'
+            coef3 = 'base_fwhm'
+            coef4 = 'base_height'
             # extracting coefficients from model object
-            coefficients.append(model.best_values[coef])
+            coefficients.append(model.best_values[coef1])
+            coefficients.append(model.best_values[coef2])
+            coefficients.append(model.best_values[coef3])
+            coefficients.append(model.best_values[coef4])
+
+
+
 
         # creates a dictionary of coefficients
         desc = {'coefficients' + '-' +str(cd): list(coefficients)}
@@ -511,8 +521,9 @@ class fitters:
         sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
 
         # creates a polynomial fitting object
-        mod = models.PolynomialModel(4)
-
+        mod = models.GaussianModel(prefix = 'base_')
+        # changed from PolynomialModel to Gaussian on 10-10-18
+        # Gaussian params are A, mew, and sigma
         # sets polynomial parameters based on a
         # guess of a polynomial fit to the data with no peaks
         par = mod.guess(sigy_bot, x=sigx_bot)

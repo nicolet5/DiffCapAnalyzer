@@ -18,7 +18,7 @@ from lmfit.model import load_modelresult
 #Load Data
 ##########################################
 #eventually add everything in folder and create a dropdown that loads that data sinto data 
-database = 'dqdvDataBaseDemo.db'
+database = 'dQdVInitialDatabase.db'
 #database = 'dqdvDataBase_checkDemoFile.db'
 if not os.path.exists(database): 
 	print('That database does not exist-creating it now.')
@@ -26,7 +26,7 @@ if not os.path.exists(database):
 #datatype = 'CALCE'
 #for now just use some data we have 
 #data = pd.read_excel('data/Clean_Whole_Sets/CS2_33_12_16_10CleanSet.xlsx')
-data = dbexp.dbfs.get_file_from_database('CS2_33_10_04_10CleanSet', 'dqdvDataBase_sortedpeaks4.db')
+data = dbexp.dbfs.get_file_from_database('CS2_33_10_04_10CleanSet', 'dqdvDataBaseDemo.db')
 #these are just initial values to use:
 slidmax = 15
 slidmax2 = 15
@@ -741,7 +741,7 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
         c_c1 = model_c_vals['c1']
         c_c2= model_c_vals['c2']
         c_c3 = model_c_vals['c3']
-        c_c4 = model_c_vals['c4']
+        #c_c4 = model_c_vals['c4']
     else: 
     	# if user hasn't pushed the button, populate with original model from database
         modset_name = filename.split('.')[0] + '-ModPoints'
@@ -754,11 +754,11 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
         #model_d_vals = ast.literal_eval(modvals_selected.loc[0, ('Model_Parameters_discharge')])
         filtpeakvals = peak_vals_df[peak_vals_df['c_cycle_number'] == selected_step]
         filtpeakvals = filtpeakvals.reset_index(drop = True)
-        c_c0 = filtpeakvals.loc[0,('c_poly_coef1')]
-        c_c1 = filtpeakvals.loc[0, ('c_poly_coef2')]
-        c_c2 = filtpeakvals.loc[0, ('c_poly_coef3')]
-        c_c3 = filtpeakvals.loc[0, ('c_poly_coef4')]
-        c_c4 = filtpeakvals.loc[0, ('c_poly_coef5')]
+        c_c0 = filtpeakvals.loc[0,('c_gauss_sigma')]
+        c_c1 = filtpeakvals.loc[0, ('c_gauss_amplitude')]
+        c_c2 = filtpeakvals.loc[0, ('c_gauss_fwhm')]
+        c_c3 = filtpeakvals.loc[0, ('c_gauss_height')]
+        #c_c4 = filtpeakvals.loc[0, ('c_poly_coef5')]
     #(charge, discharge) = dbexp.ccf.sep_char_dis(data, datatype)
     # grab datattype from file:
     #model_cd_vals are dictionaries - can refer to them with the key 
@@ -799,6 +799,7 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
         'name': 'Model of One Cycle'
         }, 1,2)
    # add if checkbox is selected to show polynomial baseline 
+    c_c4 = 0
     if 'show' in show_poly: 
 	    fig.append_trace({
             'x': dff_mod[volt_col],

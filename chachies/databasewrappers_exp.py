@@ -143,8 +143,6 @@ def get_db_filenames(database_name):
 	return raw_names
 
 
-
-
 def my_pseudovoigt(x, cent, amp, fract, sigma): 
 	"""This function is from http://cars9.uchicago.edu/software/python/lmfit/builtin_models.html"""
 	sig_g = sigma/np.sqrt(2*np.log(2)) # calculate the sigma_g parameter for the gaussian distribution 
@@ -175,6 +173,7 @@ def param_dicts_to_df(mod_params_name, database):
 			#print(charge_keys) 
 			new_dict_charge = {}
 			new_dict_charge.update({'c_gauss_sigma': param_dict_charge['base_sigma'], # changed from c0- c4  to base_ .. 10-10-18
+							 'c_gauss_center': param_dict_charge['base_center'],
 							 'c_gauss_amplitude': param_dict_charge['base_amplitude'], 
 							 'c_gauss_fwhm': param_dict_charge['base_fwhm'], 
 							 'c_gauss_height': param_dict_charge['base_height'], 
@@ -222,6 +221,7 @@ def param_dicts_to_df(mod_params_name, database):
 			#print(charge_keys) 
 			new_dict_discharge = {}
 			new_dict_discharge.update({'d_gauss_sigma': param_dict_discharge['base_sigma'], # changed 10-10-18
+							 'd_gauss_center': param_dict_discharge['base_center'],
 							 'd_gauss_amplitude': param_dict_discharge['base_amplitude'], 
 							 'd_gauss_fwhm': param_dict_discharge['base_fwhm'], 
 							 'd_gauss_height': param_dict_discharge['base_height'], 

@@ -343,7 +343,7 @@ class fitters:
         # generates the necessary model parameters for the fit calculation
         v_toappend = []
         par, mod, indices = fitters.model_gen(
-            V_series, dQdV_series, cd, i, cyc, v_toappend)
+            V_series, dQdV_series, cd, i, cyc, v_toappend, thresh)
 
         # returns a fitted lmfit model object from the parameters and data
         model = fitters.model_eval(V_series, dQdV_series, cd, par, mod)
@@ -355,14 +355,16 @@ class fitters:
             # key calculation for coefficient collection
             #coef = 'c' + str(k)
             coef1 = 'base_sigma'
-            coef2 = 'base_amplitude'
-            coef3 = 'base_fwhm'
-            coef4 = 'base_height'
+            coef2 = 'base_center'
+            coef3 = 'base_amplitude'
+            coef4 = 'base_fwhm'
+            coef5 = 'base_height'
             # extracting coefficients from model object
             coefficients.append(model.best_values[coef1])
             coefficients.append(model.best_values[coef2])
             coefficients.append(model.best_values[coef3])
             coefficients.append(model.best_values[coef4])
+            coefficients.append(model.best_values[coef5])
 
 
 
@@ -506,7 +508,7 @@ class fitters:
 
         return center, sigma, amplitude, fraction, comb
 
-    def model_gen(V_series, dQdV_series, cd, i, cyc, v_toappend):
+    def model_gen(V_series, dQdV_series, cd, i, cyc, v_toappend, thresh):
         """Develops initial model and parameters for battery data fitting.
         V_series = Pandas series of voltage data
         dQdV_series = Pandas series of differential capacity data
@@ -519,60 +521,119 @@ class fitters:
         
         # generates numpy arrays for use in fitting
         sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
+        if sigx_bot[5]>sigx_bot[1]:
+            # check if the voltage values are increasing - the right order for gaussian
+            sigx_bot_new = sigx_bot
+            sigy_bot_new = sigy_bot
+            newi = i
+        else:
+            sigx_bot_new = sigx_bot[::-1] # reverses the order of elements in the array
+            sigy_bot_new = sigy_bot[::-1]
+            newi = np.array([], dtype = int)
+            for elem in i:
+                # append a new index, because now everything is backwards
+                newi = np.append(newi, int(len(sigx_bot_new) - elem - 1))
 
         # creates a polynomial fitting object
-        mod = models.GaussianModel(prefix = 'base_')
-        # changed from PolynomialModel to Gaussian on 10-10-18
-        # Gaussian params are A, mew, and sigma
-        # sets polynomial parameters based on a
-        # guess of a polynomial fit to the data with no peaks
-        par = mod.guess(sigy_bot, x=sigx_bot)
 
+        # set an initial guess for the gaussian width 
+        #if par['base_sigma'] == 0:
+        # # don't let the gaussian take place of a peak by restricting the height the peak can be 
+        # # we want fgauss at max to be the value of the threshold used for peak detection 
+        #max_height = (max(sigy_bot_new)- min(sigy_bot_new))*float(thresh)+ min(sigy_bot_new)
+# sigma has to be largerthan the tallest peak 
+        #par['base_amplitude'].set(min = 0)
+        # maxheight = (maxval - minval)*thresh + minval = thresholdvalue 
+        #
+        #par['base_height'].set(min = 0, max = max_height)
+
+        # par['base_sigma'].set(min =par['base_amplitude']/(((2*3.14159)**0.5)*max_height))
+        # par['base_amplitude'].set(max = (((2*3.14159)**0.5)*max_height*par['base_sigma']))
+        # why is this negative
+        ################################################################################################################
+        ################################################################################################################
+        #################################################################################################################
         # prints a notice if no peaks are found
-        if all(i) is False:
+        if all(newi) is False:
             notice = 'Cycle ' + str(cyc) + cd + \
                 ' in battery ' + ' has no peaks.'
             print(notice)
+            base_mod = models.GaussianModel(prefix = 'base_')
+            mod = base_mod
+            # changed from PolynomialModel to Gaussian on 10-10-18
+            # Gaussian params are A, mew, and sigma
+            # sets polynomial parameters based on a
+            # guess of a polynomial fit to the data with no peaks
+            mod.set_param_hint('base_amplitude', min = 0)
+            mod.set_param_hint('base_sigma', min = 0.001)
+            par = mod.make_params()
         # iterates over all peak indices
         else:
             # have to convert from inputted voltages to indices of peaks within sigx_bot
             user_appended_ind = []
+            rev_user_append = []
             if len(v_toappend) > 0: 
                 for vapp in v_toappend:
                     if sigx_bot.min()<=vapp<=sigx_bot.max():
                         #check if voltage given is valid
                         ind_app= np.where(np.isclose(sigx_bot, float(vapp), atol = 0.1))[0][0]
                         user_appended_ind.append(ind_app)
+                        rev_user_app = np.where(np.isclose(sigx_bot_new, float(vapp), atol = 0.1))[0][0]
+                        rev_user_append.append(rev_user_app)
                     # this gives a final list of user appended indices 
-                i = i.tolist() + user_appended_ind # combine the two lists of indices to get the final set of peak locations
+                i = i.tolist() + user_appended_ind
+                newi = newi.tolist() + rev_user_append # combine the two lists of indices to get the final set of peak locations
             else:
                 i = i.tolist()
-            for index in i:
+                newi = newi.tolist()
+            count = 0
+            for index in newi:
 
                 # generates unique parameter strings based on index of peak
                 center, sigma, amplitude, fraction, comb = fitters.label_gen(
                     index)
-
                 # generates a pseudo voigt fitting model
                 gaus_loop = models.PseudoVoigtModel(prefix=comb)
-                par.update(gaus_loop.make_params())
+                if count == 0:
+                    mod = gaus_loop 
+                    mod.set_param_hint(amplitude, min = 0.001)
+                    par = mod.make_params()
+                    #par = mod.guess(sigy_bot_new, x=sigx_bot_new)
+                    count = count + 1
+                else: 
+                    mod = mod + gaus_loop
+                    gaus_loop.set_param_hint(amplitude, min = 0.001)
+                    par.update(gaus_loop.make_params())
+                    count = count + 1 
 
                 # uses unique parameter strings to generate parameters
                 # with initial guesses
                 # in this model, the center of the peak is locked at the
                 # peak location determined from PeakUtils
                 if index in user_appended_ind:
-                    par[center].set(sigx_bot[index], vary = False)
+                    par[center].set(sigx_bot_new[index], vary = False)
                     # allow the centers of user set peaks to vary based off of best fit 
                 else:
-                    par[center].set(sigx_bot[index], vary=False)
-                    # don't allow the centers of the peaks found by peakutils to vary 
+                    par[center].set(sigx_bot_new[index], vary=False)
+                    # don't allow the centers of the peaks found by peakutsils to vary 
                 par[sigma].set(0.01)
                 par[amplitude].set(.05, min=0)
                 par[fraction].set(.5, min=0, max=1)
 
-                mod = mod + gaus_loop
+        # then add the gaussian after the peaks
+            base_mod = models.GaussianModel(prefix = 'base_')
+            mod = mod + base_mod
+            # changed from PolynomialModel to Gaussian on 10-10-18
+            # Gaussian params are A, mew, and sigma
+            # sets polynomial parameters based on a
+            # guess of a polynomial fit to the data with no peaks
+            base_mod.set_param_hint('base_amplitude', min = 0)
+            base_mod.set_param_hint('base_sigma', min = 0.001)
+            par.update(base_mod.make_params())
+        #mod.set_param_hint('base_height', min = 0, max = 0.01) 
 
+        #par = mod.guess(sigy_bot_new, x=sigx_bot_new)
+        print(par)
         return par, mod, i
 
     def model_eval(V_series, dQdV_series, cd, par, mod):
@@ -585,12 +646,31 @@ class fitters:
         output:
         model = lmfit model object fitted to dataset"""
         sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
+        if sigx_bot[5]>sigx_bot[1]:
+            # check if the voltage values are increasing - the right order for gaussian
+            sigx_bot_new = sigx_bot
+            sigy_bot_new = sigy_bot
+        else:
+            sigx_bot_new = sigx_bot[::-1] # reverses the order of elements in the array
+            sigy_bot_new = sigy_bot[::-1]
+
         try: 
-            model = mod.fit(sigy_bot, par, x=sigx_bot)
-        except Exception:
+            # set the max of the gaussian to be smaller than the smallest peak 
+            #par['base_sigma'].set(min = float(par[smallest_peak]))
+            # max_height = max(sigy_bot_new) - min(sigy_bot_new)*thresh + min(sigy_bot_new)
+            # #par['base_height'].set(max = float(par[smallest_peak]))
+            # par['base_height']
+            # par['base_amplitude'].set(max = max_height*2.506*par['base_sigma'])
+            # this is a problem because its setting the max not as a relationship but as a float depending 
+            # what each par is at this moment (unoptimiza)
+            #par['base_amplitude'].set(max = ((2*3.14159)**0.5)*float(par[smallest_peak])*par['base_sigma'])
+
+            #par['base_amplitude'].set(max = (((2*3.14159)**0.5)*max_height*par['base_sigma']))
+            model = mod.fit(sigy_bot_new, params = par, x=sigx_bot_new)
+        except Exception as E:
+            print(E)
             model = None
         return model
-
 
 def dfsortpeakvals(mydf, cd):
     """This sorts the peak values based off of all the other values in the df, so that 

@@ -18,9 +18,11 @@ from lmfit.model import save_modelresult
 from lmfit.model import load_modelresult
 
 # Keep this out of source code repository - save in a file or a database
-VALID_USERNAME_PASSWORD_PAIRS = [
-    ['hello5', 'world5'], ['hello1', 'world1'], ['hello3', 'world3']
-]
+# VALID_USERNAME_PASSWORD_PAIRS = [
+#     ['hello5', 'world5'], ['hello1', 'world1'], ['hello3', 'world3']
+# ]
+
+
 
 #username = 'hello'
 #store user with datasets as well
@@ -53,6 +55,14 @@ slidmax2 = 15
 # right after the line : 
 # username_password_utf8 = username_password.decode('utf-8')
 # username, password = username_password_utf8.split(':')
+
+# we have a previously set up file in the database with acceptable users/password pairs
+
+usernames = dbexp.dbfs.get_file_from_database('users', 'dQdVInitialDatabase2.db')
+
+VALID_USERNAME_PASSWORD_PAIRS = []
+for i in range(len(usernames)):
+    VALID_USERNAME_PASSWORD_PAIRS.append(list([usernames.loc[i, ('Username')], usernames.loc[i,('Password')]]))
 
 ##########################################
 #App Layout 
@@ -506,7 +516,8 @@ def update_output(contents, filename, value):
 @app.callback(Output('available-data', 'options'), 
 			  [Input('output-data-upload', 'children')])
 def update_dropdown(children):
-	options = [{'label':i[:-3], 'value':i[:-3]} for i in dbexp.get_db_filenames(database)]
+	username = auth._username
+	options = [{'label':i, 'value':i} for i in dbexp.get_db_filenames(database, username)]
 	return options
 
 @app.callback(Output('update-model-ans', 'children'), 

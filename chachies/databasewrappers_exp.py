@@ -123,24 +123,18 @@ def if_file_exists_in_db(database_name, file_name):
 		ans = False
 	return ans
 
-def get_db_filenames(database_name):
+def get_db_filenames(database_name, username):
+	""" This is used to populate the dropdown menu, so users can only access their data if their 
+	name is in the user column"""
 	con = sql.connect(database_name)
 	c = con.cursor()
 	names_list = []
-	raw_names = []
-	cleanset_names = []
-	for row in c.execute("""SELECT name FROM sqlite_master WHERE type='table'""" ):
+	for row in c.execute("""SELECT Dataset_Name, Username FROM master_table WHERE Username = '%s'""" % username):
+		# this chooses the dataset_name and username from the mastertable where the username is equal to the username used
+		# to sign in 
 		names_list.append(row[0])
 	con.close()
-
-	for item in names_list:
-		if 'Raw' in item:
-			raw_names.append(item)
-		#elif 'CleanSet' in item: 
-		#	cleanset_names.append(item)
-		else: 
-			None
-	return raw_names
+	return names_list
 
 
 def my_pseudovoigt(x, cent, amp, fract, sigma): 

@@ -1,7 +1,8 @@
-from testFlaskLogin import server as server
+#from testFlaskLogin import server as server
 import ast 
 import databasewrappers_exp as dbexp
 import dash
+import dash_auth
 import dash_core_components as dcc
 from dash.dependencies import Input, Output, State
 import dash_html_components as html
@@ -15,12 +16,21 @@ import plotly
 import base64
 from lmfit.model import save_modelresult
 from lmfit.model import load_modelresult
+
+# Keep this out of source code repository - save in a file or a database
+VALID_USERNAME_PASSWORD_PAIRS = [
+    ['hello5', 'world5'], ['hello1', 'world1'], ['hello3', 'world3']
+]
+
+#username = 'hello'
+#store user with datasets as well
+
 #from unittest.mock import patch
 ##########################################
 #Load Data
 ##########################################
 #eventually add everything in folder and create a dropdown that loads that data sinto data 
-database = 'dQdVInitialDatabase.db'
+database = 'dQdVInitialDatabase2.db'
 #database = 'dqdvDataBase_checkDemoFile.db'
 if not os.path.exists(database): 
 	print('That database does not exist-creating it now.')
@@ -38,12 +48,22 @@ slidmax2 = 15
 #df_dqdv = ccf.calc_dv_dqdv(data)
 #charge, discharge = ccf.sep_char_dis(data)
 
-
+# HAD TO ADD THIS TO DASH_AUTH/BASIC_AUTH.PY: 
+# self._username = username
+# right after the line : 
+# username_password_utf8 = username_password.decode('utf-8')
+# username, password = username_password_utf8.split(':')
 
 ##########################################
 #App Layout 
 ##########################################
-app = dash.Dash(name = 'app1', server = server ,csrf_protect=False,url_base_pathname='/app1',loginSupported=True) #initialize dash 
+app = dash.Dash(__name__) #initialize dash 
+
+auth = dash_auth.BasicAuth(
+    app,
+    VALID_USERNAME_PASSWORD_PAIRS
+)
+
 
 Introduction= dcc.Markdown('''
 		# dQ/dV
@@ -296,7 +316,9 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
 			return html.Div(['That file exists in the database: ' + str(filename.split('.')[0])])
 			#df = dbexp.dbfs.get_file_from_database(cleanset_name, database)
 		else:
-			dbexp.process_data(filename, database, decoded, datatype, thresh1, thresh2)
+
+			username = auth._username
+			dbexp.process_data(filename, database, decoded, datatype, thresh1, thresh2, username)
 			df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
 			v_toappend_c = []
 			v_toappend_d = []
@@ -944,5 +966,5 @@ app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"
 
 
 if __name__ == '__main__':
-	server.run(debug=True)
-	#app.run_server(debug=True)
+	#server.run(debug=True)
+	app.run_server(debug=True)

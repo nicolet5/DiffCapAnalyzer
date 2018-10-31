@@ -25,15 +25,15 @@ def get_file_from_database(name, database):
 		df_from_database = None
 	return df_from_database
 
-def update_master_table(update_dic, database_name):
+def update_master_table(update_dic, database_name, username):
     """This updates the master table in the database based off of the information in the update dictionary"""
     if update_dic is not None:
         con = sql.connect(database_name)
         c = con.cursor()
         #add upload data filename in sql_master table
-        c.execute('''INSERT INTO master_table('Dataset_Name', 'Raw_Data_Prefix','Cleaned_Data_Prefix', 'Cleaned_Cycles_Prefix', 'Descriptors_Prefix') 
-                     VALUES ('%s', '%s', '%s', '%s', '%s')
-                  ''' % (update_dic['Dataset_Name'], update_dic['Raw_Data_Prefix'], update_dic['Cleaned_Data_Prefix'], update_dic['Cleaned_Cycles_Prefix'], update_dic['Descriptors_Prefix']))
+        c.execute('''INSERT INTO master_table('Dataset_Name', 'Raw_Data_Prefix','Cleaned_Data_Prefix', 'Cleaned_Cycles_Prefix', 'Descriptors_Prefix', 'Username') 
+                     VALUES ('%s', '%s', '%s', '%s', '%s', '%s')
+                  ''' % (update_dic['Dataset_Name'], update_dic['Raw_Data_Prefix'], update_dic['Cleaned_Data_Prefix'], update_dic['Cleaned_Cycles_Prefix'], update_dic['Descriptors_Prefix'], username))
         # check if update_dic['Dataset_Name'] exists in master_table, if so, don't run the rest of the code. 
         #the above part updates the master table in the data frame
         con.commit()
@@ -50,7 +50,8 @@ def init_master_table(database_name):
                      	'Raw_Data_Prefix': [], 
                      	'Cleaned_Data_Prefix':[], 
                      	'Cleaned_Cycles_Prefix': [], 
-                     	'Descriptors_Prefix': []})
+                     	'Descriptors_Prefix': [],
+                      'Username':[]})
 	mydf.to_sql('master_table', con, if_exists='replace')
 	#my_df is the name of the table within the database
 

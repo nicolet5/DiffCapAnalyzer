@@ -15,7 +15,7 @@ import numpy as np
 
 
 
-def process_data(file_name, database_name, decoded_contents, datatype, thresh1, thresh2):
+def process_data(file_name, database_name, decoded_contents, datatype, thresh1, thresh2, username):
 	# Takes raw file 
 	# sep_cycles
 	# cleans cycles
@@ -40,7 +40,7 @@ def process_data(file_name, database_name, decoded_contents, datatype, thresh1, 
 	else:
 		#datatype = input('What datatype do you have (either CALCE or MACCOR)')
 		print('Processing that data')	
-		parse_update_master(file_name, database_name, datatype, decoded_contents)
+		parse_update_master(file_name, database_name, datatype, decoded_contents, username)
 		#this takes the info from the filename and updates the master table in the database. 
 		# this also adds the raw data fram into the database
 		cycle_dict = ccf.load_sep_cycles(file_name, database_name, datatype)
@@ -65,7 +65,7 @@ def process_data(file_name, database_name, decoded_contents, datatype, thresh1, 
 	return
 
 
-def parse_update_master(file_name, database_name, datatype, decoded_contents):
+def parse_update_master(file_name, database_name, datatype, decoded_contents, username):
 	decoded = decoded_contents
 	file_name2 = file_name
 	while '/' in file_name2:
@@ -95,7 +95,7 @@ def parse_update_master(file_name, database_name, datatype, decoded_contents):
 	update_dic ={'Dataset_Name': name,'Raw_Data_Prefix': name +'Raw',
 					'Cleaned_Data_Prefix': name + 'CleanSet', 
 					'Cleaned_Cycles_Prefix': name + '-CleanCycle', 'Descriptors_Prefix': name + '-descriptors'}
-	dbfs.update_master_table(update_dic, database_name)
+	dbfs.update_master_table(update_dic, database_name, username)
 	return
 
 def macc_chardis(row):

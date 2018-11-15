@@ -1,5 +1,6 @@
 #from testFlaskLogin import server as server
 import ast 
+import base64
 import databasewrappers_exp as dbexp
 import dash
 import dash_auth
@@ -7,15 +8,17 @@ import dash_core_components as dcc
 from dash.dependencies import Input, Output, State
 import dash_html_components as html
 import dash_table_experiments as dt
-import pandas as pd
-import numpy as np
 import io
-import os
 import json
-import plotly 
-import base64
-from lmfit.model import save_modelresult
 from lmfit.model import load_modelresult
+from lmfit.model import save_modelresult
+import numpy as np
+import os
+import pandas as pd
+import plotly 
+import urllib
+import urllib.parse
+
 
 # Keep this out of source code repository - save in a file or a database
 # VALID_USERNAME_PASSWORD_PAIRS = [
@@ -256,6 +259,8 @@ app.layout = html.Div([
 		),
 
 	html.Div([
+		# html.Button('Download Peak Descriptors CSV', id = 'my-button'),
+		html.A('Download CSV', id = 'my-link'),
 		html.H4('DataTable'),
 		html.Div([dcc.RadioItems(id = 'data-table-selection', options = [{'label': 'Raw Data', 'value': 'raw_data'},
 																		 {'label': 'Clean Data', 'value': 'clean_data'}, 
@@ -881,6 +886,29 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
 		}
 		#fig['layout']['yaxis'] = {'title': 'dQ/dV'}
 	return fig
+
+@app.callback(Output('my-link', 'href'),
+			  [Input('available-data', 'value')])
+def update_link(value):
+	peak_vals_df = dbexp.dbfs.get_file_from_database(value.split('.')[0] + 'ModParams-descriptors',database)
+	csv_string = peak_vals_df.to_csv(index = False, encoding = 'utf-8')
+	csv_string = "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_string)
+	return csv_string
+
+
+# @app.server.route('/dash/urlToDownload')
+# def download_csv():
+# 	value = flask.request.args.get('value')
+# 	peak_vals_df = dbexp.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
+# 	testcsv = peak_vals_df
+# 	str_io = io.StringIO()
+# 	testcsv.to_csv(str_io)
+
+# 	mem = io.BytesIO()
+# 	mem.write(str_io.getvalue().encode('utf-8'))
+# 	mem.seek(0)
+# 	str_io.close()
+# 	return flask.send_file(mem, mimetype = 'text/csv', attachment_filename = 'downloadFile.csv', as_attachment= True) 
 
 @app.callback( #update charge datatable
 	Output('datatable', 'rows'),

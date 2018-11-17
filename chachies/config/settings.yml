@@ -1,0 +1,19 @@
+# Google credentials and configuration
+google_client_id:      YOUR_CLIENT_ID
+google_client_secret:  YOUR_CLIENT_SECRET
+google_project_id:      dqdv-peak-tracker
+
+# options are "mysql", "postgres", "mongodb", or "datastore"
+bookshelf_backend: mysql
+
+# configure CloudSQL for MySQL or PostgreSQL backend
+cloudsql_connection_name: dqdv-peak-tracker:us-central1:dqdvlibrary
+cloudsql_database_name: dqdvdatabase
+cloudsql_user: vhuser1
+cloudsql_password: nano_123
+cloudsql_port: 3306
+
+# configure Mongo backend
+mongo_url: YOUR_MONGODB_URL
+mongo_database: YOUR_MONGO_DATABASE
+mongo_collection: YOUR_MONGO_COLLECTION

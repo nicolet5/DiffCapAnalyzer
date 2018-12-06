@@ -35,7 +35,7 @@ import urllib.parse
 #Load Data
 ##########################################
 #eventually add everything in folder and create a dropdown that loads that data sinto data 
-database = 'dQdVInitialDatabase2.db'
+database = 'Classification.db'
 #database = 'dqdvDataBase_checkDemoFile.db'
 if not os.path.exists(database): 
 	print('That database does not exist-creating it now.')
@@ -43,7 +43,7 @@ if not os.path.exists(database):
 #datatype = 'CALCE'
 #for now just use some data we have 
 #data = pd.read_excel('data/Clean_Whole_Sets/CS2_33_12_16_10CleanSet.xlsx')
-data = dbexp.dbfs.get_file_from_database('CS2_33_10_04_10CleanSet', 'dqdvDataBaseDemo.db')
+data = dbexp.dbfs.get_file_from_database('ExampleDataCleanSet', 'dQdVDB.db')
 #these are just initial values to use:
 slidmax = 15
 slidmax2 = 15
@@ -61,7 +61,7 @@ slidmax2 = 15
 
 # we have a previously set up file in the database with acceptable users/password pairs
 
-usernames = dbexp.dbfs.get_file_from_database('users', 'dQdVInitialDatabase2.db')
+usernames = dbexp.dbfs.get_file_from_database('users', 'dQdVDB.db')
 
 VALID_USERNAME_PASSWORD_PAIRS = []
 for i in range(len(usernames)):
@@ -307,8 +307,6 @@ app.layout = html.Div([
 #Interactive Parts
 ##########################################
 
-#@patch('databasewrappers_exp.process_data.input', create=True)
-
 def parse_contents(contents, filename, datatype, thresh1, thresh2):
 	# this is just to be used to get a df from an uploaded file
 
@@ -327,7 +325,7 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
 			v_toappend_c = []
 			v_toappend_d = []
 			new_peak_thresh = 0.7 # just as a starter value 
-			feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh)
+			feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh, database)
 			return html.Div(['That file exists in the database: ' + str(filename.split('.')[0])])
 			#df = dbexp.dbfs.get_file_from_database(cleanset_name, database)
 		else:
@@ -337,29 +335,13 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
 			df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
 			v_toappend_c = []
 			v_toappend_d = []
-			new_peak_thresh = 0.7 # just as a starter value
-			feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh)
+			new_peak_thresh = 0.3 # just as a starter value
+			feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh, database)
 			# maybe split the process data function into getting descriptors as well?
 			#since that is the slowest step 
 			return html.Div(['New file has been processed: ' + str(filename)])
 			
-			#df = dbexp.dbfs.get_file_from_database(cleanset_name, database)
-		#have to pass decoded to it so it has the contents of the file
-	# except Exception as e:
-	#     print('THERE WAS A PROBLEM PROCESSING THE FILE: ' + str(e))
-	#     #df = None
-	#     return html.Div([
-	#         'There was an error processing this file.'+ str(filename)
-	#     ])
-	#return html.Div([
-	#        'Something else happened.'
-	#    ])
 
-		#mocked_input.side_effect = ['CALCE', 'y', '4.17', '4.25']
-	#try:   
-	#this should take a raw file and process it, then put it in the database
-########################################################################################
-#########################################################################################
 # this part should be ran everytime something is updated, keeping the filename. whenever the dropdown menu changes
 def pop_with_db(filename, database):
 	cleanset_name = filename.split('.')[0] + 'CleanSet'
@@ -373,22 +355,7 @@ def pop_with_db(filename, database):
 		df_raw = dbexp.dbfs.get_file_from_database(rawset_name, database)
 		datatype = df_clean.loc[0,('datatype')]
 		(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
-		# for each cycle in the clean set, separate into charge and discharge and find peak indices for every cycle
-		#######################################comment all this out later
-		# chargeloc_dict = {}
-		# dischloc_dict = {}
-		# windowlength = 11
-		# polyorder = 1
-		# # change these to be user inputs - they are just the windowlength and polyorder for peak finding - not the overall one
-		# for each_cyc in df_clean[cycle_ind_col].unique():
-		# 	clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==each_cyc], datatype)
-		# 	i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
-		# 	i_discharge, volts_i_dc = dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype)
-		# 	#lenmax (equal to 200 here) does literally nothing as the code is written now on 9.13.18
-		# 	# this returns the peak locations as found by peakutils -plot these as vertical lines on
-		# 	chargeloc_dict.update({each_cyc: volts_i_ch})
-		# 	dischloc_dict.update({each_cyc: volts_i_dc})
-		############################################################
+
 	else:
 		df_clean = None
 		df_raw = None
@@ -400,13 +367,9 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, p
 	clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
 	windowlength = 75
 	polyorder = 3
-	#####################################
-	# length_dict = {key: len(value) for key, value in import_dictionary.items()}
- #    lenmax = max(length_dict.values())
-	######################################
 	# speed this up by moving the initial peak finder out of this, and just have those two things passed to it 
 	i_charge, volts_i_ch, peak_heights_c = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype, lenmax, peak_thresh)
-	#chargeloc_dict.update({cyc: volts_i_ch})
+
 	V_series_c = clean_charge[volt_col]
 	dQdV_series_c = clean_charge['Smoothed_dQ/dV']
 	par_c, mod_c, indices_c = dbexp.descriptors.fitters.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, v_toappend_c, peak_thresh)
@@ -447,7 +410,7 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, p
 	
 	return new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d
 
-def generate_model(v_toappend_c, v_toappend_d, df_clean, filename, peak_thresh):
+def generate_model(v_toappend_c, v_toappend_d, df_clean, filename, peak_thresh, database):
 	# run this when get descriptors button is pushed, and re-run it when user puts in new voltage 
 	# create model based off of initial peaks 
 	# show user model, then ask if more peak locations should be used (shoulders etc)
@@ -456,54 +419,28 @@ def generate_model(v_toappend_c, v_toappend_d, df_clean, filename, peak_thresh):
 
 	chargeloc_dict = {}
 	param_df = pd.DataFrame(columns = ['Cycle','Model_Parameters_charge', 'Model_Parameters_discharge'])
-	#ans = dbexp.if_file_exists_in_db(database, filename)
-	#if ans == True:
-		#return html.Div(['A model for that filename already exists in the database.'])
-	#else: 
-	####################################################################
 	if len(df_clean[cycle_ind_col].unique())>1:
 		length_list = [len(df_clean[df_clean[cycle_ind_col]==cyc]) for cyc in df_clean[cycle_ind_col].unique() if cyc != 1]
 		lenmax = max(length_list)
 	else:
 		length_list = 1
 		lenmax = len(df_clean)
-	####################################################################
+
 	mod_pointsdf = pd.DataFrame()
 	for cyc in df_clean[cycle_ind_col].unique():
-		#######################################################################9.15.18
-		#i_charge, volts_i_ch = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype)
 		new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d = get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, peak_thresh)
 		mod_pointsdf = mod_pointsdf.append(new_df_mody)
 		param_df = param_df.append({'Cycle': cyc, 'Model_Parameters_charge': str(model_c_vals), 'Model_Parameters_discharge': str(model_d_vals), 'charge_peak_heights': str(peak_heights_c), 'discharge_peak_heights': str(peak_heights_d)}, ignore_index = True)
-		#param_df = param_df.append({'Cycle': cyc, 'C/D': 'discharge', 'Model_Parameters': str(model_d_vals)}, ignore_index = True)
+	
 	# want this outside of for loop to update the db with the complete df of new params 
 	dbexp.dbfs.update_database_newtable(mod_pointsdf, filename.split('.')[0]+ '-ModPoints', database)
 	# this will replace the data table in there if it exists already 
 	dbexp.dbfs.update_database_newtable(param_df, filename.split('.')[0] + 'ModParams', database)
 	
 	dbexp.param_dicts_to_df(filename.split('.')[0] + 'ModParams', database)		
-			#save_model(model, path, saveas)
-			# for index in indices: hjkhj
 
-			# 	print('sigma for '+ str(index)+': '+ str(model.values['a'+str(index)+'_sigma']))
-			# 	print('fraction for '+ str(index)+': '+ str(model.values['a'+str(index)+'_fraction']))
-			# 	print('center for '+ str(index)+': '+ str(model.values['a'+str(index)+'_center']))
-			# 	print('amplitude for '+ str(index)+': '+ str(model.values['a'+str(index)+'_amplitude']))
-			# 	print('')
-			# then discharge cycle:
-#return html.Div([str(model.values)])
 	return html.Div(['That model has been added to the database'])
 
-##############################################################################################
-#@app.callback(
-#	Output('hidden-div', 'hidden'),
-#	[Input('upload-data', 'contents'), 
-#	 Input('upload-data', 'filename'), 
-#	 Input('upload-data', 'last_modified')])
-
-#def process_new_rawdata(contents, filename, date):
-#	dbexp.process_data('data/example_files/Raw_Data_Examples/'+filename, database)
-#	return None
 
 @app.callback(Output('output-data-upload', 'children'),
 			  [Input('upload-data', 'contents'),
@@ -549,31 +486,12 @@ def update_model_indb(filename, new_charge_vals, new_discharge_vals, n_clicks, n
 			None
 		cleanset_name = filename.split('.')[0] + 'CleanSet'
 		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
-		feedback = generate_model(int_list_c, int_list_d, df_clean, filename, new_peak_thresh)
+		feedback = generate_model(int_list_c, int_list_d, df_clean, filename, new_peak_thresh, database)
 	else:
 		feedback = html.Div(['Model has not been updated yet.'])
 	return feedback
 	# maybe split the process data function into getting descriptors as well?
 			#since that is the slowest step 
-# Make this app callback from a drop down menu selecting a filename in the database
-# populate dropdown using master_table column= Dataset_Name
-# sdksl
-#@app.callback(Output('model-output', 'children'), 
-#			  [Input('upload-data', 'filename')])
-#def get_model_feedback(filename):
-#	cleanset_name = filename.split('.')[0] + 'CleanSet'
-#	rawset_name = filename.split('.')[0] + 'Raw'
-#    #this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
-#	ans = dbexp.if_file_exists_in_db(database, filename)
-#	if ans == True: 
- #		# then the file exists in the database and we can just read it 
-#		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
-#		v_toappend_c = [3.4]
-#		v_toappend_d = [3.7]
-#		feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename)
-#	else: 
-#		feedback = html.Div(['That did not work.'])
-#	return feedback
 
 
 @app.callback( #update slider 

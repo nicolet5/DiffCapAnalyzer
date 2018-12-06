@@ -72,7 +72,10 @@ def parse_update_master(file_name, database_name, datatype, decoded_contents, us
 		file_name2 = file_name2.split('/', maxsplit = 1)[1]
 	name = file_name2.split('.')[0]    
 	if datatype == 'CALCE':
-		data1 = pd.read_excel(io.BytesIO(decoded), 1)
+		if decoded is None:
+			data1 = pd.read_excel(file_name, 1)
+		else:
+			data1 = pd.read_excel(io.BytesIO(decoded), 1)
 		data1['datatype'] = 'CALCE'
 	elif datatype == 'MACCOR':
 		data1 = pd.read_csv(io.StringIO(decoded.decode('utf-8')), header = 12, delimiter='\t', index_col=False)
@@ -94,7 +97,7 @@ def parse_update_master(file_name, database_name, datatype, decoded_contents, us
 	dbfs.update_database_newtable(data, name + 'Raw', database_name)
 	update_dic ={'Dataset_Name': name,'Raw_Data_Prefix': name +'Raw',
 					'Cleaned_Data_Prefix': name + 'CleanSet', 
-					'Cleaned_Cycles_Prefix': name + '-CleanCycle', 'Descriptors_Prefix': name + '-descriptors'}
+					'Cleaned_Cycles_Prefix': name + '-CleanCycle', 'Descriptors_Prefix': name + 'ModParams-descriptors'}
 	dbfs.update_master_table(update_dic, database_name, username)
 	return
 
@@ -159,13 +162,14 @@ def param_dicts_to_df(mod_params_name, database):
 		charge_peak_heights = ast.literal_eval(mod_params_df.loc[i, ('charge_peak_heights')])
 		discharge_peak_heights = ast.literal_eval(mod_params_df.loc[i, ('discharge_peak_heights')])
 		charge_keys =[]
+		new_dict_charge = {}
 		if param_dict_charge is not None:
 			for key, value in param_dict_charge.items(): 
 				if '_amplitude' in key and not 'base_' in key:
 					#print(int(key.split('_')[0].split('a')[1]))
 					charge_keys.append(key.split('_')[0])
 			#print(charge_keys) 
-			new_dict_charge = {}
+
 			new_dict_charge.update({'c_gauss_sigma': param_dict_charge['base_sigma'], # changed from c0- c4  to base_ .. 10-10-18
 							 'c_gauss_center': param_dict_charge['base_center'],
 							 'c_gauss_amplitude': param_dict_charge['base_amplitude'], 

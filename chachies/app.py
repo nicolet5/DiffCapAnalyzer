@@ -35,11 +35,11 @@ import urllib.parse
 #Load Data
 ##########################################
 #eventually add everything in folder and create a dropdown that loads that data sinto data 
-database = 'Classification.db'
+database1 = 'Classification.db'
 #database = 'dqdvDataBase_checkDemoFile.db'
-if not os.path.exists(database): 
+if not os.path.exists(database1): 
 	print('That database does not exist-creating it now.')
-	dbexp.dbfs.init_master_table(database)
+	dbexp.dbfs.init_master_table(database1)
 #datatype = 'CALCE'
 #for now just use some data we have 
 #data = pd.read_excel('data/Clean_Whole_Sets/CS2_33_12_16_10CleanSet.xlsx')
@@ -319,24 +319,24 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
 		cleanset_name = filename.split('.')[0] + 'CleanSet'
 		#this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
 			#check to see if the database exists, and if it does, check if the file exists.
-		ans_p = dbexp.if_file_exists_in_db(database, filename)
+		ans_p = dbexp.if_file_exists_in_db(database1, filename)
 		if ans_p == True: 
-			df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
+			df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database1)
 			v_toappend_c = []
 			v_toappend_d = []
 			new_peak_thresh = 0.7 # just as a starter value 
-			feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh, database)
+			feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh, database1)
 			return html.Div(['That file exists in the database: ' + str(filename.split('.')[0])])
 			#df = dbexp.dbfs.get_file_from_database(cleanset_name, database)
 		else:
 
 			username = auth._username
-			dbexp.process_data(filename, database, decoded, datatype, thresh1, thresh2, username)
-			df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
+			dbexp.process_data(filename, database1, decoded, datatype, thresh1, thresh2, username)
+			df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database1)
 			v_toappend_c = []
 			v_toappend_d = []
 			new_peak_thresh = 0.3 # just as a starter value
-			feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh, database)
+			feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh, database1)
 			# maybe split the process data function into getting descriptors as well?
 			#since that is the slowest step 
 			return html.Div(['New file has been processed: ' + str(filename)])
@@ -344,6 +344,7 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
 
 # this part should be ran everytime something is updated, keeping the filename. whenever the dropdown menu changes
 def pop_with_db(filename, database):
+# *new
 	cleanset_name = filename.split('.')[0] + 'CleanSet'
 	rawset_name = filename.split('.')[0] + 'Raw'
 	#this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
@@ -360,6 +361,10 @@ def pop_with_db(filename, database):
 		df_clean = None
 		df_raw = None
 		peakloc_dict = {}
+	# else: # *new
+	# 	df_clean = None # *new
+	# 	df_raw = None # *new
+	# 	peakloc_dict = {} # *new
 	return df_clean, df_raw
 
 def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, peak_thresh):
@@ -459,7 +464,7 @@ def update_output(contents, filename, value):
 			  [Input('output-data-upload', 'children')])
 def update_dropdown(children):
 	username = auth._username
-	options = [{'label':i, 'value':i} for i in dbexp.get_db_filenames(database, username)]
+	options = [{'label':i, 'value':i} for i in dbexp.get_db_filenames(database1, username)]
 	return options
 
 @app.callback(Output('update-model-ans', 'children'), 
@@ -485,8 +490,8 @@ def update_model_indb(filename, new_charge_vals, new_discharge_vals, n_clicks, n
 		else: 
 			None
 		cleanset_name = filename.split('.')[0] + 'CleanSet'
-		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
-		feedback = generate_model(int_list_c, int_list_d, df_clean, filename, new_peak_thresh, database)
+		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database1)
+		feedback = generate_model(int_list_c, int_list_d, df_clean, filename, new_peak_thresh, database1)
 	else:
 		feedback = html.Div(['Model has not been updated yet.'])
 	return feedback
@@ -499,6 +504,12 @@ def update_model_indb(filename, new_charge_vals, new_discharge_vals, n_clicks, n
 	[Input('available-data', 'value')])
 
 def update_slider_max(filename):
+	if filename == None:
+		filename = 'ExampleData'
+		database = 'dQdVDB.db'
+	else:
+		filename = filename	
+		database = database1
 	data, raw_data= pop_with_db(filename, database)
 	#charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
 	datatype = data.loc[0,('datatype')]
@@ -511,6 +522,12 @@ def update_slider_max(filename):
 	[Input('available-data', 'value')])
 
 def update_slider_marks(filename):
+	if filename == None:
+		filename = 'ExampleData'
+		database = 'dQdVDB.db'
+	else:
+		filename = filename	
+		database = database1
 	data, raw_data= pop_with_db(filename, database)
 	return {str(each): str(each) for each in data['Cycle_Index'].unique()}
 
@@ -519,6 +536,12 @@ def update_slider_marks(filename):
 	[Input('available-data', 'value')])
 
 def update_slider_value(filename):
+	if filename == None:
+		filename = 'ExampleData'
+		database = 'dQdVDB.db'
+	else:
+		filename = filename	
+		database = database1
 	data, raw_data = pop_with_db(filename, database)
 	#charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
 	datatype = data.loc[0,('datatype')]
@@ -554,6 +577,12 @@ def update_selected_row_indices(clickData, selected_row_indices):
 		)
 
 def update_figure1(selected_step,filename, showmodel, selected_row_indices):
+	if filename == None:
+		filename = 'ExampleData'
+		database = 'dQdVDB.db'
+	else:
+		filename = filename	
+		database = database1
 	data, raw_data= pop_with_db(filename, database)
 	datatype = data.loc[0,('datatype')]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
@@ -669,6 +698,12 @@ def update_figure1(selected_step,filename, showmodel, selected_row_indices):
 
 def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd_to_plot, peaknum_to_plot):
 	""" This is  a function to evaluate the model on a sample plot before updating the database"""
+	if filename == None:
+		filename = 'ExampleData'
+		database = 'dQdVDB.db'
+	else:
+		filename = filename	
+		database = database1
 	data, raw_data= pop_with_db(filename, database)
 	datatype = data.loc[0,('datatype')]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
@@ -757,14 +792,15 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
 		'marker': marker,
 		'name': 'Smoothed Data'
 		}, 1, 2)
-	for value in peaknum_to_plot: 
-		fig.append_trace({
-			'x': peak_vals_df['c_cycle_number'],
-			'y': peak_vals_df[desc_to_plot + cd_to_plot + value],
-			'type': 'scatter',
-			'marker': marker,
-			'name': value 
-			}, 1, 1)
+	if len(peaknum_to_plot) > 0:
+		for value in peaknum_to_plot: 
+			fig.append_trace({
+				'x': peak_vals_df['c_cycle_number'],
+				'y': peak_vals_df[str(desc_to_plot[0]) + str(cd_to_plot[0]) + value], # *neww
+				'type': 'scatter',
+				'marker': marker,
+				'name': value 
+				}, 1, 1)
 	   
 	fig.append_trace({
 		'x':dff_mod[volt_col], 
@@ -808,10 +844,11 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
 @app.callback(Output('my-link', 'href'),
 			  [Input('available-data', 'value')])
 def update_link(value):
-	peak_vals_df = dbexp.dbfs.get_file_from_database(value.split('.')[0] + 'ModParams-descriptors',database)
-	csv_string = peak_vals_df.to_csv(index = False, encoding = 'utf-8')
-	csv_string = "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_string)
-	return csv_string
+	if value is not None: # *new
+		peak_vals_df = dbexp.dbfs.get_file_from_database(value.split('.')[0] + 'ModParams-descriptors',database1)
+		csv_string = peak_vals_df.to_csv(index = False, encoding = 'utf-8')
+		csv_string = "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_string)
+		return csv_string
 
 
 # @app.server.route('/dash/urlToDownload')
@@ -837,6 +874,12 @@ def update_link(value):
 	 ])
 
 def update_table1(filename, data_to_show):
+	if filename == None:
+		filename = 'ExampleData'
+		database = 'dQdVDB.db'
+	else:
+		filename = filename	
+		database = database1
 	data, raw_data = pop_with_db(filename, database)  # returns clean data and raw data
 	peak_vals_df = dbexp.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
 	if data_to_show == 'raw_data':
@@ -847,7 +890,6 @@ def update_table1(filename, data_to_show):
 		return peak_vals_df.to_dict('records')
 	else: 
 		return data.to_dict('records')
-
 
 #@app.callback(
 #    Output('gen-desc-confirmation', 'children'),

@@ -35,14 +35,14 @@ import urllib.parse
 #Load Data
 ##########################################
 #eventually add everything in folder and create a dropdown that loads that data sinto data 
-database1 = 'Classification.db'
+database1 = 'dQdVDB.db'
 #database = 'dqdvDataBase_checkDemoFile.db'
 if not os.path.exists(database1): 
 	print('That database does not exist-creating it now.')
 	dbexp.dbfs.init_master_table(database1)
 #datatype = 'CALCE'
 #for now just use some data we have 
-#data = pd.read_excel('data/Clean_Whole_Sets/CS2_33_12_16_10CleanSet.xlsx')
+#data = pd.read_excel('data/Clean_Whole_Sets/CS2_33_12_16_10CleanSet.xlsx') 'dQdVDB.db'
 data = dbexp.dbfs.get_file_from_database('ExampleDataCleanSet', 'dQdVDB.db')
 #these are just initial values to use:
 slidmax = 15
@@ -60,7 +60,7 @@ slidmax2 = 15
 # username, password = username_password_utf8.split(':')
 
 # we have a previously set up file in the database with acceptable users/password pairs
-
+#'dQdVDB.db'
 usernames = dbexp.dbfs.get_file_from_database('users', 'dQdVDB.db')
 
 VALID_USERNAME_PASSWORD_PAIRS = []

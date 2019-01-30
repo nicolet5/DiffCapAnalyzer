@@ -1,3 +1,13 @@
+############################## 
+# This file processes all the data located in the specified directories
+# to change the source data directories, edit the lines where "c_list" and "k_list"
+# are defined.
+# This code was largely used to gather the descriptors necessary for the ML classificaiton 
+# problem, because a large number of files needed to be processed and the time to do that through 
+# the dash app was unrealistic. 
+#############################
+
+
 
 import databasewrappers_exp as dbexp
 import pandas as pd
@@ -15,6 +25,9 @@ if not os.path.exists(c_database):
 if not os.path.exists(k_database): 
 	print('That database does not exist-creating it now.')
 	dbexp.dbfs.init_master_table(k_database)
+
+# The below two lines would be where you would edit the filepaths to the folders which contain the 
+# two types of data. Here we have CS2_33 battery data and K2_016 battery data from the CALCE site. 
 
 c_list = [f for f in glob.glob('data/CS2_33/*.xlsx')]
 k_list = [f for f in glob.glob('data/K2_016/*.xlsx')]

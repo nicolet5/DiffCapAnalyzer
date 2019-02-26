@@ -232,11 +232,8 @@ app.layout = html.Div([
 	html.Div(['New Peak Detection Threshold (default is 0.7, must be between 0 and 1): ']), 
 	html.Div([dcc.Input(id = 'new-peak-threshold', placeholder = 'threshold for peak detection')]),
 	html.Br(), 
-	html.Div(['Location of new charge/discharge peak(s), separate each with a commma (V): ']), 
-	html.Div([dcc.Input(id = 'charge-newpeak', placeholder = 'new (+) dq/dv peak(s)', style = {'width': '98%'})], style = {'display': 'inline-block', 'width': '40%'}), 
-	html.Div([dcc.Input(id = 'discharge-newpeak', placeholder = 'new (-) dq/dv peak(s)', style = {'width': '98%'})], style ={'display': 'inline-block', 'width':'40%', 'margin-left': '10px'}),
-	html.Br(),
-	html.Div(['After updating the threshold or new peak locations, you can update the preview of the model'+
+
+	html.Div(['After updating the threshold, you can update the preview of the model'+
 		' and then update the database once the model appears to be optimal.'], style={'font-style':'italic'}), 
 	html.Br(), 
 	html.Div(id = 'update-model-ans'),
@@ -321,10 +318,8 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
 		ans_p = dbw.if_file_exists_in_db(database1, filename)
 		if ans_p == True: 
 			df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database1)
-			v_toappend_c = []
-			v_toappend_d = []
 			new_peak_thresh = 0.7 # just as a starter value 
-			feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh, database1)
+			feedback = generate_model(df_clean, filename, new_peak_thresh, database1)
 			return html.Div(['That file exists in the database: ' + str(filename.split('.')[0])])
 			#df = dbw.dbfs.get_file_from_database(cleanset_name, database)
 		else:
@@ -332,10 +327,8 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
 			username = auth._username
 			dbw.process_data(filename, database1, decoded, datatype, thresh1, thresh2, username)
 			df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database1)
-			v_toappend_c = []
-			v_toappend_d = []
 			new_peak_thresh = 0.3 # just as a starter value
-			feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh, database1)
+			feedback = generate_model(df_clean, filename, new_peak_thresh, database1)
 			# maybe split the process data function into getting descriptors as well?
 			#since that is the slowest step 
 			return html.Div(['New file has been processed: ' + str(filename)])
@@ -366,7 +359,7 @@ def pop_with_db(filename, database):
 	# 	peakloc_dict = {} # *new
 	return df_clean, df_raw
 
-def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, peak_thresh):
+def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	clean_charge, clean_discharge = dbw.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
 	windowlength = 75
@@ -376,7 +369,7 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, p
 
 	V_series_c = clean_charge[volt_col]
 	dQdV_series_c = clean_charge['Smoothed_dQ/dV']
-	par_c, mod_c, indices_c = dbw.descriptors.fitters.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, v_toappend_c, peak_thresh)
+	par_c, mod_c, indices_c = dbw.descriptors.fitters.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, peak_thresh)
 	model_c = dbw.descriptors.fitters.model_eval(V_series_c, dQdV_series_c, 'c', par_c, mod_c)			
 	if model_c is not None:
 		mod_y_c = mod_c.eval(params = model_c.params, x = V_series_c)
@@ -392,7 +385,7 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, p
 	i_discharge, volts_i_dc, peak_heights_d= dbw.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype, lenmax, peak_thresh)
 	V_series_d = clean_discharge[volt_col]
 	dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
-	par_d, mod_d, indices_d = dbw.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, v_toappend_d, peak_thresh)
+	par_d, mod_d, indices_d = dbw.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, peak_thresh)
 	model_d = dbw.descriptors.fitters.model_eval(V_series_d, dQdV_series_d, 'd', par_d, mod_d)			
 	if model_d is not None:
 		mod_y_d = mod_d.eval(params = model_d.params, x = V_series_d)
@@ -414,7 +407,7 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, p
 	
 	return new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d
 
-def generate_model(v_toappend_c, v_toappend_d, df_clean, filename, peak_thresh, database):
+def generate_model(df_clean, filename, peak_thresh, database):
 	# run this when get descriptors button is pushed, and re-run it when user puts in new voltage 
 	# create model based off of initial peaks 
 	# show user model, then ask if more peak locations should be used (shoulders etc)
@@ -432,7 +425,7 @@ def generate_model(v_toappend_c, v_toappend_d, df_clean, filename, peak_thresh, 
 
 	mod_pointsdf = pd.DataFrame()
 	for cyc in df_clean[cycle_ind_col].unique():
-		new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d = get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, peak_thresh)
+		new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d = get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh)
 		mod_pointsdf = mod_pointsdf.append(new_df_mody)
 		param_df = param_df.append({'Cycle': cyc, 'Model_Parameters_charge': str(model_c_vals), 'Model_Parameters_discharge': str(model_d_vals), 'charge_peak_heights': str(peak_heights_c), 'discharge_peak_heights': str(peak_heights_d)}, ignore_index = True)
 	
@@ -472,29 +465,29 @@ def update_dropdown(children):
 
 @app.callback(Output('update-model-ans', 'children'), 
 			  [Input('available-data', 'value'), 
-			   Input('charge-newpeak', 'value'), 
-			   Input('discharge-newpeak', 'value'),
+			   # Input('charge-newpeak', 'value'), 
+			   # Input('discharge-newpeak', 'value'),
 			   Input('update-model-indb-button', 'n_clicks'), 
 			   Input('new-peak-threshold', 'value')])
-def update_model_indb(filename, new_charge_vals, new_discharge_vals, n_clicks, new_peak_thresh):
+def update_model_indb(filename, n_clicks, new_peak_thresh): #new_charge_vals, new_discharge_vals,
 	if n_clicks is not None:
 		int_list_c = []
 		int_list_d = []
-		if new_charge_vals is not None: 
-			new_list_c = new_charge_vals.split(',')
-			for i in new_list_c:
-				int_list_c.append(float(i))
-		else: 
-			None
-		if new_discharge_vals is not None: 
-			new_list_d = new_discharge_vals.split(',')
-			for i in new_list_d:
-				int_list_d.append(float(i))
-		else: 
-			None
+		# if new_charge_vals is not None: 
+		# 	new_list_c = new_charge_vals.split(',')
+		# 	for i in new_list_c:
+		# 		int_list_c.append(float(i))
+		# else: 
+		# 	None
+		# if new_discharge_vals is not None: 
+		# 	new_list_d = new_discharge_vals.split(',')
+		# 	for i in new_list_d:
+		# 		int_list_d.append(float(i))
+		# else: 
+		# 	None
 		cleanset_name = filename.split('.')[0] + 'CleanSet'
 		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database1)
-		feedback = generate_model(int_list_c, int_list_d, df_clean, filename, new_peak_thresh, database1)
+		feedback = generate_model(df_clean, filename, new_peak_thresh, database1)
 	else:
 		feedback = html.Div(['Model has not been updated yet.'])
 	return feedback
@@ -688,8 +681,8 @@ def update_figure1(selected_step,filename, showmodel, selected_row_indices):
 		 Input('available-data', 'value'), # this will be the filename of the file 
 		 #Input('input-datatype', 'value'),
 		 #Input('datatable','selected_row_indices'),
-		 Input('charge-newpeak', 'value'), 
-		 Input('discharge-newpeak', 'value'),
+		 # Input('charge-newpeak', 'value'), 
+		 # Input('discharge-newpeak', 'value'),
 		 Input('new-peak-threshold', 'value'), 
 		 Input('update-model-button', 'n_clicks'), 
 		 Input('show-gauss', 'values'), 
@@ -699,7 +692,7 @@ def update_figure1(selected_step,filename, showmodel, selected_row_indices):
 		 #Input('upload-data','contents')]
 		)
 
-def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd_to_plot, peaknum_to_plot):
+def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd_to_plot, peaknum_to_plot):
 	""" This is  a function to evaluate the model on a sample plot before updating the database"""
 	if filename == None:
 		filename = 'ExampleData'
@@ -725,21 +718,21 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
 	peak_vals_df = dbw.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
 	if n_clicks is not None:
 		# if the user has hit the update-model-button - remake model
-		int_list_c = []
-		int_list_d = []
-		if charge_newpeaks is not None: 
-			new_list_c = charge_newpeaks.split(',')
-			for i in new_list_c:
-				int_list_c.append(float(i))
-		else: 
-			None
-		if discharge_newpeaks is not None: 
-			new_list_d = discharge_newpeaks.split(',')
-			for i in new_list_d:
-				int_list_d.append(float(i))
-		else: 
-			None
-		new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d = get_model_dfs(dff_data, datatype, selected_step, int_list_c, int_list_d, lenmax, peak_thresh)
+		# int_list_c = []
+		# int_list_d = []
+		# if charge_newpeaks is not None: 
+		# 	new_list_c = charge_newpeaks.split(',')
+		# 	for i in new_list_c:
+		# 		int_list_c.append(float(i))
+		# else: 
+		# 	None
+		# if discharge_newpeaks is not None: 
+		# 	new_list_d = discharge_newpeaks.split(',')
+		# 	for i in new_list_d:
+		# 		int_list_d.append(float(i))
+		# else: 
+		# 	None
+		new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d = get_model_dfs(dff_data, datatype, selected_step, lenmax, peak_thresh)
 		dff_mod = new_df_mody
 		c_sigma = model_c_vals['base_sigma']
 		c_center = model_c_vals['base_center']

@@ -341,9 +341,8 @@ class fitters:
         # THIS is where we will append whatever user inputted indices - they 
         # will be the same for each cycle (but allowed to vary in the model gen section)
         # generates the necessary model parameters for the fit calculation
-        v_toappend = []
         par, mod, indices = fitters.model_gen(
-            V_series, dQdV_series, cd, i, cyc, v_toappend, thresh)
+            V_series, dQdV_series, cd, i, cyc, thresh)
 
         # returns a fitted lmfit model object from the parameters and data
         model = fitters.model_eval(V_series, dQdV_series, cd, par, mod)
@@ -508,7 +507,7 @@ class fitters:
 
         return center, sigma, amplitude, fraction, comb
 
-    def model_gen(V_series, dQdV_series, cd, i, cyc, v_toappend, thresh):
+    def model_gen(V_series, dQdV_series, cd, i, cyc, thresh):
         """Develops initial model and parameters for battery data fitting.
         V_series = Pandas series of voltage data
         dQdV_series = Pandas series of differential capacity data
@@ -554,20 +553,21 @@ class fitters:
             # have to convert from inputted voltages to indices of peaks within sigx_bot
             user_appended_ind = []
             rev_user_append = []
-            if len(v_toappend) > 0: 
-                for vapp in v_toappend:
-                    if sigx_bot.min()<=vapp<=sigx_bot.max():
-                        #check if voltage given is valid
-                        ind_app= np.where(np.isclose(sigx_bot, float(vapp), atol = 0.1))[0][0]
-                        user_appended_ind.append(ind_app)
-                        rev_user_app = np.where(np.isclose(sigx_bot_new, float(vapp), atol = 0.1))[0][0]
-                        rev_user_append.append(rev_user_app)
-                    # this gives a final list of user appended indices 
-                i = i.tolist() + user_appended_ind
-                newi = newi.tolist() + rev_user_append # combine the two lists of indices to get the final set of peak locations
-            else:
-                i = i.tolist()
-                newi = newi.tolist()
+            # if len(v_toappend) > 0: 
+            #     for vapp in v_toappend:
+            #         if sigx_bot.min()<=vapp<=sigx_bot.max():
+            #             #check if voltage given is valid
+            #             ind_app= np.where(np.isclose(sigx_bot, float(vapp), atol = 0.1))[0][0]
+            #             user_appended_ind.append(ind_app)
+            #             rev_user_app = np.where(np.isclose(sigx_bot_new, float(vapp), atol = 0.1))[0][0]
+            #             rev_user_append.append(rev_user_app)
+            #         # this gives a final list of user appended indices 
+            #     i = i.tolist() + user_appended_ind
+            #     newi = newi.tolist() + rev_user_append # combine the two lists of indices to get the final set of peak locations
+            # else:
+            i = i.tolist()
+            newi = newi.tolist()
+            ##
             count = 0
             for index in newi:
 

@@ -9,7 +9,7 @@
 
 
 
-import databasewrappers_exp as dbexp
+import databasewrappers as dbw
 import pandas as pd
 import numpy as np
 import os
@@ -20,11 +20,11 @@ k_database = 'classification_kdata.db'
 
 if not os.path.exists(c_database): 
 	print('That database does not exist-creating it now.')
-	dbexp.dbfs.init_master_table(c_database)
+	dbw.dbfs.init_master_table(c_database)
 
 if not os.path.exists(k_database): 
 	print('That database does not exist-creating it now.')
-	dbexp.dbfs.init_master_table(k_database)
+	dbw.dbfs.init_master_table(k_database)
 
 # The below two lines would be where you would edit the filepaths to the folders which contain the 
 # two types of data. Here we have CS2_33 battery data and K2_016 battery data from the CALCE site. 
@@ -44,12 +44,12 @@ def process_one_file(filename, database):
 	thresh2 = 0
 	username = 'me'
 	decoded = None
-	dbexp.process_data(filename, database, decoded, datatype, thresh1, thresh2, username)
+	dbw.process_data(filename, database, decoded, datatype, thresh1, thresh2, username)
 	print(cleanset_name)
 	while '/' in cleanset_name:
 		cleanset_name = cleanset_name.split('/', maxsplit = 1)[1]
 	print(cleanset_name)
-	df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
+	df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
 	v_toappend_c = []
 	v_toappend_d = []
 	new_peak_thresh = 0.3 
@@ -60,7 +60,7 @@ def process_one_file(filename, database):
 def generate_model(v_toappend_c, v_toappend_d, df_clean, filename, peak_thresh, database):
 	"""Generates the model for each cycle"""
 	datatype = df_clean.loc[0,('datatype')]
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 
 	chargeloc_dict = {}
 	param_df = pd.DataFrame(columns = ['Cycle','Model_Parameters_charge', 'Model_Parameters_discharge'])
@@ -82,17 +82,17 @@ def generate_model(v_toappend_c, v_toappend_d, df_clean, filename, peak_thresh, 
 	filename2 = filename
 	while '/' in filename2:
 		filename2 = filename2.split('/', maxsplit = 1)[1]
-	dbexp.dbfs.update_database_newtable(mod_pointsdf, filename2.split('.')[0]+ '-ModPoints', database)
+	dbw.dbfs.update_database_newtable(mod_pointsdf, filename2.split('.')[0]+ '-ModPoints', database)
 	# this will replace the data table in there if it exists already 
-	dbexp.dbfs.update_database_newtable(param_df, filename2.split('.')[0] + 'ModParams', database)
+	dbw.dbfs.update_database_newtable(param_df, filename2.split('.')[0] + 'ModParams', database)
 
-	dbexp.param_dicts_to_df(filename2.split('.')[0] + 'ModParams', database)		
+	dbw.param_dicts_to_df(filename2.split('.')[0] + 'ModParams', database)		
 
 	return #Model has been added to the database 
 
 def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, peak_thresh):
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
-	clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
+	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
+	clean_charge, clean_discharge = dbw.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
 	windowlength = 75
 	polyorder = 3
 	#####################################
@@ -100,12 +100,12 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, p
  #    lenmax = max(length_dict.values())
 	######################################
 	# speed this up by moving the initial peak finder out of this, and just have those two things passed to it 
-	i_charge, volts_i_ch, peak_heights_c = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype, lenmax, peak_thresh)
+	i_charge, volts_i_ch, peak_heights_c = dbw.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype, lenmax, peak_thresh)
 	#chargeloc_dict.update({cyc: volts_i_ch})
 	V_series_c = clean_charge[volt_col]
 	dQdV_series_c = clean_charge['Smoothed_dQ/dV']
-	par_c, mod_c, indices_c = dbexp.descriptors.fitters.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, v_toappend_c, peak_thresh)
-	model_c = dbexp.descriptors.fitters.model_eval(V_series_c, dQdV_series_c, 'c', par_c, mod_c)			
+	par_c, mod_c, indices_c = dbw.descriptors.fitters.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, v_toappend_c, peak_thresh)
+	model_c = dbw.descriptors.fitters.model_eval(V_series_c, dQdV_series_c, 'c', par_c, mod_c)			
 	if model_c is not None:
 		mod_y_c = mod_c.eval(params = model_c.params, x = V_series_c)
 		myseries_c = pd.Series(mod_y_c)
@@ -117,11 +117,11 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, p
 		new_df_mody_c = None
 		model_c_vals = None
 	# now the discharge: 
-	i_discharge, volts_i_dc, peak_heights_d= dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype, lenmax, peak_thresh)
+	i_discharge, volts_i_dc, peak_heights_d= dbw.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype, lenmax, peak_thresh)
 	V_series_d = clean_discharge[volt_col]
 	dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
-	par_d, mod_d, indices_d = dbexp.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, v_toappend_d, peak_thresh)
-	model_d = dbexp.descriptors.fitters.model_eval(V_series_d, dQdV_series_d, 'd', par_d, mod_d)			
+	par_d, mod_d, indices_d = dbw.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, v_toappend_d, peak_thresh)
+	model_d = dbw.descriptors.fitters.model_eval(V_series_d, dQdV_series_d, 'd', par_d, mod_d)			
 	if model_d is not None:
 		mod_y_d = mod_d.eval(params = model_d.params, x = V_series_d)
 		myseries_d = pd.Series(mod_y_d)
@@ -152,7 +152,7 @@ for each in c_list:
 	while '/' in descript_name:
 		descript_name = descript_name.split('/', maxsplit = 1)[1]
 	print(descript_name)
-	df1 = dbexp.dbfs.get_file_from_database(descript_name, c_database)
+	df1 = dbw.dbfs.get_file_from_database(descript_name, c_database)
 	if df1 is not None:
 
 		df_c = df_c.append(df1)
@@ -173,7 +173,7 @@ for each in k_list:
 	while '/' in descript_name:
 		descript_name = descript_name.split('/', maxsplit = 1)[1]
 	print(descript_name)
-	df2 = dbexp.dbfs.get_file_from_database(descript_name, k_database)
+	df2 = dbw.dbfs.get_file_from_database(descript_name, k_database)
 	if df2 is not None:
 		df_k = df_k.append(df2)
 df_k['CS2-1-K16-0'] = 0
@@ -194,7 +194,7 @@ writer3.save()
 # # get all files out of database that end in 'modparams-descriptors' 
 # if they have 'CS2' in the filename - then label as a cs2 file, not a k file'
 	# descript_name = each.split('.')[0] + 'ModParams-descriptors'
-	# df1 = dbexp.dbfs.get_file_from_database(descript_name, 
+	# df1 = dbw.dbfs.get_file_from_database(descript_name, 
 	# df1['CS2-1-K16-0'] = 1
 
 # con = sql.connect(database)

@@ -1,7 +1,6 @@
-#from testFlaskLogin import server as server
 import ast 
 import base64
-import databasewrappers_exp as dbexp
+import databasewrappers as dbw
 import dash
 import dash_auth
 import dash_core_components as dcc
@@ -39,15 +38,15 @@ database1 = 'dQdVDB.db'
 #database = 'dqdvDataBase_checkDemoFile.db'
 if not os.path.exists(database1): 
 	print('That database does not exist-creating it now.')
-	dbexp.dbfs.init_master_table(database1)
+	dbw.dbfs.init_master_table(database1)
 #datatype = 'CALCE'
 #for now just use some data we have 
 #data = pd.read_excel('data/Clean_Whole_Sets/CS2_33_12_16_10CleanSet.xlsx') 'dQdVDB.db'
-data = dbexp.dbfs.get_file_from_database('ExampleDataCleanSet', 'dQdVDB.db')
+data = dbw.dbfs.get_file_from_database('ExampleDataCleanSet', 'dQdVDB.db')
 #these are just initial values to use:
 slidmax = 15
 slidmax2 = 15
-#charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
+#charge, discharge = dbw.ccf.sep_char_dis(data, datatype)
 
 #df_dqdv = ccf.calc_dv_dqdv('data/CS2_33/CS2_33_10_04_10.xlsx')
 #df_dqdv = ccf.calc_dv_dqdv(data)
@@ -61,7 +60,7 @@ slidmax2 = 15
 
 # we have a previously set up file in the database with acceptable users/password pairs
 #'dQdVDB.db'
-usernames = dbexp.dbfs.get_file_from_database('users', 'dQdVDB.db')
+usernames = dbw.dbfs.get_file_from_database('users', 'dQdVDB.db')
 
 VALID_USERNAME_PASSWORD_PAIRS = []
 for i in range(len(usernames)):
@@ -260,7 +259,7 @@ app.layout = html.Div([
 
 	html.Div([
 		# html.Button('Download Peak Descriptors CSV', id = 'my-button'),
-		html.A('Download CSV', id = 'my-link'),
+		html.A('Download CSV', download = "descriptors.csv", id = 'my-link'),
 		html.H4('DataTable'),
 		html.Div([dcc.RadioItems(id = 'data-table-selection', options = [{'label': 'Raw Data', 'value': 'raw_data'},
 																		 {'label': 'Clean Data', 'value': 'clean_data'}, 
@@ -319,20 +318,20 @@ def parse_contents(contents, filename, datatype, thresh1, thresh2):
 		cleanset_name = filename.split('.')[0] + 'CleanSet'
 		#this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
 			#check to see if the database exists, and if it does, check if the file exists.
-		ans_p = dbexp.if_file_exists_in_db(database1, filename)
+		ans_p = dbw.if_file_exists_in_db(database1, filename)
 		if ans_p == True: 
-			df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database1)
+			df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database1)
 			v_toappend_c = []
 			v_toappend_d = []
 			new_peak_thresh = 0.7 # just as a starter value 
 			feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, filename, new_peak_thresh, database1)
 			return html.Div(['That file exists in the database: ' + str(filename.split('.')[0])])
-			#df = dbexp.dbfs.get_file_from_database(cleanset_name, database)
+			#df = dbw.dbfs.get_file_from_database(cleanset_name, database)
 		else:
 
 			username = auth._username
-			dbexp.process_data(filename, database1, decoded, datatype, thresh1, thresh2, username)
-			df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database1)
+			dbw.process_data(filename, database1, decoded, datatype, thresh1, thresh2, username)
+			df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database1)
 			v_toappend_c = []
 			v_toappend_d = []
 			new_peak_thresh = 0.3 # just as a starter value
@@ -348,14 +347,14 @@ def pop_with_db(filename, database):
 	cleanset_name = filename.split('.')[0] + 'CleanSet'
 	rawset_name = filename.split('.')[0] + 'Raw'
 	#this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
-	ans = dbexp.if_file_exists_in_db(database, filename)
+	ans = dbw.if_file_exists_in_db(database, filename)
 	print(ans)
 	if ans == True: 
 		# then the file exists in the database and we can just read it 
-		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database)
-		df_raw = dbexp.dbfs.get_file_from_database(rawset_name, database)
+		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
+		df_raw = dbw.dbfs.get_file_from_database(rawset_name, database)
 		datatype = df_clean.loc[0,('datatype')]
-		(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+		(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 
 	else:
 		df_clean = None
@@ -368,17 +367,17 @@ def pop_with_db(filename, database):
 	return df_clean, df_raw
 
 def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, peak_thresh):
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
-	clean_charge, clean_discharge = dbexp.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
+	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
+	clean_charge, clean_discharge = dbw.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
 	windowlength = 75
 	polyorder = 3
 	# speed this up by moving the initial peak finder out of this, and just have those two things passed to it 
-	i_charge, volts_i_ch, peak_heights_c = dbexp.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype, lenmax, peak_thresh)
+	i_charge, volts_i_ch, peak_heights_c = dbw.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype, lenmax, peak_thresh)
 
 	V_series_c = clean_charge[volt_col]
 	dQdV_series_c = clean_charge['Smoothed_dQ/dV']
-	par_c, mod_c, indices_c = dbexp.descriptors.fitters.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, v_toappend_c, peak_thresh)
-	model_c = dbexp.descriptors.fitters.model_eval(V_series_c, dQdV_series_c, 'c', par_c, mod_c)			
+	par_c, mod_c, indices_c = dbw.descriptors.fitters.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, v_toappend_c, peak_thresh)
+	model_c = dbw.descriptors.fitters.model_eval(V_series_c, dQdV_series_c, 'c', par_c, mod_c)			
 	if model_c is not None:
 		mod_y_c = mod_c.eval(params = model_c.params, x = V_series_c)
 		myseries_c = pd.Series(mod_y_c)
@@ -390,11 +389,11 @@ def get_model_dfs(df_clean, datatype, cyc, v_toappend_c, v_toappend_d, lenmax, p
 		new_df_mody_c = None
 		model_c_vals = None
 	# now the discharge: 
-	i_discharge, volts_i_dc, peak_heights_d= dbexp.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype, lenmax, peak_thresh)
+	i_discharge, volts_i_dc, peak_heights_d= dbw.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype, lenmax, peak_thresh)
 	V_series_d = clean_discharge[volt_col]
 	dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
-	par_d, mod_d, indices_d = dbexp.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, v_toappend_d, peak_thresh)
-	model_d = dbexp.descriptors.fitters.model_eval(V_series_d, dQdV_series_d, 'd', par_d, mod_d)			
+	par_d, mod_d, indices_d = dbw.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, v_toappend_d, peak_thresh)
+	model_d = dbw.descriptors.fitters.model_eval(V_series_d, dQdV_series_d, 'd', par_d, mod_d)			
 	if model_d is not None:
 		mod_y_d = mod_d.eval(params = model_d.params, x = V_series_d)
 		myseries_d = pd.Series(mod_y_d)
@@ -420,7 +419,7 @@ def generate_model(v_toappend_c, v_toappend_d, df_clean, filename, peak_thresh, 
 	# create model based off of initial peaks 
 	# show user model, then ask if more peak locations should be used (shoulders etc)
 	datatype = df_clean.loc[0,('datatype')]
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 
 	chargeloc_dict = {}
 	param_df = pd.DataFrame(columns = ['Cycle','Model_Parameters_charge', 'Model_Parameters_discharge'])
@@ -438,11 +437,11 @@ def generate_model(v_toappend_c, v_toappend_d, df_clean, filename, peak_thresh, 
 		param_df = param_df.append({'Cycle': cyc, 'Model_Parameters_charge': str(model_c_vals), 'Model_Parameters_discharge': str(model_d_vals), 'charge_peak_heights': str(peak_heights_c), 'discharge_peak_heights': str(peak_heights_d)}, ignore_index = True)
 	
 	# want this outside of for loop to update the db with the complete df of new params 
-	dbexp.dbfs.update_database_newtable(mod_pointsdf, filename.split('.')[0]+ '-ModPoints', database)
+	dbw.dbfs.update_database_newtable(mod_pointsdf, filename.split('.')[0]+ '-ModPoints', database)
 	# this will replace the data table in there if it exists already 
-	dbexp.dbfs.update_database_newtable(param_df, filename.split('.')[0] + 'ModParams', database)
+	dbw.dbfs.update_database_newtable(param_df, filename.split('.')[0] + 'ModParams', database)
 	
-	dbexp.param_dicts_to_df(filename.split('.')[0] + 'ModParams', database)		
+	dbw.param_dicts_to_df(filename.split('.')[0] + 'ModParams', database)		
 
 	return html.Div(['That model has been added to the database'])
 
@@ -457,14 +456,18 @@ def update_output(contents, filename, value):
 	#value here is the datatype, then voltagerange1, then voltagerange2
 	thresh1 = 0
 	thresh2 = 0
-	children = parse_contents(contents, filename, value, thresh1, thresh2)
+	try:
+		children = parse_contents(contents, filename, value, thresh1, thresh2)
+	except Exception as e: 
+		children = html.Div(['There was a problem uploading that file: ' + str(e)])
 	return children
+
 
 @app.callback(Output('available-data', 'options'), 
 			  [Input('output-data-upload', 'children')])
 def update_dropdown(children):
 	username = auth._username
-	options = [{'label':i, 'value':i} for i in dbexp.get_db_filenames(database1, username)]
+	options = [{'label':i, 'value':i} for i in dbw.get_db_filenames(database1, username)]
 	return options
 
 @app.callback(Output('update-model-ans', 'children'), 
@@ -490,7 +493,7 @@ def update_model_indb(filename, new_charge_vals, new_discharge_vals, n_clicks, n
 		else: 
 			None
 		cleanset_name = filename.split('.')[0] + 'CleanSet'
-		df_clean = dbexp.dbfs.get_file_from_database(cleanset_name, database1)
+		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database1)
 		feedback = generate_model(int_list_c, int_list_d, df_clean, filename, new_peak_thresh, database1)
 	else:
 		feedback = html.Div(['Model has not been updated yet.'])
@@ -511,9 +514,9 @@ def update_slider_max(filename):
 		filename = filename	
 		database = database1
 	data, raw_data= pop_with_db(filename, database)
-	#charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
+	#charge, discharge = dbw.ccf.sep_char_dis(data, datatype)
 	datatype = data.loc[0,('datatype')]
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	slidmax = data['Cycle_Index'].max()
 	return data['Cycle_Index'].max()
 
@@ -543,9 +546,9 @@ def update_slider_value(filename):
 		filename = filename	
 		database = database1
 	data, raw_data = pop_with_db(filename, database)
-	#charge, discharge = dbexp.ccf.sep_char_dis(data, datatype)
+	#charge, discharge = dbw.ccf.sep_char_dis(data, datatype)
 	datatype = data.loc[0,('datatype')]
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	slidmax2 = data['Cycle_Index'].max()
 	return data['Cycle_Index'].max()
 
@@ -585,14 +588,14 @@ def update_figure1(selected_step,filename, showmodel, selected_row_indices):
 		database = database1
 	data, raw_data= pop_with_db(filename, database)
 	datatype = data.loc[0,('datatype')]
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	#stupid change
 	modset_name = filename.split('.')[0] + '-ModPoints'
-	df_model = dbexp.dbfs.get_file_from_database(modset_name, database)
+	df_model = dbw.dbfs.get_file_from_database(modset_name, database)
 	if df_model is not None: 
 		filt_mod = df_model[df_model[cycle_ind_col] == selected_step]
 
-	#(charge, discharge) = dbexp.ccf.sep_char_dis(data, datatype)
+	#(charge, discharge) = dbw.ccf.sep_char_dis(data, datatype)
 	# grab datattype from file:
 	if data is not None:
 		filtered_data = data[data[cycle_ind_col] == selected_step]
@@ -706,7 +709,7 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
 		database = database1
 	data, raw_data= pop_with_db(filename, database)
 	datatype = data.loc[0,('datatype')]
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbexp.ccf.col_variables(datatype)
+	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	selected_step = round(data[cycle_ind_col].max()/2) +1 
 	# select a cycle in the middle of the set
 	dff_data= data[data[cycle_ind_col] == selected_step]
@@ -719,7 +722,7 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
 		lenmax = len(data)
 	###################################################
 	dff_raw = raw_data[raw_data[cycle_ind_col]==selected_step]
-	peak_vals_df = dbexp.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
+	peak_vals_df = dbw.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
 	if n_clicks is not None:
 		# if the user has hit the update-model-button - remake model
 		int_list_c = []
@@ -738,17 +741,23 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
 			None
 		new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d = get_model_dfs(dff_data, datatype, selected_step, int_list_c, int_list_d, lenmax, peak_thresh)
 		dff_mod = new_df_mody
-		c_sigma = model_d_vals['base_sigma']
-		c_center = model_d_vals['base_center']
-		c_amplitude= model_d_vals['base_amplitude']
-		c_fwhm = model_d_vals['base_fwhm']
-		c_height = model_d_vals['base_height']
+		c_sigma = model_c_vals['base_sigma']
+		c_center = model_c_vals['base_center']
+		c_amplitude= model_c_vals['base_amplitude']
+		c_fwhm = model_c_vals['base_fwhm']
+		c_height = model_c_vals['base_height']
+
+		d_sigma = model_d_vals['base_sigma']
+		d_center = model_d_vals['base_center']
+		d_amplitude= model_d_vals['base_amplitude']
+		d_fwhm = model_d_vals['base_fwhm']
+		d_height = model_d_vals['base_height']
 	else: 
 		# if user hasn't pushed the button, populate with original model from database
 		modset_name = filename.split('.')[0] + '-ModPoints'
-		df_model = dbexp.dbfs.get_file_from_database(modset_name, database)
+		df_model = dbw.dbfs.get_file_from_database(modset_name, database)
 		dff_mod = df_model[df_model[cycle_ind_col] == selected_step]
-		#modvals = dbexp.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams', database)
+		#modvals = dbw.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams', database)
 		#modvals_selected = modvals[modvals['Cycle'] == selected_step]
 		#modvals_selected = modvals_selected.reset_index(inplace = True)
 		#model_c_vals = ast.literal_eval(modvals_selected.loc[0,('Model_Parameters_charge')])
@@ -768,7 +777,7 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
 		d_fwhm = filtpeakvals.loc[0, ('d_gauss_fwhm')]
 		d_height = filtpeakvals.loc[0, ('d_gauss_height')]
 
-	#(charge, discharge) = dbexp.ccf.sep_char_dis(data, datatype)
+	#(charge, discharge) = dbw.ccf.sep_char_dis(data, datatype)
 	# grab datattype from file:
 	#model_cd_vals are dictionaries - can refer to them with the key 
    
@@ -794,13 +803,16 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
 		}, 1, 2)
 	if len(peaknum_to_plot) > 0:
 		for value in peaknum_to_plot: 
-			fig.append_trace({
-				'x': peak_vals_df['c_cycle_number'],
-				'y': peak_vals_df[str(desc_to_plot[0]) + str(cd_to_plot[0]) + value], # *neww
-				'type': 'scatter',
-				'marker': marker,
-				'name': value 
-				}, 1, 1)
+			try: 
+				fig.append_trace({
+					'x': peak_vals_df['c_cycle_number'],
+					'y': peak_vals_df[str(''.join(desc_to_plot)) + str(''.join(cd_to_plot)) + value], # *neww - desc_to_plot[0])
+					'type': 'scatter',
+					'marker': marker,
+					'name': value 
+					}, 1, 1)
+			except KeyError as e:
+				print('User attempted to plot descriptors for more peaks than are in the data set.')
 	   
 	fig.append_trace({
 		'x':dff_mod[volt_col], 
@@ -845,7 +857,7 @@ def update_figure2(filename, charge_newpeaks, discharge_newpeaks, peak_thresh, n
 			  [Input('available-data', 'value')])
 def update_link(value):
 	if value is not None: # *new
-		peak_vals_df = dbexp.dbfs.get_file_from_database(value.split('.')[0] + 'ModParams-descriptors',database1)
+		peak_vals_df = dbw.dbfs.get_file_from_database(value.split('.')[0] + 'ModParams-descriptors',database1)
 		csv_string = peak_vals_df.to_csv(index = False, encoding = 'utf-8')
 		csv_string = "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_string)
 		return csv_string
@@ -854,7 +866,7 @@ def update_link(value):
 # @app.server.route('/dash/urlToDownload')
 # def download_csv():
 # 	value = flask.request.args.get('value')
-# 	peak_vals_df = dbexp.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
+# 	peak_vals_df = dbw.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
 # 	testcsv = peak_vals_df
 # 	str_io = io.StringIO()
 # 	testcsv.to_csv(str_io)
@@ -881,7 +893,7 @@ def update_table1(filename, data_to_show):
 		filename = filename	
 		database = database1
 	data, raw_data = pop_with_db(filename, database)  # returns clean data and raw data
-	peak_vals_df = dbexp.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
+	peak_vals_df = dbw.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
 	if data_to_show == 'raw_data':
 		return raw_data.to_dict('records')
 	elif data_to_show == 'clean_data':
@@ -917,44 +929,6 @@ def update_table1(filename, data_to_show):
 #          Input('discharge-datatable','selected_row_indices')]
 #          #Input('upload-data','contents')]
 #         )
-
-# def update_figure2(selected_step,contents,filename,date,selected_row_indices):
-#     data = parse_contents(contents, filename)
-#     #(charge, discharge) = dbexp.ccf.sep_char_dis(data, datatype)
-#     filtered_data = data[data['Cycle_Index'] == selected_step]
-#     for i in filtered_data['Cycle_Index'].unique():
-#         dff = filtered_data[filtered_data['Cycle_Index'] == i]
-#         fig = plotly.tools.make_subplots(
-#             rows=2,cols=1,
-#             subplot_titles=('Smoothed dQ/dV Discharge Cycle','Cleaned dQ/dV Discharge Cycle'),
-#             shared_xaxes=True)
-#         marker = {'color': ['#0074D9']*len(dff)}
-#         for i in (selected_row_indices or []):
-#             marker['color'][i] = '#FF851B'
-#         fig.append_trace({
-#             'x': dff['Voltage(V)'],
-#             'y': dff['Smoothed_dQ/dV'],
-#             'type': 'scatter',
-#             'marker': marker,
-#             'name': 'Smoothed Data'
-#             }, 1, 1)
-#         fig.append_trace({
-#             'x': dff['Voltage(V)'],
-#             'y': dff['dQ/dV'],
-#             'type': 'scatter',
-#             'marker': marker,
-#             'name': 'Raw Data'
-#             }, 2, 1)
-#         fig['layout']['showlegend'] = False
-#         fig['layout']['height'] = 800
-#         fig['layout']['margin'] = {
-#             'l': 40,
-#             'r': 10,
-#             't': 60,
-#             'b': 200
-#             }
-#         fig['layout']['yaxis2']
-#     return fig
 
 
 ##########################################

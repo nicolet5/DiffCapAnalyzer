@@ -48,14 +48,14 @@ Theodore Cohen
 
 NAME = "chachies"
 MAINTAINER = "Nicole Thompson"
-MAINTAINER_EMAIL = "nicolet5@uw.edu"
+MAINTAINER_EMAIL = "nicole.thompson140@gmail.com"
 DESCRIPTION = description
 LONG_DESCRIPTION = long_description
 URL = "https://github.com/tacohen125/chachies"
 DOWNLOAD_URL = ""
 LICENSE = "MIT"
 AUTHOR = "Nicole Thompson, Sarah Alamdari, Robert Masse, Theodore Cohen"
-AUTHOR_EMAIL = "nicolet5@uw.edu"
+AUTHOR_EMAIL = "nicole.thompson140@gmail.com"
 PLATFORMS = "OS Independent"
 MAJOR = _version_major
 MINOR = _version_minor

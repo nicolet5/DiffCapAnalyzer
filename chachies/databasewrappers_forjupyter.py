@@ -4,7 +4,7 @@ import pandas as pd
 from pandas import ExcelWriter
 import pandas.io.sql as pd_sql
 import sqlite3 as sql
-import chachifuncs_exp as ccf
+import chachifuncs as ccf
 import descriptors
 import databasefuncs as dbfs
 import app

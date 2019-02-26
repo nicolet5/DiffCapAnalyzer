@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import peakutils
 from lmfit import models
-import chachifuncs_exp as ccf
+import chachifuncs as ccf
 import os
 import glob
 import databasefuncs as dbfs

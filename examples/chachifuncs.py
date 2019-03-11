@@ -3,109 +3,111 @@ from math import isclose
 import numpy as np
 import os
 import pandas as pd
-from pandas import ExcelWriter
 import requests
 import scipy.io
 import scipy.signal
-
-################################
-# OVERALL Wrapper Function
-################################
+import databasefuncs as dbfs
 
 
-def get_all_data(rootdir, path_to_raw_data_folder):
-    '''Gets all raw data from the rootdir (ie 'data/') and specified folder
-    (path_to_raw_data_folder), i.e. 'Source_Data' (which is within rootdir),
-    and then:
-    1. separates it into raw cycles and puts them in a folder
-    (data/Separated_Cycles/)
-    2. cleans those separated cycles and puts them in a folder
-    (data/Clean_Separated_Cycles/)
-    3. recombines the cleaned, separated cycles and saves those
-    data sets in a folder (data/Clean_Whole_Sets/). These folders
-    do not have to have existed previously.'''
-    assert os.path.exists(rootdir) == 1
-    if not os.path.exists(rootdir):
-        print('The specified rootdir does not exist.')
-    if not os.path.exists(rootdir+'Separated_Cycles/'):
-        os.makedirs(rootdir+'Separated_Cycles/')
-    if not os.path.exists(rootdir+'Clean_Separated_Cycles/'):
-        os.makedirs(rootdir + 'Clean_Separated_Cycles/')
-    if not os.path.exists(rootdir + 'Clean_Whole_Sets/'):
-        os.makedirs(rootdir + 'Clean_Whole_Sets/')
-    load_sep_cycles(rootdir + path_to_raw_data_folder,
-                    rootdir + 'Separated_Cycles/')
-    get_clean_cycles(rootdir + 'Separated_Cycles/',
-                     rootdir + 'Clean_Separated_Cycles/')
-    get_clean_sets(rootdir + 'Clean_Separated_Cycles/',
-                   rootdir+'Clean_Whole_Sets/')
-    return
 
-############################
-# Sub - Wrapper Functions
-############################
-
-
-def load_sep_cycles(getdata_filepath, savedata_filepath):
-    """Get data from a specified filepath, separates out data into
+def load_sep_cycles(file_name, database_name, datatype):
+    """Get data from a specified file, separates out data into
     cycles and saves those cycles as .xlsx files in specified
     filepath (must be an existing folder)"""
-    dfdict = get_data(getdata_filepath)
-    assert type(dfdict) == dict
-    assert os.path.exists(getdata_filepath) == 1
-    assert os.path.exists(savedata_filepath) == 1
-    for key in dfdict:
-        all_cycles_df = dfdict[key]
-        cycle_dict = sep_cycles(all_cycles_df)
-        battname = key
-        save_sep_cycles_xlsx(cycle_dict, battname, savedata_filepath)
-    print('All data separated into cycles and saved in folder "' +
-          savedata_filepath + '".')
-    return
+    #df_single = pd.read_excel(file_name,1)
+    (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
+
+    while '/' in file_name:
+        file_name = file_name.split('/', maxsplit = 1)[1]
+    name = file_name.split('.')[0] + 'Raw'
+    
+    #name = file_name.split('.')[0] + 'Raw'
+    df_single = dbfs.get_file_from_database(name, database_name)
+    gb = df_single.groupby(by=[cycle_ind_col])
+    cycle_dict = dict(iter(gb))
+    battname = file_name.split('.')[0]
+    for i in range(1, len(cycle_dict)+1):
+        cycle_dict[i]['Battery_Label'] = battname
+    for i in range(1, len(cycle_dict)+1):
+        dbfs.update_database_newtable(cycle_dict[i], battname+'-'+'Cycle'+ str(i), database_name)
+    print('All data separated into cycles and saved in database.')
+    return cycle_dict
 
 
-def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
+
+
+def get_clean_cycles(cycle_dict, file_name, database_name, datatype, thresh1, thresh2):
+    """Imports all separated out cycles in given path and cleans them
+    and saves them in the specified filepath"""
+    #name = file_name.split('.')[0]
+    (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
+    while '/' in file_name:
+        file_name = file_name.split('/', maxsplit = 1)[1]
+    name = file_name.split('.')[0]
+
+    clean_cycle_dict = {} 
+    #ex_data = 'y'
+    #ex_data = input('Are there any voltages that should not be included? (y/n): ')
+    #if ex_data == 'y': 
+        #thresh1 = '4.17'
+        #thresh2 = '4.25'
+        #thresh1 = input('Please enter the start voltage of the range to exclude from the data: ')
+        #thresh2 = input('Please enter the end voltage of the range to exclude from the data: ')
+        #print('Datapoints within 0.03V of that voltage will be deleted')
+    for i in range(1, len(cycle_dict)+1):
+        charge, discharge = clean_calc_sep_smooth(cycle_dict[i], 9, 3, thresh1, thresh2, datatype)
+        clean_data = charge.append(discharge, ignore_index=True)
+        clean_data = clean_data.sort_values([data_point_col], ascending = True)
+        clean_data = clean_data.reset_index(drop=True)
+        cyclename = name + '-CleanCycle' + str(i)
+    	#print(cyclename)
+        clean_cycle_dict.update({cyclename : clean_data})
+        dbfs.update_database_newtable(clean_data, cyclename, database_name)
+    	#run the peak finding peak fitting part here 
+    # for key in clean_cycle_dict:
+    # 	print(key)
+    print('All cycles cleaned and saved in database')
+    return clean_cycle_dict
+
+
+def get_clean_sets(clean_cycle_dict, file_name, database_name):
+    """Imports all clean cycles of data from import path and appends
+    them into complete sets of battery data, saved into save_filepath"""
+    clean_set_df = pd.DataFrame()
+    #name = file_name.split('.')[0]
+    #while '/' in file_name: 
+    while '/' in file_name:
+        file_name = file_name.split('/', maxsplit = 1)[1]
+    name = file_name.split('.')[0]
+    
+    for k, v in clean_cycle_dict.items():
+        clean_set_df = clean_set_df.append(v, ignore_index = True)
+
+    #clean_set_df = clean_set_df.sort_values(['Data_Point'], ascending = True)
+    # clean_set_df.reset_index(drop = True)
+    
+    dbfs.update_database_newtable(clean_set_df, name + 'CleanSet', database_name)
+    
+    print('All clean cycles recombined and saved in database')
+    return clean_set_df
+
+############################
+# Component Functions
+############################
+
+def clean_calc_sep_smooth(dataframe, windowlength, polyorder, thresh1, thresh2, datatype):
     """Takes one cycle dataframe, calculates dq/dv, cleans the data,
     separates out charge and discharge, and applies sav-golay filter.
     Returns two dataframes, one charge and one discharge.
     Windowlength and polyorder are for the sav-golay filter."""
     assert type(dataframe) == pd.DataFrame
+    #print(dataframe.columns)
+    df = init_columns(dataframe, datatype)
+    df1 = calc_dq_dqdv(df, datatype)
+    cleandf2 = drop_0_dv(df1, thresh1, thresh2, datatype)
 
-    df1 = calc_dv_dqdv(dataframe)
-    raw_charge = df1[df1['Current(A)'] > 0]
-    raw_charge = raw_charge.reset_index(drop=True)
-    # this separated out the charging data and put it in 'raw_charge'.
-    # Reset the index as well.
-
-    raw_discharge = df1[df1['Current(A)'] < 0]
-    raw_discharge = raw_discharge.reset_index(drop=True)
-    # this separated out the discharging data and put it in 'raw_discharge'.
-    # Reset the index as well.
-
-    clean_charge2 = drop_0_dv(raw_charge)
-    clean_discharge2 = drop_0_dv(raw_discharge)
-    # apply the drop_0_dv function to clean out the wonky data points,
-    # especially near the voltage corresponding to the end of a cycle.
-
-    clean_charge2 = clean_charge2.sort_values(['Voltage(V)'], ascending=True)
-    clean_discharge2 = clean_discharge2.sort_values(
-        ['Voltage(V)'], ascending=False)
-    # sorted the values because sometimes the data points are out of order,
-    # especially in the first cycle of a battery.
-
-    cleandf2 = clean_charge2.append(clean_discharge2, ignore_index=True)
-    cleandf2 = cleandf2.reset_index(drop=True)
-    # appends the clean charge and discharge cycles to get a full set of
-    # clean data. Reset the index as well.
-
-    charge, discharge = sep_char_dis(cleandf2)
-    # apply the sep_char_dis function to cleandf2. This is necessary
-    # because the sep_char_dis function actually assigns the values of
-    # dq/dv to use. The discharge cycles need dq/dv to be calculated
-    # based on the discharge capacity, and the charge cycles need
-    # dq/dv to be calculated based on the charge capacity. This structure
-    # could probably be improved since we are separating out charge/discharge,
-    # then recombining, then separating again, then recombining.
+    charge, discharge = sep_char_dis(cleandf2, datatype)
+    # separating into charge and discharge cycles
 
     if len(discharge) > windowlength:
         smooth_discharge = my_savgolay(discharge, windowlength, polyorder)
@@ -126,268 +128,176 @@ def clean_calc_sep_smooth(dataframe, windowlength, polyorder):
     return smooth_charge, smooth_discharge
 
 
-def get_clean_cycles(import_filepath, save_filepath):
-    """Imports all separated out cycles in given path and cleans them
-    and saves them in the specified filepath"""
-    assert os.path.exists(import_filepath) == 1
-    assert os.path.exists(save_filepath) == 1
-    rootdir = import_filepath
-    # iterate through dir to get excel files
-    file_list = [f for f in glob.glob(os.path.join(rootdir, '*.xlsx'))]
-    d = {}  # initiate dict for data storage
-    count = 0
-    for file in file_list:
-        count += 1
-        name = os.path.split(file)[1].split('.')[0]
-        data = pd.read_excel(file)
-        charge, discharge = clean_calc_sep_smooth(data, 9, 3)
-        clean_data = discharge.append(charge, ignore_index=True)
 
-        clean_data = clean_data.reset_index(drop=True)
-
-        clean_cycle = {name: clean_data}
-        d.update(clean_cycle)
-        # print("adding file to dictionary" + str(count) + ' ' + str(name))
-    for key in d:
-        clean_cycle_df = d[key]
-        cyclename = key
-        writer = ExcelWriter(save_filepath + cyclename + 'Clean' + '.xlsx')
-        clean_cycle_df.to_excel(writer)
-        writer.save()
-    print('All cycles cleaned and saved in folder "' + save_filepath + '" .')
-    return
-
-
-def get_clean_sets(import_filepath, save_filepath):
-    """Imports all clean cycles of data from import path and appends
-    them into complete sets of battery data, saved into save_filepath"""
-    assert os.path.exists(import_filepath) == 1
-    assert os.path.exists(save_filepath) == 1
-    rootdir = import_filepath
-    file_list = [f for f in glob.glob(os.path.join(rootdir, '*.xlsx'))]
-    # iterate through dir to get excel files
-    d = {}  # initiate dict for data storage
-    count = 0
-    list_bats = []
-    for file in file_list:
-        count += 1
-        name = os.path.split(file)[1].split('.')[0]
-        batname = name.split('-')[0]
-        if batname not in list_bats:
-            list_bats.append(batname)
-        else:
-            None
-
-    set_dict = {}
-
-    for i in range(len(list_bats)):
-        batID = list_bats[i]
-        setdf = pd.DataFrame()
-        for file in file_list:
-            name = os.path.split(file)[1].split('.')[0]
-            batname = name.split('-')[0]
-            if batname == batID:
-                df = pd.read_excel(file)
-                setdf = setdf.append(df, ignore_index=True)
-            else:
-                None
-        setdf = setdf.sort_values(['Voltage(V)'], ascending=True)
-        setdf = setdf.reset_index(drop=True)
-        newset = {batID: setdf}
-        set_dict.update(newset)
-
-    for key, value in set_dict.items():
-        writer = ExcelWriter(save_filepath + key + 'CleanSet'+'.xlsx')
-        value.to_excel(writer)
-        writer.save()
-
-    print('All clean cycles recombined and saved in folder "' +
-          save_filepath + '" .')
-    return
-############################
-# Component Functions
-############################
-
-
-def get_data(filepath):
-    """Imports all data in given path"""
-    assert type(filepath) == str, 'Input must be a string'
-    rootdir = filepath
-    # iterate through dir to get excel files
-    file_list = [f for f in glob.glob(os.path.join(rootdir, '*.xlsx'))]
-
-    d = {}
-    # initiate dict for data storage
-    count = 0
-    for file in file_list:
-        count += 1
-        name = os.path.split(file)[1].split('.')[0]
-        data = pd.read_excel(file, 1)
-        new_set = {name: data}
-        d.update(new_set)
-    return d
-
-# separate out dataframes into cycles
-
-
-def sep_cycles(dataframe):
-    """This function separates out the cycles in the battery dataframe by
-     grouping by the 'Cycle_Index' column, and putting them in a dictionary."""
-    assert type(dataframe) == pd.DataFrame, 'Input must be a dataframe'
-    gb = dataframe.groupby(by=['Cycle_Index'])
-    cycle_dict = dict(iter(gb))
-    return cycle_dict
-
-
-def save_sep_cycles_xlsx(cycle_dict, battname, path_to_folder):
-    """This saves the separated out cycles into different excel files,
-    beginning with the battery name. Battname and path to folder must
-    be strings."""
-    assert type(cycle_dict) == dict, 'First entry must be a dictionary'
-    assert type(battname) == str, 'Second entry must be a string'
-    assert type(path_to_folder) == str, 'Path to output must be a string'
-    for i in range(1, len(cycle_dict)+1):
-        cycle_dict[i]['Battery_Label'] = battname
-    for i in range(1, len(cycle_dict)+1):
-        writer = ExcelWriter(path_to_folder + battname +
-                             '-'+'Cycle' + str(i) + '.xlsx')
-        cycle_dict[i].to_excel(writer)
-        writer.save()
-    return
-
-
-def calc_dv_dqdv(cycle_df):
+def init_columns(cycle_df, datatype):
     """This function calculates the dv and the dq/dv for a dataframe."""
+    (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
     assert type(cycle_df) == pd.DataFrame
-    assert 'Voltage(V)' in cycle_df.columns
-    assert 'Discharge_Capacity(Ah)' in cycle_df.columns
-    assert 'Charge_Capacity(Ah)' in cycle_df.columns
+    assert volt_col in cycle_df.columns
+    assert dis_cap_col in cycle_df.columns
+    assert char_cap_col in cycle_df.columns
 
     cycle_df = cycle_df.reset_index(drop=True)
     cycle_df['dV'] = None
     cycle_df['Discharge_dQ'] = None
     cycle_df['Charge_dQ'] = None
-    cycle_df['Discharge_dQ/dV'] = None
-    cycle_df['Charge_dQ/dV'] = None
-    for i in range(1, len(cycle_df)):
-        cycle_df.loc[i, ('dV')] = cycle_df.loc[i, ('Voltage(V)')
-                                               ] - cycle_df.loc[i-1, ('Voltage(V)')]
-        cycle_df.loc[i, ('Discharge_dQ')] = cycle_df.loc[i, ('Discharge_Capacity(Ah)')
-                                                         ] - cycle_df.loc[i-1, ('Discharge_Capacity(Ah)')]
-        cycle_df.loc[i, ('Charge_dQ')] = cycle_df.loc[i, ('Charge_Capacity(Ah)')
-                                                      ] - cycle_df.loc[i-1, ('Charge_Capacity(Ah)')]
-    cycle_df['Discharge_dQ/dV'] = cycle_df['Discharge_dQ']/cycle_df['dV']
-    cycle_df['Charge_dQ/dV'] = cycle_df['Charge_dQ']/cycle_df['dV']
+    #cycle_df['Discharge_dQ/dV'] = None
+    #cycle_df['Charge_dQ/dV'] = None
     return cycle_df
 
+def calc_dq_dqdv(cycle_df, datatype):
+    (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
+    pd.options.mode.chained_assignment = None
+	#to avoid the warning 
+    cycle_df['roundedV'] = round(cycle_df[volt_col], 3)
+    cycle_df = cycle_df.drop_duplicates(subset = ['roundedV', cycle_ind_col, charge_or_discharge])
+    cycle_df = cycle_df.reset_index(drop = True)
+    cycle_df['dV'] = cycle_df[volt_col].diff()
+	# try: 
+	#     for i in range(1, len(cycle_df)):
+	#         newdv = cycle_df.loc[i, (volt_col)] - cycle_df.loc[i-1, (volt_col)]
+	#         while abs(newdv) < 0.0001:
+	#         	cycle_df = cycle_df.drop(index = i)kjk
+	#         	cycle_df = cycle_df.reset_index(drop = True)
+	#         	newdv = cycle_df.loc[i, (volt_col)] - cycle_df.loc[i-1, (volt_col)]
+	#         cycle_df.loc[i, ('dV')] = newdv
+	# except KeyError:j
+	#     pass
+	
 
-def drop_0_dv(cycle_df_dv):
+    #cycle_df['Discharge_dQ'] = cycle_df[dis_cap_col].diff()
+	#cycle_df['Charge_dQ'] = cycle_df[char_cap_col].diff()
+	
+
+    #df3 = df2[df2['a'] > 4]
+	#df4 = df2[df2['a'] <= 4]
+	#print(df3)
+	#df3['f'] = df3['b']/df3['e']
+	#print(df3)
+	#df4['f'] = df4['b']/df4['e']
+	#print(df4)
+	#df5 = pd.concat((df3,df4))
+	#df5.sort_index()
+    cycle_df_charge = cycle_df[cycle_df[curr_col] > 0]
+    cycle_df_charge['Charge_dQ'] = cycle_df_charge[char_cap_col].diff()
+    cycle_df_charge['dQ/dV'] = cycle_df_charge['Charge_dQ']/cycle_df_charge['dV']
+    cycle_df_charge = cycle_df_charge[cycle_df_charge['dQ/dV']>0]
+
+    cycle_df_discharge = cycle_df[cycle_df[curr_col] <= 0]
+    cycle_df_discharge['Discharge_dQ'] = cycle_df_discharge[dis_cap_col].diff()
+    cycle_df_discharge['dQ/dV'] = cycle_df_discharge['Discharge_dQ']/cycle_df_discharge['dV']
+    cycle_df_discharge = cycle_df_discharge[cycle_df_discharge['dQ/dV']<0]
+    cycle_df = pd.concat((cycle_df_charge, cycle_df_discharge ))
+    cycle_df = cycle_df.sort_index()
+	#cycle_df = cycle_df.dropna(subset = ['dQ/dV'])
+	#cycle_df = cycle_df.reset_index(drop = True)
+	#for i in range(1, len(cycle_df)):
+	#	cycle_df.loc[i, ('dV')] = cycle_df.loc[i, ('Voltage(V)')] - cycle_df.loc[i-1, ('Voltage(V)')]
+	#	cycle_df.loc[i, ('Discharge_dQ')] = cycle_df.loc[i, ('Discharge_Capacity(Ah)')] - cycle_df.loc[i-1, ('Discharge_Capacity(Ah)')]
+	#	cycle_df.loc[i, ('Charge_dQ')] = cycle_df.loc[i, ('Charge_Capacity(Ah)')] - cycle_df.loc[i-1, ('Charge_Capacity(Ah)')]
+	#	if cycle_df.loc[i, ('dV')] == 0:
+	#		cycle_df.loc[i, ('dQ/dV')] = None 
+	#	else: 
+	#		if cycle_df.loc[i, ('Current(A)')] < 0:
+	#		 	cycle_df.loc[i, ('dQ/dV')] = cycle_df.loc[i, ('Discharge_dQ')]/cycle_df.loc[i, ('dV')]
+	#		else: 
+	#			cycle_df.loc[i, ('dQ/dV')] = cycle_df.loc[i, ('Charge_dQ')]/cycle_df.loc[i,('dV')]
+    return cycle_df
+
+def drop_0_dv(cycle_df_dv, thresh1, thresh2, datatype):
     '''Drop rows where dv=0 (or about 0) in a dataframe that has
     already had dv calculated. Then recalculate dv and calculate dq/dv'''
     # this will clean up the data points around V = 4.2V
-    # (since they are holding voltage at 4.2V for a while).
+    (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col,charge_or_discharge) = col_variables(datatype)
     assert 'dV' in cycle_df_dv.columns
-    assert 'Current(A)' in cycle_df_dv.columns
+    assert curr_col in cycle_df_dv.columns
 
     cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
-    cycle_df_dv['dv_close_to_zero'] = None
+    for i in range(len(cycle_df_dv)):
+    	if float(thresh1) < cycle_df_dv.loc[i, (volt_col)] < float(thresh2):
+    		cycle_df_dv = cycle_df_dv.drop(index=i)
+        #if isclose(cycle_df_dv.loc[i, (volt_col)], float(thresh), abs_tol=0.03):
+         #   cycle_df_dv = cycle_df_dv.drop(index=i)
 
-    for i in range(1, len(cycle_df_dv)):
-        if isclose(cycle_df_dv.loc[i, ('Current(A)')], 0, abs_tol=10**-3):
-            cycle_df_dv = cycle_df_dv.drop(index=i)
+######################new
+    # for i in range(1, len(cycle_df_dv)):
+    #     if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-4)
+    #        # was -3.5 before
+    #        cycle_df_dv.loc[i, ('dv_close_to_zero')] = False
+    #    else:
+    #        cycle_df_dv.loc[i, ('dv_close_to_zero')] = True
 
-    cycle_df_dv = cycle_df_dv.reset_index(drop=True)
-    switch_cd_index = np.where(np.diff(np.sign(cycle_df_dv['Current(A)'])))
-    for i in switch_cd_index:
-        cycle_df_dv = cycle_df_dv.drop(cycle_df_dv.index[i+1])
+    # while (False in cycle_df_dv['dv_close_to_zero'].values):
+    # 	cycle_df_dv = cycle_df_dv.drop(index=i)
 
-    cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+    #     cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
-    for i in range(1, len(cycle_df_dv)):
-        if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
-            # was -3.5 before
-            cycle_df_dv.loc[i, ('dv_close_to_zero')] = False
-        else:
-            cycle_df_dv.loc[i, ('dv_close_to_zero')] = True
+#    for i in range(1, len(cycle_df_dv)):
+#       if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
+#           cycle_df_dv = cycle_df_dv.drop(index=i)
 
-    while (False in cycle_df_dv['dv_close_to_zero'].values or
-           cycle_df_dv['dV'].max() > 0.7 or cycle_df_dv['dV'].min() < -0.7):
+#    cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
-        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+    #cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+    #for i in range(1, len(cycle_df_dv)):
+    #   if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
+    #       cycle_df_dv = cycle_df_dv.drop(index=i)
 
-        for i in range(1, len(cycle_df_dv)):
-            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
-                cycle_df_dv = cycle_df_dv.drop(index=i)
+#    cycle_df_dv = cycle_df_dv.reset_index(drop=True)
 
-        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+#    for i in range(1, len(cycle_df_dv)):
+#       if isclose(cycle_df_dv.loc[i, ('Charge_dQ')], 0, abs_tol=10**-10) and isclose(cycle_df_dv.loc[i, ('Discharge_dQ')], 0, abs_tol=10**-10):
+#           cycle_df_dv = cycle_df_dv.drop(index=i)
 
-        separate_dis_char = np.where(
-            np.diff(np.sign(cycle_df_dv['Current(A)'])))
+#    cycle_df_dv = cycle_df_dv.reset_index(drop=True) 
 
-        for i in range(1, len(cycle_df_dv)):
-            if (cycle_df_dv.loc[i, ('dV')] > 0.7 or cycle_df_dv.loc[i, ('dV')] < -0.7):
-                cycle_df_dv = cycle_df_dv.drop(index=i)
-
-        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
-
-        for i in range(1, len(cycle_df_dv)):
-            cycle_df_dv.loc[i, ('dV')] = cycle_df_dv.loc[i,
-                                                         ('Voltage(V)')] - cycle_df_dv.loc[i-1, ('Voltage(V)')]
-            if isclose(cycle_df_dv.loc[i, ('dV')], 0, abs_tol=10**-3):
-                cycle_df_dv.loc[i, ('dv_close_to_zero')] = False
-            else:
-                cycle_df_dv.loc[i, ('dv_close_to_zero')] = True
-
-        cycle_df_dv = cycle_df_dv.reset_index(drop=True)
-
-    cycle_df_dv = cycle_df_dv.reset_index(drop=True)
-
-    # recalculating dv and dq's after dropping rows
-    for i in range(1, len(cycle_df_dv)):
-        cycle_df_dv.loc[i, ('dV')] = cycle_df_dv.loc[i,
-                                                     ('Voltage(V)')] - cycle_df_dv.loc[i-1, ('Voltage(V)')]
-        cycle_df_dv.loc[i, ('Discharge_dQ')] = cycle_df_dv.loc[i, (
-            'Discharge_Capacity(Ah)')] - cycle_df_dv.loc[i-1, ('Discharge_Capacity(Ah)')]
-        cycle_df_dv.loc[i, ('Charge_dQ')] = cycle_df_dv.loc[i, ('Charge_Capacity(Ah)')
-                                                            ] - cycle_df_dv.loc[i-1, ('Charge_Capacity(Ah)')]
-    # recalculate dq/dv
-    cycle_df_dv['Discharge_dQ/dV'] = cycle_df_dv['Discharge_dQ'] / \
-        cycle_df_dv['dV']
-    cycle_df_dv['Charge_dQ/dV'] = cycle_df_dv['Charge_dQ']/cycle_df_dv['dV']
-    cycle_df_dv = cycle_df_dv.dropna(subset=['Discharge_dQ/dV'])
-    cycle_df_dv = cycle_df_dv.dropna(subset=['Charge_dQ/dV'])
-    cycle_df_dv = cycle_df_dv.reset_index(drop=True)
+#######################end of new
+    cycle_df_dv = cycle_df_dv.reset_index(drop=True) 
+    # recalculating dv and dq's after dropping rows  
+    #cycle_df_dv = calc_dq_dqdv(cycle_df_dv, datatype)
+    cycle_df_dv = cycle_df_dv.replace([np.inf, -np.inf], np.nan)
+    cycle_df_dv = cycle_df_dv.dropna(subset=['dQ/dV'])
 
     cycle_df_dv = cycle_df_dv.reset_index(drop=True)
     return cycle_df_dv
 
 
-def sep_char_dis(df_dqdv):
+def sep_char_dis(df_dqdv, datatype):
     '''Takes a dataframe of one cycle with calculated dq/dv and
     separates into charge and discharge differential capacity curves'''
-    assert 'Charge_dQ/dV' in df_dqdv.columns
-    assert 'Discharge_dQ/dV' in df_dqdv.columns
-    charge = df_dqdv[df_dqdv['Current(A)'] > 0]
-    charge.is_copy = None
+    #assert 'Charge_dQ/dV' in df_dqdv.columns
+    #assert 'Discharge_dQ/dV' in df_dqdv.columns
+    (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
+    switch_cd_index = np.where(np.diff(np.sign(df_dqdv[curr_col])))
+	#print(switch_cd_index)
+    if len(switch_cd_index[0]) > 1:
+        split = min(switch_cd_index[0], key=lambda x:abs(x-(len(df_dqdv)/2)))
+    	# this chooses the split point which is closest to the halfway point of datapoints in the dataframe
+    elif len(switch_cd_index[0])>0: 
+        split = int(switch_cd_index[0])
+    else:
+        split = 0
+	#if datatype == 'CALCE':
+    firstpart = df_dqdv[:split+1] 
+	# returns the first part of the dataframe 
+    secondpart = df_dqdv[split+1:]
+    if firstpart['dQ/dV'].mean() < secondpart['dQ/dV'].mean():
+            # then the first part has more negative values
+        discharge = firstpart
+        charge = secondpart
+    else:
+        charge = firstpart
+        discharge = secondpart
+
+	# # returns the second part of the dataframe
+	# elif datatype == 'MACCOR':
+	# 	charge = df_dqdv[split+1:]
+	# 	discharge = df_dqdv[:split+1]
+    # else:
+    #    print('That is not a valid datatype.')
     charge = charge.reset_index(drop=True)
-    charge['dQ/dV'] = charge['Charge_dQ/dV']
-
-    for i in range(1, len(charge)):
-        if charge.loc[i, ('dQ/dV')] == 0:
-            charge = charge.drop(index=i)
-    charge = charge.reset_index(drop=True)
-
-    discharge = df_dqdv[df_dqdv['Current(A)'] < 0]
-    discharge.is_copy = None
-    discharge['dQ/dV'] = discharge['Discharge_dQ/dV']
     discharge = discharge.reset_index(drop=True)
-
-    for i in range(1, len(discharge)):
-        if discharge.loc[i, ('dQ/dV')] == 0:
-            discharge = discharge.drop(index=i)
-    discharge = discharge.reset_index(drop=True)
-
     return charge, discharge
 
 
@@ -403,7 +313,31 @@ def my_savgolay(dataframe, windowlength, polyorder):
     unfilt = pd.concat([dataframe['dQ/dV']])
     unfiltar = unfilt.values
     # converts into an array
-    dataframe['Smoothed_dQ/dV'] = scipy.signal.savgol_filter(
-        unfiltar, windowlength, polyorder)
+    #dataframe['Smoothed_dQ/dV'] = dataframe['dQ/dV']
+    dataframe['Smoothed_dQ/dV'] = scipy.signal.savgol_filter(unfiltar, windowlength, polyorder)
     # had windowlength = 21 and polyorder = 3 before
     return dataframe
+
+#define column names:
+def col_variables(datatype):
+	if datatype == 'CALCE': 
+		cycle_ind_col = 'Cycle_Index'
+		data_point_col = 'Data_Point'
+		volt_col = 'Voltage(V)'
+		curr_col = 'Current(A)'
+		dis_cap_col = 'Discharge_Capacity(Ah)'
+		char_cap_col = 'Charge_Capacity(Ah)'
+		charge_or_discharge = 'Step_Index'
+		# this is just used to make sure duplicate voltages are not removed from 
+		# repeats in charge and discharge 
+	elif datatype == 'MACCOR':
+		cycle_ind_col = 'Cycle_Index'
+		data_point_col = 'Rec'
+		volt_col = 'Voltage(V)'
+		curr_col = 'Current(A)'
+		dis_cap_col = 'Cap(Ah)'
+		char_cap_col = 'Cap(Ah)'
+		charge_or_discharge = 'Md'
+	else: 
+		print('that is not a valid')
+	return(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge)

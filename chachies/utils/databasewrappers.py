@@ -12,70 +12,49 @@ import scipy
 import numpy as np
 
 
-def process_data(file_name, database_name, decoded_contents, datatype, thresh1, thresh2, username):
-	# Takes raw file 
-	# sep_cycles
-	# cleans cycles
-	# gets descriptors - peak calcs
-	# put back together - save 
+def process_data(file_name, database_name, decoded_dataframe, datatype, username, windowlength = 9, polyorder = 3):
+	"""Takes raw file, separates cycles, cleans cycles, 
+	gets the descriptors, saves descriptors for each cycle
+	into database, puts cycles back together, and then saves
+	resulting cleaned data. """
+
 	if not os.path.exists(database_name): 
 		print('That database does not exist-creating it now.')
 		dbfs.init_master_table(database_name)
 	
-	con = sql.connect(database_name)
-	c = con.cursor()
-	names_list = []
-	for row in c.execute("""SELECT name FROM sqlite_master WHERE type='table'""" ):
-		names_list.append(row[0])
-	con.close()
-	file_name3 = file_name 
-	while '/' in file_name3:
-		file_name3 = file_name3.split('/', maxsplit = 1)[1]
-	name3 = file_name3.split('.')[0] 
-	if name3 + 'Raw' in names_list: 
+	# con = sql.connect(database_name)
+	# c = con.cursor()
+	# names_list = []
+	# for row in c.execute("""SELECT name FROM sqlite_master WHERE type='table'""" ):
+	# 	names_list.append(row[0])
+	# con.close()
+	names_list = get_table_names(database_name)
+	name = get_filename_pref(file_name)
+	# file_name_parsed = file_name
+	# while '/' in file_name_parsed:
+	# 	file_name_parsed = file_name_parsed.split('/', maxsplit = 1)[1]
+	# name = file_name_parsed.split('.')[0] 
+	if name + 'Raw' in names_list: 
 		print('That file name has already been uploaded into the database.')
 	else:
-		#datatype = input('What datatype do you have (either CALCE or MACCOR)')
 		print('Processing that data')	
-		parse_update_master(file_name, database_name, datatype, decoded_contents, username)
-		#this takes the info from the filename and updates the master table in the database. 
+		parse_update_master(file_name, database_name, datatype, decoded_dataframe, username)
+		# this takes the info from the filename and updates the master table in the database. 
 		# this also adds the raw data fram into the database
 		cycle_dict = ccf.load_sep_cycles(file_name, database_name, datatype)
-		clean_cycle_dict= ccf.get_clean_cycles(cycle_dict, file_name, database_name, datatype, thresh1, thresh2)
+		clean_cycle_dict= ccf.get_clean_cycles(cycle_dict, file_name, database_name, datatype, windowlength, polyorder)
 		clean_set_df = ccf.get_clean_sets(clean_cycle_dict, file_name, database_name)
-
 	return
 
 
-def parse_update_master(file_name, database_name, datatype, decoded_contents, username):
-	decoded = decoded_contents
-	file_name2 = file_name
-	while '/' in file_name2:
-		file_name2 = file_name2.split('/', maxsplit = 1)[1]
-	name = file_name2.split('.')[0]    
-	if datatype == 'CALCE':
-		if decoded is None:
-			data1 = pd.read_excel(file_name, 1)
-		else:
-			data1 = pd.read_excel(io.BytesIO(decoded), 1)
-		data1['datatype'] = 'CALCE'
-	elif datatype == 'MACCOR':
-		data1 = pd.read_csv(io.StringIO(decoded.decode('utf-8')), header = 12, delimiter='\t', index_col=False)
-		dataheader = pd.read_fwf(io.StringIO(decoded.decode('utf-8')), delimiter = '\t')
-		weight = float(dataheader.iloc[2][0].split('mg')[0].split('_')[1].replace('p', '.'))
-		data1['Const_Weight[mg]'] = weight
-		#somehow set the Current column to negative when the 'Md' column has a D in it(current > 0 - charge)
-		data1['MaccCharLab'] = data1.apply(lambda row: macc_chardis(row), axis = 1)
-		data1['Current(A)'] = data1['Current [A]']*data1['MaccCharLab']
-		data1['datatype'] = 'MACCOR'
+def parse_update_master(file_name, database_name, datatype, decoded_dataframe, username):
+	# file_name_parsed = file_name
+	name = get_filename_pref(file_name)
+	# while '/' in file_name_parsed:
+	# 	file_name_parsed = file_name_parsed.split('/', maxsplit = 1)[1]
+	# name = file_name_parsed.split('.')[0]  
 
-		data1.rename(columns={'Cycle C': 'Cycle_Index', 'Voltage [V]': 'Voltage(V)', 'Current [A]': 'Abs_Current(A)', 'Cap. [Ah]': 'Cap(Ah)'}, inplace=True)
-		#print(data1.columns)
-	else: 
-		None
-		#print('please put in either "CALCE" or "MACCOR" for datatype.')
-	# this is the only time the raw data file is read into the program from excel
-	data = ccf.calc_dq_dqdv(data1, datatype)
+	data = ccf.calc_dq_dqdv(decoded_dataframe, datatype)
 	dbfs.update_database_newtable(data, name + 'Raw', database_name)
 	update_dic ={'Dataset_Name': name,'Raw_Data_Prefix': name +'Raw',
 					'Cleaned_Data_Prefix': name + 'CleanSet', 
@@ -91,16 +70,18 @@ def macc_chardis(row):
 
 def if_file_exists_in_db(database_name, file_name):
 	if os.path.exists(database_name): 
-		con = sql.connect(database_name)
-		c = con.cursor()
-		names_list = []
-		for row in c.execute("""SELECT name FROM sqlite_master WHERE type='table'""" ):
-			names_list.append(row[0])
-		con.close()
-		while '/' in file_name:
-			file_name = file_name.split('/', maxsplit = 1)[1]
-		name3 = file_name.split('.')[0] 
-		if name3 + 'CleanSet' in names_list: 
+	# 	con = sql.connect(database_name)
+	# 	c = con.cursor()
+	# 	names_list = []
+	# 	for row in c.execute("""SELECT name FROM sqlite_master WHERE type='table'""" ):
+	# 		names_list.append(row[0])
+	# 	con.close()
+		names_list = get_table_names(database_name)
+		filename_pref = get_filename_pref(file_name)
+		# while '/' in file_name:
+		# 	file_name = file_name.split('/', maxsplit = 1)[1]
+		# name3 = file_name.split('.')[0] 
+		if filename_pref + 'CleanSet' in names_list: 
 			ans = True
 		else:
 			ans = False
@@ -131,10 +112,10 @@ def my_pseudovoigt(x, cent, amp, fract, sigma):
 	return(fit)
 
 def param_dicts_to_df(mod_params_name, database):
+	"""Uses the already generated parameter dictionaries stored in the filename+ModParams 
+	datatable in the database, to add in the dictionary data table with those parameter
+	dictionaries formatted nicely into one table. """
 	mod_params_df = dbfs.get_file_from_database(mod_params_name, database)
-	#charge_df = mod_paramsgraphit[mod_paramsgraphit['C/D'] == 'discharge']
-	#charge_df = charge_df.reset_index(drop = True)
-	#charge_df = mod_params_df
 	charge_descript = pd.DataFrame()
 	discharge_descript = pd.DataFrame()
 	for i in range(len(mod_params_df)):
@@ -247,3 +228,9 @@ def param_dicts_to_df(mod_params_name, database):
 		full_df_descript = pd.concat([charge_descript2, discharge_descript2], axis = 1)
 		dbfs.update_database_newtable(full_df_descript, mod_params_name +'-descriptors', database)
 	return
+
+def get_filename_pref(file_name):
+	while '/' in file_name:
+		file_name = file_name.split('/', maxsplit = 1)[1]
+	file_name_pref = file_name.split('.')[0] 
+	return file_name_pref

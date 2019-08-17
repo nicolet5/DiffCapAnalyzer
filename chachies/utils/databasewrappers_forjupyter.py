@@ -7,7 +7,7 @@ import sqlite3 as sql
 import chachifuncs as ccf
 import descriptors
 import databasefuncs as dbfs
-import app
+from app_helper_functions import generate_model
 
 # This version takes a path to a file instead of the decoded contents (like in version 
 # databasewrappers_exp). The decoded contents in the other version are needed because the 
@@ -23,8 +23,6 @@ def process_data(file_name, database_name, path, datatype, username):
 	# put back together - save 
 	thresh1 = '0.0'
 	thresh2 = '0.0'
-	if datatype == 'Arbin':
-		datatype = 'CALCE'
 	if not os.path.exists(database_name): 
 		print('That database does not exist-creating it now.')
 		dbfs.init_master_table(database_name)
@@ -42,7 +40,6 @@ def process_data(file_name, database_name, path, datatype, username):
 	if name3 + 'Raw' in names_list: 
 		print('That file name has already been uploaded into the database.')
 	else:
-		#datatype = input('What datatype do you have (either CALCE or MACCOR)')
 		print('Processing that data')	
 		parse_update_master(file_name, database_name, datatype, path, username)
 		# this takes the info from the filename and updates the master table in the database. 
@@ -57,7 +54,7 @@ def process_data(file_name, database_name, path, datatype, username):
 		v_toappend_d = []
 		new_peak_thresh = 0.3 
 		# just as a starter value
-		feedback = app.generate_model(v_toappend_c, v_toappend_d, df_clean, file_name, new_peak_thresh, database_name)
+		feedback = generate_model(v_toappend_c, v_toappend_d, df_clean, file_name, new_peak_thresh, database_name)
 
 		# desc_df = descriptors.get_descriptors(clean_cycle_dict, datatype, windowlength = 3, polyorder = 1)
 		# dbfs.update_database_newtable(desc_df, name3 + '-descriptors', database_name)
@@ -72,9 +69,9 @@ def parse_update_master(file_name, database_name, datatype, path, username):
 	while '/' in file_name2:
 		file_name2 = file_name2.split('/', maxsplit = 1)[1]
 	name = file_name2.split('.')[0]    
-	if datatype == 'CALCE':
+	if datatype == 'Arbin':
 		data1 = pd.read_excel(path, 1)
-		data1['datatype'] = 'CALCE'
+		data1['datatype'] = 'Arbin'
 	elif datatype == 'MACCOR':
 		data1 = pd.read_csv(path, header = 12, delimiter='\t', index_col=False)
 		dataheader = pd.read_fwf(path, delimiter = '\t')
@@ -88,7 +85,7 @@ def parse_update_master(file_name, database_name, datatype, path, username):
 		data1.rename(columns={'Cycle C': 'Cycle_Index', 'Voltage [V]': 'Voltage(V)', 'Current [A]': 'Abs_Current(A)', 'Cap. [Ah]': 'Cap(Ah)'}, inplace=True)
 
 	else: 
-		print('please put in either "CALCE" or "MACCOR" for datatype.')
+		print('please put in either "Arbin" or "MACCOR" for datatype.')
 
 	data = ccf.calc_dq_dqdv(data1, datatype)
 	dbfs.update_database_newtable(data, name + 'Raw', database_name)

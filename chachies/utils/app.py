@@ -17,31 +17,20 @@ import pandas as pd
 import plotly 
 import urllib
 import urllib.parse
-from app_helper_functions import get_model_dfs, parse_contents, pop_with_db, generate_model
+from app_helper_functions import get_model_dfs, parse_contents, pop_with_db, generate_model, check_database_and_get_creds
 
 
 ##########################################
 #Load Data
 ##########################################
 #eventually add everything in folder and create a dropdown that loads that data sinto data 
-database1 = 'dQdVDB_DONOTPUSH.db'
-#database = 'dqdvDataBase_checkDemoFile.db'
-if not os.path.exists(database1): 
-	print('That database does not exist-creating it now.')
-	dbw.dbfs.init_master_table(database1)
+database = 'dQdVDB_DONOTPUSH3.db'
+init_db = 'init_database.db'
+assert os.path.exists(init_db)	
 
-data = dbw.dbfs.get_file_from_database('ExampleDataCleanSet', 'dQdVDB.db')
-#these are just initial values to use:
-slidmax = 15
-slidmax2 = 15
 
-# we have a previously set up file in the database with acceptable users/password pairs
-#'dQdVDB.db'
-usernames = dbw.dbfs.get_file_from_database('users', 'dQdVDB.db')
+VALID_USERNAME_PASSWORD_PAIRS = check_database_and_get_creds(database)
 
-VALID_USERNAME_PASSWORD_PAIRS = []
-for i in range(len(usernames)):
-    VALID_USERNAME_PASSWORD_PAIRS.append(list([usernames.loc[i, ('Username')], usernames.loc[i,('Password')]]))
 
 ##########################################
 #App Layout 
@@ -49,15 +38,15 @@ for i in range(len(usernames)):
 app = dash.Dash(__name__) 
 
 auth = dash_auth.BasicAuth(
-    app,
-    VALID_USERNAME_PASSWORD_PAIRS
+	app,
+	VALID_USERNAME_PASSWORD_PAIRS
 )
 
 
 Introduction= dcc.Markdown('''
 		# dQ/dV
 		## Interface for visualizing battery cycle data
-		#'''), #Add some Markdown
+		#'''), 
 
 
 app.layout = html.Div([
@@ -76,7 +65,7 @@ app.layout = html.Div([
 		html.Div([html.H3('Or load in your own data: '),
 		html.Div([html.Div([html.H5('1. Input your datatype: ')],style={'width': '40%', 'textAlign': 'left', 'display': 'inline-block', 'margin-left':'50px'}),
 				html.Div([dcc.Dropdown(id='input-datatype', 
-					options =[{'label':'Arbin', 'value':'CALCE'},{'label':'MACCOR', 'value':'MACCOR'}],  
+					options =[{'label':'Arbin', 'value':'ARBIN'},{'label':'MACCOR', 'value':'MACCOR'}],  
 					placeholder='datatype')], 
 				style={'width': '40%', 'vertical-align':'top', 'display': 'inline-block', 
 				'margin-right': '10px', 'margin-left': '10px'})],
@@ -116,11 +105,11 @@ app.layout = html.Div([
 		dcc.Slider(
 			id='cycle--slider',
 			min=0,
-			max = slidmax,
-			value = slidmax2,
+			max = 15,
+			value = 15,
 			step=1,
 			included=True,
-			marks={str(each): str(each) for each in range(slidmax)},
+			marks={str(each): str(each) for each in range(15)},
 			),
 		html.Br(),
 		html.Br(),
@@ -252,10 +241,11 @@ app.layout = html.Div([
 
 def update_output(contents, filename, value):
 	#value here is the datatype, then voltagerange1, then voltagerange2
-	thresh1 = 0
-	thresh2 = 0
 	try:
-		children = parse_contents(contents, filename, value, thresh1, thresh2, database1, auth)
+		# Windowlength and polyorder are parameters for the savitsky golay filter, could be inputs eventually
+		windowlength = 9
+		polyorder = 3
+		children = html.Div([parse_contents(contents, filename, value, database, auth, windowlength, polyorder)])
 	except Exception as e: 
 		children = html.Div(['There was a problem uploading that file: ' + str(e)])
 	return children
@@ -265,7 +255,7 @@ def update_output(contents, filename, value):
 			  [Input('output-data-upload', 'children')])
 def update_dropdown(children):
 	username = auth._username
-	options = [{'label':i, 'value':i} for i in dbw.get_db_filenames(database1, username)]
+	options = [{'label':i, 'value':i} for i in dbw.get_db_filenames(database, username)]
 	return options
 
 @app.callback(Output('update-model-ans', 'children'), 
@@ -278,8 +268,8 @@ def update_model_indb(filename, n_clicks, new_peak_thresh): #new_charge_vals, ne
 		int_list_d = []
 
 		cleanset_name = filename.split('.')[0] + 'CleanSet'
-		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database1)
-		feedback = generate_model(df_clean, filename, new_peak_thresh, database1)
+		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
+		feedback = generate_model(df_clean, filename, new_peak_thresh, database)
 	else:
 		feedback = html.Div(['Model has not been updated yet.'])
 	return feedback
@@ -292,14 +282,14 @@ def update_model_indb(filename, n_clicks, new_peak_thresh): #new_charge_vals, ne
 def update_slider_max(filename):
 	if filename == None:
 		filename = 'ExampleData'
-		database = 'dQdVDB.db'
+		database_sel = init_db
 	else:
 		filename = filename	
-		database = database1
-	data, raw_data= pop_with_db(filename, database)
+		database_sel = database
+	data, raw_data= pop_with_db(filename, database_sel)
 	datatype = data.loc[0,('datatype')]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
-	slidmax = data['Cycle_Index'].max()
+	# slidmax = data['Cycle_Index'].max()
 	return data['Cycle_Index'].max()
 
 @app.callback(#update slider marks
@@ -309,11 +299,11 @@ def update_slider_max(filename):
 def update_slider_marks(filename):
 	if filename == None:
 		filename = 'ExampleData'
-		database = 'dQdVDB.db'
+		database_sel = init_db
 	else:
 		filename = filename	
-		database = database1
-	data, raw_data= pop_with_db(filename, database)
+		database_sel = database
+	data, raw_data= pop_with_db(filename, database_sel)
 	return {str(each): str(each) for each in data['Cycle_Index'].unique()}
 
 @app.callback( #update slider 
@@ -323,14 +313,14 @@ def update_slider_marks(filename):
 def update_slider_value(filename):
 	if filename == None:
 		filename = 'ExampleData'
-		database = 'dQdVDB.db'
+		database_sel = init_db
 	else:
 		filename = filename	
-		database = database1
-	data, raw_data = pop_with_db(filename, database)
+		database_sel = database
+	data, raw_data = pop_with_db(filename, database_sel)
 	datatype = data.loc[0,('datatype')]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
-	slidmax2 = data['Cycle_Index'].max()
+
 	return data['Cycle_Index'].max()
 
 
@@ -361,15 +351,15 @@ def update_selected_row_indices(clickData, selected_row_indices):
 def update_figure1(selected_step,filename, showmodel, selected_row_indices):
 	if filename == None:
 		filename = 'ExampleData'
-		database = 'dQdVDB.db'
+		database_sel = init_db
 	else:
 		filename = filename	
-		database = database1
-	data, raw_data= pop_with_db(filename, database)
+		database_sel = database
+	data, raw_data= pop_with_db(filename, database_sel)
 	datatype = data.loc[0,('datatype')]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	modset_name = filename.split('.')[0] + '-ModPoints'
-	df_model = dbw.dbfs.get_file_from_database(modset_name, database)
+	df_model = dbw.dbfs.get_file_from_database(modset_name, database_sel)
 	if df_model is not None: 
 		filt_mod = df_model[df_model[cycle_ind_col] == selected_step]
 
@@ -448,11 +438,11 @@ def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd
 	""" This is  a function to evaluate the model on a sample plot before updating the database"""
 	if filename == None:
 		filename = 'ExampleData'
-		database = 'dQdVDB.db'
+		database_sel = init_db
 	else:
 		filename = filename	
-		database = database1
-	data, raw_data= pop_with_db(filename, database)
+		database_sel = database
+	data, raw_data= pop_with_db(filename, database_sel)
 	datatype = data.loc[0,('datatype')]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	selected_step = round(data[cycle_ind_col].max()/2) +1 
@@ -465,7 +455,7 @@ def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd
 		length_list = 1
 		lenmax = len(data)
 	dff_raw = raw_data[raw_data[cycle_ind_col]==selected_step]
-	peak_vals_df = dbw.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
+	peak_vals_df = dbw.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database_sel)
 	if n_clicks is not None:
 		# if the user has hit the update-model-button - remake model
 		new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d = get_model_dfs(dff_data, datatype, selected_step, lenmax, peak_thresh)
@@ -484,7 +474,7 @@ def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd
 	else: 
 		# if user hasn't pushed the button, populate with original model from database
 		modset_name = filename.split('.')[0] + '-ModPoints'
-		df_model = dbw.dbfs.get_file_from_database(modset_name, database)
+		df_model = dbw.dbfs.get_file_from_database(modset_name, database_sel)
 		dff_mod = df_model[df_model[cycle_ind_col] == selected_step]
 
 		filtpeakvals = peak_vals_df[peak_vals_df['c_cycle_number'] == selected_step]
@@ -502,9 +492,6 @@ def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd
 		d_fwhm = filtpeakvals.loc[0, ('d_gauss_fwhm')]
 		d_height = filtpeakvals.loc[0, ('d_gauss_height')]
 
-	#(charge, discharge) = dbw.ccf.sep_char_dis(data, datatype)
-	# grab datattype from file:
-	#model_cd_vals are dictionaries - can refer to them with the key 
    
 	fig = plotly.tools.make_subplots(
 		rows=1,cols=2,
@@ -524,7 +511,7 @@ def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd
 			try: 
 				fig.append_trace({
 					'x': peak_vals_df['c_cycle_number'],
-					'y': peak_vals_df[str(''.join(desc_to_plot)) + str(''.join(cd_to_plot)) + value], # *neww - desc_to_plot[0])
+					'y': peak_vals_df[str(''.join(desc_to_plot)) + str(''.join(cd_to_plot)) + value],
 					'type': 'scatter',
 					'marker': marker,
 					'name': value 
@@ -555,12 +542,10 @@ def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd
 			}, 1,2)
 
 	fig['layout']['showlegend'] = True
-	#fig['layout']['shapes'] = shapes
 	fig['layout']['xaxis1'].update(title = 'Cycle Number')
 	fig['layout']['xaxis2'].update(title = 'Voltage (V)')
 	fig['layout']['yaxis1'].update(title = 'Descriptor Value')
 	fig['layout']['yaxis2'].update(title = 'dQ/dV', range = [dff_data['Smoothed_dQ/dV'].min(), dff_data['Smoothed_dQ/dV'].max()])
-	#plotly_fig['layout']['yaxis1'].update({'range': [-0.3,0.3]})
 	fig['layout']['height'] = 600
 	fig['layout']['margin'] = {
 		'l': 40,
@@ -573,8 +558,8 @@ def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd
 @app.callback(Output('my-link', 'href'),
 			  [Input('available-data', 'value')])
 def update_link(value):
-	if value is not None: # *new
-		peak_vals_df = dbw.dbfs.get_file_from_database(value.split('.')[0] + 'ModParams-descriptors',database1)
+	if value is not None: 
+		peak_vals_df = dbw.dbfs.get_file_from_database(value.split('.')[0] + 'ModParams-descriptors', database)
 		csv_string = peak_vals_df.to_csv(index = False, encoding = 'utf-8')
 		csv_string = "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_string)
 		return csv_string
@@ -588,12 +573,12 @@ def update_link(value):
 def update_table1(filename, data_to_show):
 	if filename == None:
 		filename = 'ExampleData'
-		database = 'dQdVDB.db'
+		database_sel = init_db
 	else:
 		filename = filename	
-		database = database1
-	data, raw_data = pop_with_db(filename, database)
-	peak_vals_df = dbw.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database)
+		database_sel = database
+	data, raw_data = pop_with_db(filename, database_sel)
+	peak_vals_df = dbw.dbfs.get_file_from_database(filename.split('.')[0] + 'ModParams-descriptors',database_sel)
 	if data_to_show == 'raw_data':
 		return raw_data.to_dict('records')
 	elif data_to_show == 'clean_data':

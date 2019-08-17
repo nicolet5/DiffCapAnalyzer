@@ -22,6 +22,49 @@ def test_process_data():
 
 def test_parse_update_master(): 
 	"""Tests the parse update master function"""
+	decoded_dataframe = pd.read_excel(test_filename, 1)
+	ans = parse_update_master(test_filename, test_database, test_datatype, decoded dataframe, test_username)
+	assert ans == None 
+	master_table = dbfs.get_file_from_database('master_table', test_database)
+	name = get_filename_pref(test_filename)
+	assert name +'Raw' in master_table['Raw_Data_Prefix']
+	assert name  + 'CleanSet' in master_table['Cleaned_Data_Prefix']
+	assert name + '-CleanCycle' in master_table['Cleaned_Cycles_Prefix']
+	assert name + 'ModParams-descriptors' in master_table['Descriptors_Prefix']
+	return 
+
+def test_macc_chardis(): 
+	"""tests that the macc_chardis function gives the 
+	right output depending on the string in the Md column 
+	in a dataframe."""
+	test_df= pd.DataFrame({'ColX':[0, 1, 2], 'Md': ['D', 'C', 'Something else']})
+	test_row1 = test_df[0]
+	test_row2 = test_df[1]
+	test_row3 = test_df[2]
+	assert macc_chardis(test_row1) == -1
+	assert macc_chardis(test_row2) == 1
+	assert macc_chardis(test_row3) == 1
+	return 
+
+def test_if_file_exists_in_db(): 
+	"""Tests the if_file_exists_in_db function gives the 
+	correct result when there is a file that does exist in 
+	the test database, when ther is a file that does not 
+	exist in the database, and when there is a database name 
+	given for a database that does not exist."""
+	answer = if_file_exists_in_db(test_database, test_filename)
+	assert answer == True
+	answer2 = if_file_exists_in_db(test_database, 'ThisFileDoesNotExist.csv')
+	assert answer2 == False
+	assert if_file_exists_in_db('NotaRealDB.db', test_filename) == False
+	assert if_file_exists_in_db('NotaReadDB.db', 'ThisFileDoesNotExist.csv') == False
+	return 
+
+def test_get_db_filenames(): 
+	"""Tests that the list of table names for one 
+	specific user are returned accurately"""
+
+	
 
 
 

@@ -21,19 +21,8 @@ def process_data(file_name, database_name, decoded_dataframe, datatype, username
 	if not os.path.exists(database_name): 
 		print('That database does not exist-creating it now.')
 		dbfs.init_master_table(database_name)
-	
-	# con = sql.connect(database_name)
-	# c = con.cursor()
-	# names_list = []
-	# for row in c.execute("""SELECT name FROM sqlite_master WHERE type='table'""" ):
-	# 	names_list.append(row[0])
-	# con.close()
 	names_list = get_table_names(database_name)
 	name = get_filename_pref(file_name)
-	# file_name_parsed = file_name
-	# while '/' in file_name_parsed:
-	# 	file_name_parsed = file_name_parsed.split('/', maxsplit = 1)[1]
-	# name = file_name_parsed.split('.')[0] 
 	if name + 'Raw' in names_list: 
 		print('That file name has already been uploaded into the database.')
 	else:
@@ -48,39 +37,38 @@ def process_data(file_name, database_name, decoded_dataframe, datatype, username
 
 
 def parse_update_master(file_name, database_name, datatype, decoded_dataframe, username):
-	# file_name_parsed = file_name
+	"""Takes the file and calculates dq/dv from the raw data, 
+	uploads that ot the database as the raw data, and 
+	updates the master table with prefixes useful for accessing 
+	that data related to the file uploaded."""
 	name = get_filename_pref(file_name)
-	# while '/' in file_name_parsed:
-	# 	file_name_parsed = file_name_parsed.split('/', maxsplit = 1)[1]
-	# name = file_name_parsed.split('.')[0]  
 
 	data = ccf.calc_dq_dqdv(decoded_dataframe, datatype)
 	dbfs.update_database_newtable(data, name + 'Raw', database_name)
-	update_dic ={'Dataset_Name': name,'Raw_Data_Prefix': name +'Raw',
+	update_dict ={'Dataset_Name': name,
+					'Raw_Data_Prefix': name +'Raw',
 					'Cleaned_Data_Prefix': name + 'CleanSet', 
-					'Cleaned_Cycles_Prefix': name + '-CleanCycle', 'Descriptors_Prefix': name + 'ModParams-descriptors'}
-	dbfs.update_master_table(update_dic, database_name, username)
+					'Cleaned_Cycles_Prefix': name + '-CleanCycle', 
+					'Descriptors_Prefix': name + 'ModParams-descriptors'}
+	dbfs.update_master_table(update_dict, database_name, username)
 	return
 
 def macc_chardis(row):
+	"""Assigns an integer to distinguish rows of 
+	charging cycles from those of discharging 
+	cycles. -1 for discharging and +1 for charging."""
 	if row['Md'] == 'D':
 		return -1
 	else:
 		return 1
 
 def if_file_exists_in_db(database_name, file_name):
+	"""Checks if file exists in the given database
+	by checking the list of table names for the 
+	table name corresponding to the whole CleanSet."""
 	if os.path.exists(database_name): 
-	# 	con = sql.connect(database_name)
-	# 	c = con.cursor()
-	# 	names_list = []
-	# 	for row in c.execute("""SELECT name FROM sqlite_master WHERE type='table'""" ):
-	# 		names_list.append(row[0])
-	# 	con.close()
 		names_list = get_table_names(database_name)
 		filename_pref = get_filename_pref(file_name)
-		# while '/' in file_name:
-		# 	file_name = file_name.split('/', maxsplit = 1)[1]
-		# name3 = file_name.split('.')[0] 
 		if filename_pref + 'CleanSet' in names_list: 
 			ans = True
 		else:
@@ -230,7 +218,22 @@ def param_dicts_to_df(mod_params_name, database):
 	return
 
 def get_filename_pref(file_name):
+	"""Splits the filename apart from the path 
+	and the extension. This is used as part of 
+	the identifier for individual file uploads."""
 	while '/' in file_name:
 		file_name = file_name.split('/', maxsplit = 1)[1]
 	file_name_pref = file_name.split('.')[0] 
 	return file_name_pref
+
+
+def get_table_names(database): 
+	"""Returns all the names of tables that exist in the database"""
+	if os.path.exists(database): 
+		con = sql.connect(database)
+		c = con.cursor()
+		names_list = []
+		for row in c.execute("""SELECT name FROM sqlite_master WHERE type='table'""" ):
+			names_list.append(row[0])
+		con.close()
+	return names_list	

@@ -1,4 +1,3 @@
-
 import scipy.signal
 import pandas as pd
 import numpy as np
@@ -21,12 +20,6 @@ def get_descriptors(import_dictionary, datatype, windowlength, polyorder):
     descriptors/error parameters. Also writes descriptors to an
     excel spreadsheet 'describe.xlsx' import_filepath = filepath
     containing cleaned separated cycles"""
-    # import filepath is path of clean, separated cycles 
-    # checks that the file exists
-    #assert os.path.exists(import_filepath), 'The file does not exist'
-
-    # check that the whatever is passed to ML_generate is a string
-    #assert isinstance(import_filepath, str), 'The input should be a string'
 
     # creates dataframe of descriptors for the charge/discharge
     # cycles of all batteries
@@ -34,26 +27,13 @@ def get_descriptors(import_dictionary, datatype, windowlength, polyorder):
     print('Generating descriptors from the data set.')
     df_ch = process.df_generate(import_dictionary, 'c', datatype, windowlength, polyorder)
     #ther eare duplicates coming out of this function - does cycle 1 2 times (different numbers) then cycle 2 2 times 
-    #print('this is df_ch')
-    #print(df_ch.to_string())
     #does all cycles charge cycle first, then all discharge cycles
     df_dc = process.df_generate(import_dictionary, 'd', datatype, windowlength, polyorder)
-    #print('this is df_dc')
-    #print(df_dc.to_string())
-    # concats charge and discharge cycles
-    df_final = pd.concat([df_ch, df_dc], axis=1)
-    #print(df_final['peakHeight(dQdV)-d'].to_string())
 
-    df_final2 = dflists_to_dfind(df_final)
+    df_final = dflists_to_dfind(pd.concat([df_ch, df_dc], axis=1))
 
-    df_sorted = dfsortpeakvals(df_final2, 'c')
+    df_sorted = dfsortpeakvals(df_final, 'c')
     df_sorted_final = dfsortpeakvals(df_sorted, 'd')
-    # drops any duplicate rows
-    #df_final = df_final.T.drop_duplicates().T
-    #print('this is the df_final after dropping duplicates: ')
-    #print(df_final.to_string())
-    # saves data to database
-
     return df_sorted_final
 
 ############################
@@ -84,231 +64,223 @@ def dflists_to_dfind(df):
         df_new[new_cols]= pd.DataFrame(df[column].values.tolist())
     return(df_new)
 
-class process:
+# class process:
 
-    # first function called by ML_generate
-    def df_generate(import_dictionary, cd, datatype, windowlength, polyorder):
-        """Creates a pandas dataframe for each battery's charge/
-        discharge cycle in the import_filepath folder.
-        import_filepath = filepath containing cleaned separated cycles
-        cd = 'c' for charge and 'd' for discharge
-        Output:
-        df_ch = pandas dataframe for all cycles of all batteries in a
-        col_ch = list of numbers of columns for each battery"""
-
+    # # first function called by ML_generate
+    # def df_generate(import_dictionary, cd, datatype, windowlength, polyorder):
+    #     """Creates a pandas dataframe for each battery's charge/
+    #     discharge cycle in the import_filepath folder.
+    #     import_filepath = filepath containing cleaned separated cycles
+    #     cd = 'c' for charge and 'd' for discharge
+    #     Output:
+    #     df_ch = pandas dataframe for all cycles of all batteries in a
+    #     col_ch = list of numbers of columns for each battery"""
+    #     assert cd in ['c', 'd']
         
-            # generates dataframe of descriptor fits for each battery
-        df = process.imp_all(import_dictionary, cd, datatype, windowlength, polyorder)
-            # get dataframe of descriptors from all the batcleancycle#'s'
-            # generates an iterative list of names for the 'name'
-            # column of the final dataframe
+    #         # generates dataframe of descriptor fits for each battery
+    #     df = process.imp_all(import_dictionary, cd, datatype, windowlength, polyorder)
+    #         # get dataframe of descriptors from all the batcleancycle#'s'
+    #         # generates an iterative list of names for the 'name'
+    #         # column of the final dataframe
           
-        df_ch = df
+    #     df_ch = df
        
-        return df_ch
+    #     return df_ch
 
-    def imp_all(import_dictionary, cd, datatype, windowlength, polyorder):
-        """Generates a Pandas dataframe of descriptors for a single battery
-        source = string containing directory with the excel sheets
-        for individual cycle data
-        battery = string containing excel spreadsheet of file name
-        cd = either 'c' for charge or 'd' for discharge
-        Output:
-        charge_descript = pandas dataframe of charge descriptors"""
+    # def df_generate(import_dictionary, cd, datatype, windowlength, polyorder):
+    #     """Generates a Pandas dataframe of descriptors for a single battery
+    #     source = string containing directory with the excel sheets
+    #     for individual cycle data
+    #     battery = string containing excel spreadsheet of file name
+    #     cd = either 'c' for charge or 'd' for discharge
+    #     Output:
+    #     charge_descript = pandas dataframe of charge descriptors
 
-        cycle = []
+    #     Creates a pandas dataframe for each battery's charge/
+    #     discharge cycle in the import_filepath folder.
+    #     import_filepath = filepath containing cleaned separated cycles
+    #     cd = 'c' for charge and 'd' for discharge
+    #     Output:
+    #     df_ch = pandas dataframe for all cycles of all batteries in a
+    #     col_ch = list of numbers of columns for each battery"""
 
-        #charge_descript = process.pd_create(cd)
-        charge_descript = pd.DataFrame()
-        # this makes an empty dataframe to populate with the descriptors
-        # iterates over the file list and the cycle number
-        #for file_val, cyc_loop in zip(file_sort, cyc_sort):
-        length_dict = {key: len(value) for key, value in import_dictionary.items()}
-        lenmax = max(length_dict.values())
+    #     assert type(import_dictionary) == dict
+    #     assert cd in ['c', 'd']
+    #     cycle = []
 
-        for k, v in import_dictionary.items():
-            # cyc_loop is just the cycle number associated with the testdf - get from k
-            # determines dictionary of descriptors from file data
-            #print('here is the key in imp all')
-            #print(k)
-            cyc_loop = int(k.split('Cycle')[1])
-            testdf = v
-            battery = k 
-            c = process.imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, windowlength, polyorder, lenmax)
-            # c is a dictionary of descriptors 
-            #print('here is c before appending: ')
-            #print(c)
-            
-            if c != 'throw':
-                # generates list of dictionaries while rejecting any that
-                # return the 'throw' error
-                c['name' + '-'+ str(cd)] = list([k])
-                # this has to be in this format for when the dataframe is converted to 
-                # a dataframe of individual values to be written to the sql database
-                #print('here is c after apending: ')
-                #print(c)
-                c_df = pd.DataFrame(columns = c.keys())
-                for key1, val1 in c.items():
-                    c_df.at[0, key1] = c[key1]
-                    # populates a one line df with lists into the columns of keys 
-                #print('here is the c_df: ')
-                #print(c_df)
-                #print('here is c: ')
-                #print(c)
-                #charge_descript = process.pd_update(charge_descript, c)
-                charge_descript = pd.concat([charge_descript, c_df])
-               # print('here is charge_descript: ')
-                #print(charge_descript)
-        #print('Here is the charge_descript parameter in the imp all function:  ')
-        #print(charge_descript.to_string())
-        return charge_descript
+    #     charge_descript = pd.DataFrame()
+    #     # this makes an empty dataframe to populate with the descriptors
+    #     length_dict = {key: len(value) for key, value in import_dictionary.items()}
+    #     lenmax = max(length_dict.values())
 
-    def pd_create(cd):
-        """Creates a blank dataframe containing either charge or
-        discharge descriptors/error parameters
-        cd = either 'c' for charge or 'd' for discharge
-        Output:
-        blank pandas dataframe with descriptor columns and cycle number rows"""
+    #     for k, v in import_dictionary.items():
+    #         # cyc_loop is just the cycle number associated with the testdf - get from k
+    #         # determines dictionary of descriptors from file data
+    #         cyc_loop = int(k.split('Cycle')[1])
+    #         testdf = v
+    #         battery = k 
+    #         c = process.imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, windowlength, polyorder, lenmax)
+    #         # c is a dictionary of descriptors             
+    #         if c != 'throw':
+    #             # generates list of dictionaries while rejecting any that
+    #             # return the 'throw' error
+    #             c['name' + '-'+ str(cd)] = list([k])
+    #             # this has to be in this format for when the dataframe is converted to 
+    #             # a dataframe of individual values to be written to the sql database
+    #             c_df = pd.DataFrame(columns = c.keys())
+    #             for key1, val1 in c.items():
+    #                 c_df.at[0, key1] = c[key1]
+    #                 # populates a one line df with lists into the columns of keys 
+    #             charge_descript = pd.concat([charge_descript, c_df])
+    #     return charge_descript
 
-        # check that 'c' or 'd' is passed
-        #assert cd == (
-        #    'c' or 'd'), 'This must be charge (c) or discharge (d) data'
+    # def pd_create(cd):
+    #     """Creates a blank dataframe containing either charge or
+    #     discharge descriptors/error parameters
+    #     cd = either 'c' for charge or 'd' for discharge
+    #     Output:
+    #     blank pandas dataframe with descriptor columns and cycle number rows"""
 
-        # number of descriptors it generates
-        n_desc = 19
+    #     # check that 'c' or 'd' is passed
+    #     #assert cd == (
+    #     #    'c' or 'd'), 'This must be charge (c) or discharge (d) data'
 
-        # determines prefix string based on need for a charge or
-        # discharge dataframe
-        if cd == 'c':
-            prefix = 'ch_'
-        else:
-            prefix = 'dc_'
+    #     # number of descriptors it generates
+    #     n_desc = 19
 
-        # generates list of names for the top of the descriptors dataframe
-        names = []
-        for ch in np.arange(n_desc):
-            names.append(prefix + str(int(ch)))
+    #     # determines prefix string based on need for a charge or
+    #     # discharge dataframe
+    #     if cd == 'c':
+    #         prefix = 'ch_'
+    #     else:
+    #         prefix = 'dc_'
 
-        # adds names of error parameters to the end of the descriptor list
-        names = names + [prefix+'AIC', prefix+'BIC', prefix+'red_chi_squared']
+    #     # generates list of names for the top of the descriptors dataframe
+    #     names = []
+    #     for ch in np.arange(n_desc):
+    #         names.append(prefix + str(int(ch)))
 
-        # creates pandas dataframe with necessary heading
-        # print(names)
-        desc = pd.DataFrame(columns=names)
+    #     # adds names of error parameters to the end of the descriptor list
+    #     names = names + [prefix+'AIC', prefix+'BIC', prefix+'red_chi_squared']
 
-        return desc
+    #     # creates pandas dataframe with necessary heading
+    #     # print(names)
+    #     desc = pd.DataFrame(columns=names)
 
-    def pd_update(desc, charge_descript):
-        """adds a list of charge descriptors to a pandas dataframe
-        desc = dataframe from pd_create
-        charge_descript = descriptor dictionaries
-        Output:
-        pandas dataframe with a row of descriptors appended on"""
+    #     return desc
 
-        # check if the inputs have the right Type
-        # c is the charge_descript and desc is the empty dataframe 
-        assert isinstance(
-            desc, pd.core.frame.DataFrame), "This input must be a pandas dataframe"
-        assert isinstance(
-            charge_descript, dict), "Stop right there, only dictionaries are allowed in these parts"
-        #print('here is charge descript thingy: ')
-        #print(charge_descript)
-        # converts the dictionary of descriptors into a list of descriptors
-        #desc_ls = process.dict_2_list(charge_descript)
-        desc_ls = pd.DataFrame(charge_descript)
-        # still c but as a list 
-        #print('here is c but as a list: ')
-        #print(desc_ls)
-        # print('here is the desc_ls: ')
-        # print(desc_ls)
-        # adds zeros to the end of each descriptor list to create
-        # a list with 22 entries
-        # also appends error parameters to the end of the descriptor list
-        #desc_app = desc_ls + \
-        #    np.zeros(19-len(desc_ls)).tolist() + charge_descript['errorParams']
-        # generates a dataframe of descriptors
-        #desc_df = pd.DataFrame([desc_app], columns=desc.columns)
-        # combines row of a dataframe with previous dataframe
-        desc = pd.concat([desc, desc_df], ignore_index=True)
-        # print('here is the desc.to_string(): ')
-        # print(desc.to_string())
+    # def pd_update(desc, charge_descript):
+    #     """adds a list of charge descriptors to a pandas dataframe
+    #     desc = dataframe from pd_create
+    #     charge_descript = descriptor dictionaries
+    #     Output:
+    #     pandas dataframe with a row of descriptors appended on"""
 
-        return desc
+    #     # check if the inputs have the right Type
+    #     # c is the charge_descript and desc is the empty dataframe 
+    #     assert isinstance(
+    #         desc, pd.core.frame.DataFrame), "This input must be a pandas dataframe"
+    #     assert isinstance(
+    #         charge_descript, dict), "Stop right there, only dictionaries are allowed in these parts"
+    #     #print('here is charge descript thingy: ')
+    #     #print(charge_descript)
+    #     # converts the dictionary of descriptors into a list of descriptors
+    #     #desc_ls = process.dict_2_list(charge_descript)
+    #     desc_ls = pd.DataFrame(charge_descript)
+    #     # still c but as a list 
+    #     #print('here is c but as a list: ')
+    #     #print(desc_ls)
+    #     # print('here is the desc_ls: ')
+    #     # print(desc_ls)
+    #     # adds zeros to the end of each descriptor list to create
+    #     # a list with 22 entries
+    #     # also appends error parameters to the end of the descriptor list
+    #     #desc_app = desc_ls + \
+    #     #    np.zeros(19-len(desc_ls)).tolist() + charge_descript['errorParams']
+    #     # generates a dataframe of descriptors
+    #     #desc_df = pd.DataFrame([desc_app], columns=desc.columns)
+    #     # combines row of a dataframe with previous dataframe
+    #     desc = pd.concat([desc, desc_df], ignore_index=True)
+    #     # print('here is the desc.to_string(): ')
+    #     # print(desc.to_string())
+
+    #     return desc
 
     # used by pd_update
-    def dict_2_list(desc):
-        """Converts a dictionary of descriptors into a list for
-        pandas assignment
-        desc = dictionary containing descriptors
-        Output:
-        list of descriptors"""
+    # def dict_2_list(desc):
+    #     """Converts a dictionary of descriptors into a list for
+    #     pandas assignment
+    #     desc = dictionary containing descriptors
+    #     Output:
+    #     list of descriptors"""
 
-        # this function is kinda pointless if you don't give it
-        # a dictionary
-        assert isinstance(
-            desc, dict), "Stop right there, only dictionaries are allowed in these parts"
+    #     # this function is kinda pointless if you don't give it
+    #     # a dictionary
+    #     assert isinstance(
+    #         desc, dict), "Stop right there, only dictionaries are allowed in these parts"
 
-        # generates an initial list from the coefficients
-        desc_ls = list(desc['coefficients' + '-' + str(cd)])
-        desc_ls.append(desc['name' +'-' +str(cd)])
-        # determines whether or not there are peaks in the datasent
-        if 'peakSIGMA'+'-' +str(cd) in desc.keys():
-            # iterates over the number of peaks
-            for i in np.arange(len(desc['peakSIGMA' +'-' +str(cd)])):
-                # appends peak descriptors to the list in order of peak number
-                desc_ls.append(desc['peakLocation(V)' +'-' + str(cd)][i])
-                desc_ls.append(desc['peakHeight(dQdV)' +'-' + str(cd)][i])
-                desc_ls.append(desc['peakSIGMA'+'-' + str(cd)][i])
-        else:
-            pass
-        #print('here is the desc_ls with peakloc in the dict_2_list definition: ')
-        #print(desc_ls)
-        return desc_ls
+    #     # generates an initial list from the coefficients
+    #     desc_ls = list(desc['coefficients' + '-' + str(cd)])
+    #     desc_ls.append(desc['name' +'-' +str(cd)])
+    #     # determines whether or not there are peaks in the datasent
+    #     if 'peakSIGMA'+'-' +str(cd) in desc.keys():
+    #         # iterates over the number of peaks
+    #         for i in np.arange(len(desc['peakSIGMA' +'-' +str(cd)])):
+    #             # appends peak descriptors to the list in order of peak number
+    #             desc_ls.append(desc['peakLocation(V)' +'-' + str(cd)][i])
+    #             desc_ls.append(desc['peakHeight(dQdV)' +'-' + str(cd)][i])
+    #             desc_ls.append(desc['peakSIGMA'+'-' + str(cd)][i])
+    #     else:
+    #         pass
+    #     #print('here is the desc_ls with peakloc in the dict_2_list definition: ')
+    #     #print(desc_ls)
+    #     return desc_ls
 
-    def imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, windowlength, polyorder, lenmax):
-        """imports and fits a single charge discharge cycle of a battery
-        file_val = directory containing current cycle
-        cd = either 'c' for charge or 'd' for discharge
-        cyc_loop = cycle number
-        battery = battery name
-        output: a dictionary of descriptors for a single battery"""
+    # def imp_one_cycle(testdf, cd, cyc_loop, battery, datatype, windowlength, polyorder, lenmax):
+    #     """imports and fits a single charge discharge cycle of a battery
+    #     file_val = directory containing current cycle
+    #     cd = either 'c' for charge or 'd' for discharge
+    #     cyc_loop = cycle number
+    #     battery = battery name
+    #     output: a dictionary of descriptors for a single battery"""
 
-        # make sure this is an Excel spreadsheet by checking the file extension
-        # assert file_val.split('.')[-1] == ('xlsx' or 'xls')
+    #     # make sure this is an Excel spreadsheet by checking the file extension
+    #     # assert file_val.split('.')[-1] == ('xlsx' or 'xls')
 
-        # reads excel file into pandas
-        # testdf = pd.read_excel(file_val)
+    #     # reads excel file into pandas
+    #     # testdf = pd.read_excel(file_val)
 
-        # extracts charge and discharge from the dataset
-        (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
-        charge, discharge = ccf.sep_char_dis(testdf, datatype)
+    #     # extracts charge and discharge from the dataset
+    #     (cycle_ind_col, data_point_col, volt_col, curr_col, \
+    #         dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
+    #     charge, discharge = ccf.sep_char_dis(testdf, datatype)
 
-        # determines if the charge, discharge indicator was inputted correctly
-        # assigns daframe for fitting accordingly
-        if cd == 'c':
-            df_run = charge
-        elif cd == 'd':
-            df_run = discharge
-        else:
-            raise TypeError(
-                "Cycle type must be either 'c' for charge or 'd' for discharge.")
-        print('Generating descriptors for cycle number: ' + str(cyc_loop) + cd)
-        # determines if a cycle should be passed into the descriptor
-        # fitting function
-        if (len(charge[volt_col].index) >= 10) and (len(discharge[volt_col].index) >= 10):
-            # generates a dictionary of descriptors
-            c = fitters.descriptor_func(df_run, cd, cyc_loop, battery, windowlength, polyorder, datatype, lenmax)
-            # df_run[volt_col], df_run['Smoothed_dQ/dV']
-            #c is the dictionary of descriptors here 
-        # eliminates cycle number and notifies user of cycle removal
-        else:
-            notice = 'Cycle ' + str(cyc_loop) + ' in battery ' + battery + \
-                ' had fewer than 10 datapoints and was removed from the dataset.'
-            print(notice)
-            c = 'throw'
-        # print('here is the c parameter in the imp_one_cycle: ')
-        # print(c)
-        return c
+    #     # determines if the charge, discharge indicator was inputted correctly
+    #     # assigns daframe for fitting accordingly
+    #     if cd == 'c':
+    #         df_run = charge
+    #     elif cd == 'd':
+    #         df_run = discharge
+    #     else:
+    #         raise TypeError(
+    #             "Cycle type must be either 'c' for charge or 'd' for discharge.")
+    #     print('Generating descriptors for cycle number: ' + str(cyc_loop) + cd)
+    #     # determines if a cycle should be passed into the descriptor
+    #     # fitting function
+    #     if (len(charge[volt_col].index) >= 10) and (len(discharge[volt_col].index) >= 10):
+    #         # generates a dictionary of descriptors
+    #         c = fitters.descriptor_func(df_run, cd, cyc_loop, battery,\
+    #                                     windowlength, polyorder, datatype, lenmax)
+    #         #c is the dictionary of descriptors here 
+    #     # eliminates cycle number and notifies user of cycle removal
+    #     else:
+    #         notice = 'Cycle ' + str(cyc_loop) + ' in battery ' + battery + \
+    #             ' had fewer than 10 datapoints and was removed from the dataset.'
+    #         print(notice)
+    #         c = 'throw'
+    #     # print('here is the c parameter in the imp_one_cycle: ')
+    #     # print(c)
+    #     return c
 
 
 class fitters:
@@ -321,7 +293,8 @@ class fitters:
         Output:
         dictionary with keys 'coefficients', 'peakLocation(V)',
         'peakHeight(dQdV)', 'peakSIGMA', 'errorParams"""
-        (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
+        (cycle_ind_col, data_point_col, volt_col, curr_col, \
+            dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
 
         V_series = df_run[volt_col]
         dQdV_series = df_run['Smoothed_dQ/dV']
@@ -414,13 +387,13 @@ class fitters:
 
         # converts voltage data to numpy array
 
-        sigx = pd.to_numeric(V_series).as_matrix()
+        sigx = pd.to_numeric(V_series).values
 
         # descriminates between charge and discharge cycle
         if cd == 'c':
-            sigy = pd.to_numeric(dQdV_series).as_matrix()
+            sigy = pd.to_numeric(dQdV_series).values
         elif cd == 'd':
-            sigy = -pd.to_numeric(dQdV_series).as_matrix()
+            sigy = -pd.to_numeric(dQdV_series).values
             # d should have a - on it
                    # check that the ouptut for these fuctions is positive
         # (with a little wiggle room of 0.5)
@@ -438,15 +411,13 @@ class fitters:
         
         Output:
         i = list of indexes for each found peak"""
-        (cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
+        (cycle_ind_col, data_point_col, volt_col, curr_col, \
+            dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
         V_series = df_run[volt_col]
-        #dQdV_series = df_run['dQ/dV']
         # this makes the peak finding smoothing independent of any smoothing that has already occured. 
         dQdV_series = df_run['Smoothed_dQ/dV']
-        #assert len(dQdV_series) > 10
-
         sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
-        ################################################
+        #the below is to make sure the window length ends up an odd number - even though we are basing it on the length of the df
         wl = lenmax/20
         wlint = int(round(wl))
         if wlint%2 == 0:
@@ -454,7 +425,6 @@ class fitters:
         else: 
             windowlength_new = wlint
         ###############################################
-        #the below is to make sure the window length ends up an odd number - even though we are basing it on the length of the df
         if len(sigy) > windowlength_new and windowlength_new > polyorder:
             #has to be larger than 69 so that windowlength > 3 - necessary for sav golay function  
             sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength_new, polyorder)
@@ -484,27 +454,18 @@ class fitters:
         index = index of peak location
         output string format:
         'a' + index + "_" + parameter"""
-        # print(index)
-        #print(type(index))
-        #assert isinstance(index, (float, int))
-
         # generates unique parameter strings based on index of peak
         pref = str(int(index))
         comb = 'a' + pref + '_'
-
         cent = 'center'
         sig = 'sigma'
         amp = 'amplitude'
         fract = 'fraction'
-
         # creates final objects for use in model generation
         center = comb + cent
         sigma = comb + sig
         amplitude = comb + amp
         fraction = comb + fract
-    
-        #assert isinstance((center, sigma, amplitude, fraction, comb), str)
-
         return center, sigma, amplitude, fraction, comb
 
     def model_gen(V_series, dQdV_series, cd, i, cyc, thresh):
@@ -553,18 +514,6 @@ class fitters:
             # have to convert from inputted voltages to indices of peaks within sigx_bot
             user_appended_ind = []
             rev_user_append = []
-            # if len(v_toappend) > 0: 
-            #     for vapp in v_toappend:
-            #         if sigx_bot.min()<=vapp<=sigx_bot.max():
-            #             #check if voltage given is valid
-            #             ind_app= np.where(np.isclose(sigx_bot, float(vapp), atol = 0.1))[0][0]
-            #             user_appended_ind.append(ind_app)
-            #             rev_user_app = np.where(np.isclose(sigx_bot_new, float(vapp), atol = 0.1))[0][0]
-            #             rev_user_append.append(rev_user_app)
-            #         # this gives a final list of user appended indices 
-            #     i = i.tolist() + user_appended_ind
-            #     newi = newi.tolist() + rev_user_append # combine the two lists of indices to get the final set of peak locations
-            # else:
             i = i.tolist()
             newi = newi.tolist()
             ##

@@ -1,10 +1,7 @@
 import databasewrappers as dbw
 import dash_html_components as html
-import base64
-import pandas as pd 
+
 import ast 
-import base64
-import databasewrappers as dbw
 import dash
 import dash_auth
 import dash_core_components as dcc
@@ -49,36 +46,30 @@ def check_database_and_get_creds(database):
 
 
 
-def parse_contents(contents, filename, datatype, database, auth, windowlength = 9, polyorder = 3):
+def parse_contents(decoded, filename, datatype, database, auth, windowlength = 9, polyorder = 3):
 	"""Checks if the uploaded file exists in the database yet. Will 
 	process and add that file to the database if it doesn't appear in 
 	the master table yet. Otherwise will return html.Div that the 
 	file already exists in the database. """
 
-	if contents == None:
-		return 'No file has been uploaded, or the file uploaded was empty.'
-	else: 
-		content_type, content_string = contents.split(',')
-		decoded = base64.b64decode(content_string)
-
-		cleanset_name = filename.split('.')[0] + 'CleanSet'
-		#this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
-			#check to see if the database exists, and if it does, check if the file exists.
-		ans_p = dbw.if_file_exists_in_db(database, filename)
-		if ans_p == True: 
-			df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
-			new_peak_thresh = 0.7 
-			feedback = generate_model(df_clean, filename, new_peak_thresh, database)
-			return 'That file exists in the database: ' + str(filename.split('.')[0])
-		else:
-			username = auth._username
-			# put decoded contents into df to pass to process_data
-			decoded_dataframe = decoded_to_dataframe(decoded, datatype, filename)
-			dbw.process_data(filename, database, decoded_dataframe, datatype, username, windowlength, polyorder)
-			df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
-			new_peak_thresh = 0.7
-			feedback = generate_model(df_clean, filename, new_peak_thresh, database)
-			return 'New file has been processed: ' + str(filename)
+	cleanset_name = dbw.get_filename_pref(filename) + 'CleanSet'
+	#this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
+		#check to see if the database exists, and if it does, check if the file exists.
+	ans_p = dbw.if_file_exists_in_db(database, filename)
+	if ans_p == True: 
+		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
+		new_peak_thresh = 0.7 
+		feedback = generate_model(df_clean, filename, new_peak_thresh, database)
+		return 'That file exists in the database: ' + str(dbw.get_filename_pref(filename))
+	else:
+		username = auth._username
+		# put decoded contents into df to pass to process_data
+		decoded_dataframe = decoded_to_dataframe(decoded, datatype, filename)
+		dbw.process_data(filename, database, decoded_dataframe, datatype, username, windowlength, polyorder)
+		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
+		new_peak_thresh = 0.7
+		feedback = generate_model(df_clean, filename, new_peak_thresh, database)
+		return 'New file has been processed: ' + str(dbw.get_filename_pref(filename))
 
 def decoded_to_dataframe(decoded, datatype, file_name): 
 	"""Decodes the contents uploaded via the app. Returns 
@@ -109,9 +100,8 @@ def pop_with_db(filename, database):
 	Finds the already existing file in the database and returns
 	the cleaned version (as a dataframe) and the raw version 
 	(also as a dataframe)."""
-	cleanset_name = filename.split('.')[0] + 'CleanSet'
-	rawset_name = filename.split('.')[0] + 'Raw'
-
+	cleanset_name = dbw.get_filename_pref(filename) + 'CleanSet'
+	rawset_name = dbw.get_filename_pref(filename) + 'Raw'
 	if dbw.if_file_exists_in_db(database, filename) == True: 
 		# then the file exists in the database and we can just read it 
 		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
@@ -134,12 +124,18 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
 	'base_fwhm', 'base_height', and 'base_sigma'. The other keys are 
 	dependent on whether any peaks were found in the cycle. 
 	"""
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
+	(cycle_ind_col, data_point_col, volt_col, curr_col, \
+		dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	clean_charge, clean_discharge = dbw.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
 	windowlength = 9
 	polyorder = 3
 
-	i_charge, volts_i_ch, peak_heights_c = dbw.descriptors.fitters.peak_finder(clean_charge, 'c', windowlength, polyorder, datatype, lenmax, peak_thresh)
+	i_charge, volts_i_ch, peak_heights_c = dbw.descriptors.fitters.peak_finder(clean_charge, 
+																			   'c', windowlength,
+																			    polyorder, 
+																			    datatype, 
+																			    lenmax, 
+																			    peak_thresh)
 
 	V_series_c = clean_charge[volt_col]
 	dQdV_series_c = clean_charge['Smoothed_dQ/dV']
@@ -156,7 +152,9 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
 		new_df_mody_c = None
 		model_c_vals = None
 	# now the discharge: 
-	i_discharge, volts_i_dc, peak_heights_d= dbw.descriptors.fitters.peak_finder(clean_discharge, 'd', windowlength, polyorder, datatype, lenmax, peak_thresh)
+	i_discharge, volts_i_dc, peak_heights_d= dbw.descriptors.fitters.peak_finder(clean_discharge, 'd',
+																			     windowlength, polyorder, 
+																			     datatype, lenmax, peak_thresh)
 	V_series_d = clean_discharge[volt_col]
 	dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
 	par_d, mod_d, indices_d = dbw.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, peak_thresh)
@@ -183,25 +181,36 @@ def generate_model(df_clean, filename, peak_thresh, database):
 	"""Wrapper for the get_model_dfs function. Takes those results
 	and adds them to the database with three new tables 
 	with the suffices: '-ModPoints', 'ModParams', 
-	and 'ModParams-descriptors'."""
+	and '-descriptors'."""
 	datatype = df_clean.loc[0,('datatype')]
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
-
+	(cycle_ind_col, data_point_col, volt_col, curr_col, \
+		dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	chargeloc_dict = {}
 	param_df = pd.DataFrame(columns = ['Cycle','Model_Parameters_charge', 'Model_Parameters_discharge'])
 	if len(df_clean[cycle_ind_col].unique())>1:
-		length_list = [len(df_clean[df_clean[cycle_ind_col]==cyc]) for cyc in df_clean[cycle_ind_col].unique() if cyc != 1]
+		length_list = [len(df_clean[df_clean[cycle_ind_col]==cyc])\
+					 for cyc in df_clean[cycle_ind_col].unique() if cyc != 1]
 		lenmax = max(length_list)
 	else:
 		length_list = 1
 		lenmax = len(df_clean)
 
 	mod_pointsdf = pd.DataFrame()
+	cycles_no_models = []
 	for cyc in df_clean[cycle_ind_col].unique():
-		new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d = get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh)
-		mod_pointsdf = mod_pointsdf.append(new_df_mody)
-		param_df = param_df.append({'Cycle': cyc, 'Model_Parameters_charge': str(model_c_vals), 'Model_Parameters_discharge': str(model_d_vals), 'charge_peak_heights': str(peak_heights_c), 'discharge_peak_heights': str(peak_heights_d)}, ignore_index = True)
-	
+		try: 
+			new_df_mody, model_c_vals, model_d_vals, \
+				peak_heights_c, peak_heights_d = get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh)
+			mod_pointsdf = mod_pointsdf.append(new_df_mody)
+			param_df = param_df.append({'Cycle': cyc, 
+										'Model_Parameters_charge': str(model_c_vals), 
+										'Model_Parameters_discharge': str(model_d_vals), 
+										'charge_peak_heights': str(peak_heights_c), 
+										'discharge_peak_heights': str(peak_heights_d)}, 
+										ignore_index = True)
+		except Exception as e:
+			print('Model was not generated for Cycle ' + str(cyc))
+			cycles_no_models.append(cyc)
 	# want this outside of for loop to update the db with the complete df of new params 
 	dbw.dbfs.update_database_newtable(mod_pointsdf, filename.split('.')[0]+ '-ModPoints', database)
 	# this will replace the data table in there if it exists already 
@@ -209,5 +218,7 @@ def generate_model(df_clean, filename, peak_thresh, database):
 	# the below also updates the database with the new descriptors after evaluating the spit out 
 	# dictionary and putting those parameters into a nicely formatted datatable. 
 	dbw.param_dicts_to_df(filename.split('.')[0] + 'ModParams', database)		
-
+	if len(cycles_no_models) > 0: 
+		return html.Div(['That model has been added to the database.' \
+						+ 'No model was generated for Cycle(s) ' + str(cycles_no_models)])
 	return html.Div(['That model has been added to the database'])

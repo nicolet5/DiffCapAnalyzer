@@ -12,7 +12,9 @@ import scipy
 import numpy as np
 
 
-def process_data(file_name, database_name, decoded_dataframe, datatype, username, windowlength = 9, polyorder = 3):
+def process_data(file_name, database_name, decoded_dataframe, 
+				 datatype, username, windowlength = 9,
+				 polyorder = 3):
 	"""Takes raw file, separates cycles, cleans cycles, 
 	gets the descriptors, saves descriptors for each cycle
 	into database, puts cycles back together, and then saves
@@ -22,34 +24,52 @@ def process_data(file_name, database_name, decoded_dataframe, datatype, username
 		print('That database does not exist-creating it now.')
 		dbfs.init_master_table(database_name)
 	names_list = get_table_names(database_name)
-	name = get_filename_pref(file_name)
-	if name + 'Raw' in names_list: 
+	core_file_name = get_filename_pref(file_name)
+	if core_file_name + 'Raw' in names_list: 
 		print('That file name has already been uploaded into the database.')
 	else:
 		print('Processing that data')	
-		parse_update_master(file_name, database_name, datatype, decoded_dataframe, username)
+		parse_update_master(core_file_name, database_name, 
+							datatype, decoded_dataframe, username)
 		# this takes the info from the filename and updates the master table in the database. 
 		# this also adds the raw data fram into the database
-		cycle_dict = ccf.load_sep_cycles(file_name, database_name, datatype)
-		clean_cycle_dict= ccf.get_clean_cycles(cycle_dict, file_name, database_name, datatype, windowlength, polyorder)
-		clean_set_df = ccf.get_clean_sets(clean_cycle_dict, file_name, database_name)
+		cycle_dict = ccf.load_sep_cycles(core_file_name, 
+										 database_name, 
+										 datatype)
+		clean_cycle_dict= ccf.get_clean_cycles(cycle_dict,
+											   core_file_name, 
+											   database_name, 
+											   datatype,
+											   windowlength, 
+											   polyorder)
+		clean_set_df = ccf.get_clean_sets(clean_cycle_dict,
+										  core_file_name,
+										  database_name)
 	return
 
 
-def parse_update_master(file_name, database_name, datatype, decoded_dataframe, username):
+def parse_update_master(core_file_name, database_name, datatype, decoded_dataframe, username):
 	"""Takes the file and calculates dq/dv from the raw data, 
 	uploads that ot the database as the raw data, and 
 	updates the master table with prefixes useful for accessing 
 	that data related to the file uploaded."""
-	name = get_filename_pref(file_name)
+	# name = get_filename_pref(file_name)
+	dbfs.update_database_newtable(decoded_dataframe,
+								  core_file_name + 'UnalteredRaw', 
+								  database_name)
 
 	data = ccf.calc_dq_dqdv(decoded_dataframe, datatype)
-	dbfs.update_database_newtable(data, name + 'Raw', database_name)
-	update_dict ={'Dataset_Name': name,
-					'Raw_Data_Prefix': name +'Raw',
-					'Cleaned_Data_Prefix': name + 'CleanSet', 
-					'Cleaned_Cycles_Prefix': name + '-CleanCycle', 
-					'Descriptors_Prefix': name + 'ModParams-descriptors'}
+	dbfs.update_database_newtable(data, core_file_name + 'Raw', 
+								  database_name)
+	update_dict ={'Dataset_Name': core_file_name,
+				  'Raw_Data_Prefix': core_file_name +'Raw',
+			      'Cleaned_Data_Prefix': core_file_name + 'CleanSet', 
+				  'Cleaned_Cycles_Prefix': core_file_name + '-CleanCycle', 
+				  'Descriptors_Prefix': core_file_name + '-descriptors',
+				  'Model_Parameters_Prefix': core_file_name + 'ModParams', 
+				  'Model_Points_Prefix': core_file_name + '-ModPoints', 
+				  'Raw_Cycle_Prefix': core_file_name + '-Cycle', 
+				  'Original_Data_Prefix': core_file_name + 'UnalteredRaw'}
 	dbfs.update_master_table(update_dict, database_name, username)
 	return
 
@@ -107,7 +127,6 @@ def param_dicts_to_df(mod_params_name, database):
 	charge_descript = pd.DataFrame()
 	discharge_descript = pd.DataFrame()
 	for i in range(len(mod_params_df)):
-		
 		param_dict_charge = ast.literal_eval(mod_params_df.loc[i, ('Model_Parameters_charge')])
 		param_dict_discharge = ast.literal_eval(mod_params_df.loc[i, ('Model_Parameters_discharge')])
 		charge_peak_heights = ast.literal_eval(mod_params_df.loc[i, ('charge_peak_heights')])
@@ -120,13 +139,11 @@ def param_dicts_to_df(mod_params_name, database):
 					#print(int(key.split('_')[0].split('a')[1]))
 					charge_keys.append(key.split('_')[0])
 			#print(charge_keys) 
-
 			new_dict_charge.update({'c_gauss_sigma': param_dict_charge['base_sigma'], # changed from c0- c4  to base_ .. 10-10-18
 							 'c_gauss_center': param_dict_charge['base_center'],
 							 'c_gauss_amplitude': param_dict_charge['base_amplitude'], 
 							 'c_gauss_fwhm': param_dict_charge['base_fwhm'], 
 							 'c_gauss_height': param_dict_charge['base_height'], 
-							 #'c_poly_coef5': param_dict_charge['c4'],
 							 })
 			new_dict_charge.update({'c_cycle_number': float(mod_params_df.loc[i, ('Cycle')])})
 			#new_dict.update({'charge/discharge': mod_params_df.loc[i, ('C/D')], 
@@ -142,7 +159,13 @@ def param_dicts_to_df(mod_params_name, database):
 			fwhm = param_dict_charge[item + '_fwhm']
 			raw_peakheight = charge_peak_heights[peaknum-1]
 			#print('center' + str(center))
-			PeakArea, PeakAreaError = scipy.integrate.quad(my_pseudovoigt, 0.0, 100, args=(center, amp, fract, sigma))
+			PeakArea, PeakAreaError = scipy.integrate.quad(my_pseudovoigt,
+														   0.0, 
+														   100, 
+														   args=(center, 
+														   	     amp, 
+														   	     fract, 
+														   	     sigma))
 			#print('peak location is : ' + str(center) + ' Peak area is: ' + str(PeakArea))
 			new_dict_charge.update({'c_area_peak_'+str(peaknum): PeakArea, 
 							 'c_center_peak_' +str(peaknum):center, 
@@ -159,7 +182,7 @@ def param_dicts_to_df(mod_params_name, database):
 		charge_descript = pd.concat([charge_descript, new_dict_df])
 		charge_descript = charge_descript.reset_index(drop = True)
 		charge_descript2 = descriptors.dfsortpeakvals(charge_descript, 'c')
-		################################ now the discharge
+		# now the discharge
 
 		discharge_keys =[]
 		if param_dict_discharge is not None:
@@ -174,7 +197,6 @@ def param_dicts_to_df(mod_params_name, database):
 							 'd_gauss_amplitude': param_dict_discharge['base_amplitude'], 
 							 'd_gauss_fwhm': param_dict_discharge['base_fwhm'], 
 							 'd_gauss_height': param_dict_discharge['base_height'], 
-							 #'d_poly_coef5': param_dict_discharge['c4'],
 							 })
 			new_dict_discharge.update({'d_cycle_number': float(mod_params_df.loc[i, ('Cycle')])})
 			#new_dict.update({'charge/discharge': mod_params_df.loc[i, ('C/D')], 
@@ -189,9 +211,7 @@ def param_dicts_to_df(mod_params_name, database):
 				height = param_dict_discharge[item + '_height']
 				fwhm = param_dict_discharge[item + '_fwhm']
 				raw_peakheight = discharge_peak_heights[peaknum-1]
-				#print('center' + str(center))
 				PeakArea, PeakAreaError = scipy.integrate.quad(my_pseudovoigt, 0.0, 100, args=(center, amp, fract, sigma))
-				#print('peak location is : ' + str(center) + ' Peak area is: ' + str(PeakArea))
 				new_dict_discharge.update({'d_area_peak_'+str(peaknum): PeakArea, 
 								 'd_center_peak_' +str(peaknum):center, 
 								 'd_amp_peak_' +str(peaknum):amp,
@@ -202,7 +222,6 @@ def param_dicts_to_df(mod_params_name, database):
 								 'd_rawheight_peak_' + str(peaknum):raw_peakheight})  
 		else: 
 			new_dict_discharge = None    
-			#print(new_dict)
 		if new_dict_discharge is not None:
 			new_dict_df_d = pd.DataFrame(columns = new_dict_discharge.keys())
 			for key1, val1 in new_dict_discharge.items():
@@ -214,7 +233,7 @@ def param_dicts_to_df(mod_params_name, database):
 			discharge_descript2 = None
 			# append the two dfs (charge and discharge) before putting them in database
 		full_df_descript = pd.concat([charge_descript2, discharge_descript2], axis = 1)
-		dbfs.update_database_newtable(full_df_descript, mod_params_name +'-descriptors', database)
+		dbfs.update_database_newtable(full_df_descript, mod_params_name[:-9] +'-descriptors', database)
 	return
 
 def get_filename_pref(file_name):

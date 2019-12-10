@@ -29,7 +29,7 @@ from app_helper_functions import check_database_and_get_creds
 #Load Data
 ##########################################
 #eventually add everything in folder and create a dropdown that loads that data sinto data 
-database = 'dQdVDB_DONOTPUSH3.db'
+database = 'dQdVDB_NLTTurkey1.db'
 init_db = 'init_database.db'
 assert os.path.exists(init_db)	
 
@@ -219,12 +219,12 @@ app.layout = html.Div([
 																		 value = 'raw_data', labelStyle={'display': 'inline-block'},
 
 																		 )], style = {'display': 'inline-block'}),
-		dt.DataTable(
+		html.Div([dt.DataTable(
 			data = [],
-			selected_row_ids = [],
-			filter_action = 'native',
+			# selected_row_ids = [],
+			# filter_action = 'native',
 			id='datatable'
-			),
+			)]),
 		html.Div(id='selected-indexes'),
 		],
 		style={
@@ -266,6 +266,7 @@ def update_output(contents, filename, value):
 											windowlength, 
 											polyorder)])
 	except Exception as e: 
+		print(e)
 		return html.Div(['There was a problem uploading that file: ' + str(e)])
 	# return children
 
@@ -343,44 +344,43 @@ def update_slider_value(filename):
 
 
 
-@app.callback(
-		Output('datatable', 'selected_row_ids'),
-		[Input('charge-graph','clickData')],
-		[State('datatable','selected_row_ids')]
-		)
+# @app.callback(
+# 		Output('datatable', 'selected_row_ids'),
+# 		[Input('charge-graph','clickData')],
+# 		[State('datatable','selected_row_ids')]
+# 		)
 
-def update_selected_row_indices(clickData, selected_row_ids):
-	if clickData:
-		for point in clickData['points']:
-			if point['pointNumber'] in selected_row_ids:
-				selected_row_ids.remove(point['pointNumber'])
-			else:
-				selected_row_ids.append(point['pointNumber'])
-	return selected_row_ids
+# def update_selected_row_indices(clickData, selected_row_ids):
+# 	if clickData:
+# 		for point in clickData['points']:
+# 			if point['pointNumber'] in selected_row_ids:
+# 				selected_row_ids.remove(point['pointNumber'])
+# 			else:
+# 				selected_row_ids.append(point['pointNumber'])
+# 	return selected_row_ids
 
 @app.callback( 
 		Output('charge-graph','figure'),
 		[Input('cycle--slider','value'),
 		 Input('available-data', 'value'), 
-		 Input('show-model-fig1', 'value'), 
-		 Input('datatable','selected_row_ids')]
+		 Input('show-model-fig1', 'value')]
 		)
 
-def update_figure1(selected_step,filename, showmodel, selected_row_indices):
+def update_figure1(selected_step,filename, showmodel):
 	fig = plotly.subplots.make_subplots(
 	rows=1,cols=2,
 	subplot_titles=('Raw Cycle','Smoothed Cycle'),
 	shared_xaxes=True)
 	marker = {'color': ['#0074D9']}
-	if filename == None:
+	if filename == None or filename == 'options':
 		filename = 'ExampleData'
 		database_sel = init_db
 	else:
-		filename = filename	
 		database_sel = database
 	data, raw_data= pop_with_db(filename, database_sel)
 	datatype = data.loc[0,('datatype')]
-	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
+	(cycle_ind_col, data_point_col, volt_col, curr_col, \
+		dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	modset_name = filename.split('.')[0] + '-ModPoints'
 	df_model = dbw.dbfs.get_file_from_database(modset_name, database_sel)
 	if df_model is not None: 
@@ -399,9 +399,9 @@ def update_figure1(selected_step,filename, showmodel, selected_row_indices):
 		if df_model is not None:
 			dff_mod = filt_mod[filt_mod[cycle_ind_col] == i]
 
-
-		for i in (selected_row_indices or []):
-			marker['color'][i] = '#FF851B'
+		# marker['color'] = '#FF851B'
+		# for i in (selected_row_indices or []):
+		# 	marker['color'][i] = '#FF851B'
 		if data is not None:
 			fig.append_trace({
 				'x': dff[volt_col],
@@ -459,7 +459,6 @@ def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd
 		filename = 'ExampleData'
 		database_sel = init_db
 	else:
-		filename = filename	
 		database_sel = database
 	data, raw_data= pop_with_db(filename, database_sel)
 	datatype = data.loc[0,('datatype')]
@@ -596,13 +595,13 @@ def update_link(value):
 
 def update_table1(filename, data_to_show):
 	if filename == None:
-		filename = 'ExampleData'
-		database_sel = init_db
-	else:
-		filename = filename	
+		data = pd.DataFrame(columns = ['Voltage', 'dQ/dV'])
+		raw_data = data
+		peak_vals_df = data
+	elif filename is not None:
 		database_sel = database
-	data, raw_data = pop_with_db(filename, database_sel)
-	peak_vals_df = dbw.dbfs.get_file_from_database(filename.split('.')[0] + '-descriptors',database_sel)
+		data, raw_data = pop_with_db(filename, database_sel)
+		peak_vals_df = dbw.dbfs.get_file_from_database(dbw.get_filename_pref(filename) + '-descriptors', database_sel)
 	if data_to_show == 'raw_data':
 		return raw_data.to_dict('records')
 	elif data_to_show == 'clean_data':

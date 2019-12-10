@@ -179,7 +179,7 @@ def param_dicts_to_df(mod_params_name, database):
 		new_dict_df = pd.DataFrame(columns = new_dict_charge.keys())
 		for key1, val1 in new_dict_charge.items():
 			new_dict_df.at[0, key1] = new_dict_charge[key1]
-		charge_descript = pd.concat([charge_descript, new_dict_df])
+		charge_descript = pd.concat([charge_descript, new_dict_df], sort = True)
 		charge_descript = charge_descript.reset_index(drop = True)
 		charge_descript2 = descriptors.dfsortpeakvals(charge_descript, 'c')
 		# now the discharge
@@ -226,13 +226,13 @@ def param_dicts_to_df(mod_params_name, database):
 			new_dict_df_d = pd.DataFrame(columns = new_dict_discharge.keys())
 			for key1, val1 in new_dict_discharge.items():
 				new_dict_df_d.at[0, key1] = new_dict_discharge[key1]
-			discharge_descript = pd.concat([discharge_descript, new_dict_df_d])
+			discharge_descript = pd.concat([discharge_descript, new_dict_df_d], sort = True)
 			discharge_descript = discharge_descript.reset_index(drop = True)
 			discharge_descript2 = descriptors.dfsortpeakvals(discharge_descript, 'd')
 		else:
 			discharge_descript2 = None
 			# append the two dfs (charge and discharge) before putting them in database
-		full_df_descript = pd.concat([charge_descript2, discharge_descript2], axis = 1)
+		full_df_descript = pd.concat([charge_descript2, discharge_descript2], sort = True, axis = 1)
 		dbfs.update_database_newtable(full_df_descript, mod_params_name[:-9] +'-descriptors', database)
 	return
 

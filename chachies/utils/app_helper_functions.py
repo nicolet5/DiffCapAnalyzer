@@ -81,10 +81,16 @@ def decoded_to_dataframe(decoded, datatype, file_name):
 			data1 = pd.read_excel(io.BytesIO(decoded), 1)
 		data1['datatype'] = 'ARBIN'
 	elif datatype == 'MACCOR':
-		data1 = pd.read_csv(io.StringIO(decoded.decode('utf-8')), header = 12, delimiter='\t', index_col=False)
-		dataheader = pd.read_fwf(io.StringIO(decoded.decode('utf-8')), delimiter = '\t')
-		weight = float(dataheader.iloc[2][0].split('mg')[0].split('_')[1].replace('p', '.'))
-		data1['Const_Weight[mg]'] = weight
+		try: 
+			data1 = pd.read_csv(io.StringIO(decoded.decode('utf-8')), header = 12, delimiter='\t', index_col=False)
+			dataheader = pd.read_fwf(io.StringIO(decoded.decode('utf-8')), delimiter = '\t')
+			weight = float(dataheader.iloc[2][0].split('mg')[0].split('_')[1].replace('p', '.'))
+			data1['Const_Weight[mg]'] = weight
+		except Exception as e: 
+			data1 = pd.read_csv(io.StringIO(decoded.decode('utf-16')), header = 12, delimiter='\t', index_col=False)
+			dataheader = pd.read_fwf(io.StringIO(decoded.decode('utf-16')), delimiter = '\t')
+			weight = float(dataheader.iloc[2][0].split('mg')[0].split('_')[1].replace('p', '.'))
+			data1['Const_Weight[mg]'] = weight
 		#somehow set the Current column to negative when the 'Md' column has a D in it(current > 0 - charge)
 		data1['MaccCharLab'] = data1.apply(lambda row: macc_chardis(row), axis = 1)
 		data1['Current(A)'] = data1['Current [A]']*data1['MaccCharLab']
@@ -107,7 +113,8 @@ def pop_with_db(filename, database):
 		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
 		df_raw = dbw.dbfs.get_file_from_database(rawset_name, database)
 		datatype = df_clean.loc[0,('datatype')]
-		(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
+		(cycle_ind_col, data_point_col, volt_col, curr_col,\
+		 dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 
 	else:
 		df_clean = None
@@ -130,7 +137,7 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
 	windowlength = 9
 	polyorder = 3
 
-	i_charge, volts_i_ch, peak_heights_c = dbw.descriptors.fitters.peak_finder(clean_charge, 
+	i_charge, volts_i_ch, peak_heights_c = dbw.descriptors.peak_finder(clean_charge, 
 																			   'c', windowlength,
 																			    polyorder, 
 																			    datatype, 
@@ -139,8 +146,8 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
 
 	V_series_c = clean_charge[volt_col]
 	dQdV_series_c = clean_charge['Smoothed_dQ/dV']
-	par_c, mod_c, indices_c = dbw.descriptors.fitters.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, peak_thresh)
-	model_c = dbw.descriptors.fitters.model_eval(V_series_c, dQdV_series_c, 'c', par_c, mod_c)			
+	par_c, mod_c, indices_c = dbw.descriptors.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, peak_thresh)
+	model_c = dbw.descriptors.model_eval(V_series_c, dQdV_series_c, 'c', par_c, mod_c)			
 	if model_c is not None:
 		mod_y_c = mod_c.eval(params = model_c.params, x = V_series_c)
 		myseries_c = pd.Series(mod_y_c)
@@ -152,13 +159,13 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
 		new_df_mody_c = None
 		model_c_vals = None
 	# now the discharge: 
-	i_discharge, volts_i_dc, peak_heights_d= dbw.descriptors.fitters.peak_finder(clean_discharge, 'd',
+	i_discharge, volts_i_dc, peak_heights_d= dbw.descriptors.peak_finder(clean_discharge, 'd',
 																			     windowlength, polyorder, 
 																			     datatype, lenmax, peak_thresh)
 	V_series_d = clean_discharge[volt_col]
 	dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
-	par_d, mod_d, indices_d = dbw.descriptors.fitters.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, peak_thresh)
-	model_d = dbw.descriptors.fitters.model_eval(V_series_d, dQdV_series_d, 'd', par_d, mod_d)			
+	par_d, mod_d, indices_d = dbw.descriptors.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, peak_thresh)
+	model_d = dbw.descriptors.model_eval(V_series_d, dQdV_series_d, 'd', par_d, mod_d)			
 	if model_d is not None:
 		mod_y_d = mod_d.eval(params = model_d.params, x = V_series_d)
 		myseries_d = pd.Series(mod_y_d)

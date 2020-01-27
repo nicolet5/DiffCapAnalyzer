@@ -5,6 +5,7 @@ certifi==2019.11.28
 chardet==3.0.4
 Click==7.0
 colorama==0.4.3
+coverage==5.0.3
 cycler==0.10.0
 dash==1.8.0
 dash-core-components==1.7.0
@@ -32,6 +33,7 @@ pluggy==0.13.1
 py==1.8.1
 pyparsing==2.4.6
 pytest==5.3.4
+pytest-cov==2.8.1
 python-dateutil==2.8.1
 pytz==2019.3
 requests==2.22.0

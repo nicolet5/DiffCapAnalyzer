@@ -16,7 +16,7 @@ import pandas as pd
 
 
 test_db = 'test_db.db'
-test_filename = 'test_data.xlsx'
+test_filename = 'test_data.csv'
 test_datatype = 'ARBIN'
 test_username = 'Example User'
 decoded_dataframe = decoded_to_dataframe(None, test_datatype, test_filename)
@@ -88,7 +88,7 @@ def test_get_db_filenames():
 	"""Tests that the list of table names for one 
 	specific user are returned accurately"""
 	test_db = 'test_database.db'
-	test_filename1 = 'file1.xlsx'
+	test_filename1 = 'file1.csv'
 	decoded_dataframe1 = pd.DataFrame({'Cycle_Index': [1, 1, 2], 
 									  'Data_Point': [0, 1, 2], 
 									  'Voltage(V)': [0.3, 0.4, 0.5], 
@@ -99,7 +99,7 @@ def test_get_db_filenames():
 	test_datatype1 =  'ARBIN'
 	test_username1 = 'User1'
 
-	test_filename2 = 'file2.xlsx'
+	test_filename2 = 'file2.csv'
 	decoded_dataframe2 = pd.DataFrame({'Cycle_Index': [1, 1, 1], 
 								  'Data_Point': [10, 11, 12], 
 								  'Voltage(V)': [10.3, 10.4, 10.5], 
@@ -157,7 +157,7 @@ def test_get_filename_pref():
 	"""Tests that the filename to be attached to the file 
 	in the database is parsed out of the path and extension 
 	nicely."""
-	foo1 = 'Directory1/Directory2/anotherDirectory/real_filename.xlsx'
+	foo1 = 'Directory1/Directory2/anotherDirectory/real_filename.csv'
 	foo2 = 'dir100/myfilefoo.someextension'
 	foo3 = 'myfilename.csv'
 	foo4 = 'foo'

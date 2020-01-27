@@ -63,42 +63,77 @@ def parse_contents(decoded, filename, datatype, database, auth, windowlength = 9
 		return 'That file exists in the database: ' + str(dbw.get_filename_pref(filename))
 	else:
 		username = auth._username
-		# put decoded contents into df to pass to process_data
-		decoded_dataframe = decoded_to_dataframe(decoded, datatype, filename)
-		dbw.process_data(filename, database, decoded_dataframe, datatype, username, windowlength, polyorder)
-		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
-		new_peak_thresh = 0.7
-		feedback = generate_model(df_clean, filename, new_peak_thresh, database)
-		return 'New file has been processed: ' + str(dbw.get_filename_pref(filename))
+		try:
+			# put decoded contents into df to pass to process_data
+			decoded_dataframe = decoded_to_dataframe(decoded, datatype, filename)
+			dbw.process_data(filename, database, decoded_dataframe, datatype, username, windowlength, polyorder)
+			df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
+			new_peak_thresh = 0.7
+			feedback = generate_model(df_clean, filename, new_peak_thresh, database)
+			return 'New file has been processed: ' + str(dbw.get_filename_pref(filename))
+		except Exception: 
+			return 'There was a problem uploading that file. Check the format of the upload file is as expected.'
+
+# def decoded_to_dataframe_old(decoded, datatype, file_name): 
+# 	"""Decodes the contents uploaded via the app. Returns 
+# 	contents as a dataframe."""
+# 	if datatype == 'ARBIN':
+# 		if decoded is None:
+# 			data1 = pd.read_excel(file_name, 1)
+# 		else:
+# 			data1 = pd.read_excel(io.BytesIO(decoded), 1)
+# 		data1['datatype'] = 'ARBIN'
+# 		expected_cols = ['Cycle_Index', 'Voltage(V)', 'Current(A)', 'Charge_Capacity(Ah)', 'Discharge_Capacity(Ah)', 'Step_Index']
+# 		assert all(item in list(data1.columns) for item in expected_cols)
+# 	elif datatype == 'MACCOR':
+# 		try: 
+# 			data1 = pd.read_csv(io.StringIO(decoded.decode('utf-8')), delimiter='\t', index_col=False)
+# 			# data1 = pd.read_csv(io.StringIO(decoded.decode('utf-8')), header = 12, delimiter='\t', index_col=False)
+# 		except Exception as e: 
+# 			data1 = pd.read_csv(io.StringIO(decoded.decode('utf-16')), delimiter='\t', index_col=False)
+# 			# data1 = pd.read_csv(io.StringIO(decoded.decode('utf-16')), header = 12, delimiter='\t', index_col=False)
+# 		data1['MaccCharLab'] = data1.apply(lambda row: macc_chardis(row), axis = 1)
+# 		data1['Current(A)'] = data1['Current [A]']*data1['MaccCharLab']
+# 		data1['datatype'] = 'MACCOR'
+# 		expected_cols = ['Cycle C', 'Voltage [V]', 'Current [A]', 'Cap. [Ah]', 'Cap(Ah)', 'Md']
+# 		assert all(item in list(data1.columns) for item in expected_cols)
+# 		data1.rename(columns={'Cycle C': 'Cycle_Index', 'Voltage [V]': 'Voltage(V)', 'Current [A]': 'Abs_Current(A)', 'Cap. [Ah]': 'Cap(Ah)'}, inplace=True)
+# 	else: 
+# 		None	
+# 	return data1
 
 def decoded_to_dataframe(decoded, datatype, file_name): 
 	"""Decodes the contents uploaded via the app. Returns 
-	contents as a dataframe."""
-	if datatype == 'ARBIN':
-		if decoded is None:
-			data1 = pd.read_excel(file_name, 1)
-		else:
-			data1 = pd.read_excel(io.BytesIO(decoded), 1)
-		data1['datatype'] = 'ARBIN'
-	elif datatype == 'MACCOR':
+	contents as a dataframe. Accepts only csv files for 
+	both Arbin and MACCOR type data."""
+	if decoded is None:
 		try: 
-			data1 = pd.read_csv(io.StringIO(decoded.decode('utf-8')), header = 12, delimiter='\t', index_col=False)
-			dataheader = pd.read_fwf(io.StringIO(decoded.decode('utf-8')), delimiter = '\t')
-			weight = float(dataheader.iloc[2][0].split('mg')[0].split('_')[1].replace('p', '.'))
-			data1['Const_Weight[mg]'] = weight
-		except Exception as e: 
-			data1 = pd.read_csv(io.StringIO(decoded.decode('utf-16')), header = 12, delimiter='\t', index_col=False)
-			dataheader = pd.read_fwf(io.StringIO(decoded.decode('utf-16')), delimiter = '\t')
-			weight = float(dataheader.iloc[2][0].split('mg')[0].split('_')[1].replace('p', '.'))
-			data1['Const_Weight[mg]'] = weight
-		#somehow set the Current column to negative when the 'Md' column has a D in it(current > 0 - charge)
-		data1['MaccCharLab'] = data1.apply(lambda row: macc_chardis(row), axis = 1)
+			data1 = pd.read_csv(file_name, index_col = False)
+		except:  
+			data1 = pd.read_csv(file_name,  delimiter = '\t', index_col = False)	
+	else: 
+		try: 
+			contents = io.StringIO(decoded.decode('utf-8'))
+		except: 
+			contents = io.StringIO(decoded.decode('utf-16'))
+		try: 
+			data1 = pd.read_csv(contents, index_col=False)
+		except: 
+			data1 = pd.read_csv(contents, delimiter='\t', index_col=False)
+	if datatype == 'ARBIN': 
+		data1['datatype'] = 'ARBIN'
+		expected_cols = ['Cycle_Index', 'Voltage(V)', 'Current(A)', 'Charge_Capacity(Ah)', 'Discharge_Capacity(Ah)', 'Step_Index']
+		assert all(item in list(data1.columns) for item in expected_cols)
+	elif datatype == 'MACCOR':
+		data1['MaccCharLab'] = data1.apply(lambda row: dbw.macc_chardis(row), axis = 1)
 		data1['Current(A)'] = data1['Current [A]']*data1['MaccCharLab']
 		data1['datatype'] = 'MACCOR'
-
-		data1.rename(columns={'Cycle C': 'Cycle_Index', 'Voltage [V]': 'Voltage(V)', 'Current [A]': 'Abs_Current(A)', 'Cap. [Ah]': 'Cap(Ah)'}, inplace=True)
+		expected_cols = ['Cycle C', 'Voltage [V]', 'Current [A]', 'Cap. [Ah]', 'Md']
+		assert all(item in list(data1.columns) for item in expected_cols)
+		data1.rename(columns={'Cycle C': 'Cycle_Index', 'Voltage [V]': 'Voltage(V)', 
+			'Current [A]': 'Abs_Current(A)', 'Cap. [Ah]': 'Cap(Ah)'}, inplace=True)
 	else: 
-		None	
+		None
 	return data1
 
 def pop_with_db(filename, database):

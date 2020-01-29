@@ -23,46 +23,72 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     # Install this project using:
-    # $ pip install chachies
+    # $ pip install diffcapanalyzer
     #
-    # It lives on PyPI: https://pypi.org/project/chachies/
-    name='chachies',
+    # It lives on PyPI: https://pypi.org/project/DiffCapAnalyzer/
+    name='DiffCapAnalyzer',
 
     # Versions should comply with PEP 440:
     # https://www.python.org/dev/peps/pep-0440/
-    version='1.0',  # Required
+    version='0.9',  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#summary
-    description='Differential capacity plot visualization and machine learning model for battery chemistry classification',  # Required
-    url='https://github.com/tacohen/chachies',
-    author='The Charged Chinchillas',
+    description='A package for the quantitative analysis of differential capacity data!',  # Required
+    url='https://github.com/nicole5/DiffCapAnalyzer',
+    author='Nicole Thompson',
     packages=find_packages(),
 
-
     install_requires=[
-        'certifi==2018.1.18',
+        'asteval==0.9.18',
+        'atomicwrites==1.3.0',
+        'attrs==19.3.0',
+        'certifi==2019.11.28',
         'chardet==3.0.4',
-        'idna==2.6',
-        'lmfit==0.9.8',
-        'numpy==1.14.2',
-        'pandas==0.22.0',
-        'PeakUtils==1.1.1',
-        'python-dateutil==2.7.0',
-        'pytz==2018.3',
-        'requests==2.18.4',
-        'scikit-learn==0.19.1',
-        'scipy==1.0.0',
-        'six==1.11.0',
-        'sklearn==0.0',
-        'urllib3==1.22',
-        'xlrd==1.1.0',
-        'dash==0.21.0',  # The core dash backend
-        'dash-renderer==0.11.3',  # The dash front-end
-        'dash-html-components==0.9.0',  # HTML components
-        'dash-core-components==0.18.1',  # Supercharged components
-        'plotly==2.4.1',
+        'Click==7.0',
+        'colorama==0.4.3',
+        'coverage==5.0.3',
+        'cycler==0.10.0',
+        'dash==1.8.0',
+        'dash-core-components==1.7.0',
+        'dash-html-components==1.0.2',
+        'dash-renderer==1.2.3',
+        'dash-table==4.6.0',
+        'dash-table-experiments==0.6.0',
+        'Flask==1.1.1',
+        'Flask-Compress==1.4.0',
+        'future==0.18.2',
+        'idna==2.8',
+        'itsdangerous==1.1.0',
+        'Jinja2==2.10.3',
+        'kiwisolver==1.1.0',
+        'lmfit==1.0.0',
+        'MarkupSafe==1.1.1',
+        'matplotlib==3.1.2',
+        'more-itertools==8.1.0',
+        'numpy==1.18.1',
+        'packaging==20.1',
+        'pandas==0.25.3',
+        'PeakUtils==1.3.3',
+        'plotly==4.5.0',
+        'pluggy==0.13.1',
+        'py==1.8.1',
+        'pyparsing==2.4.6',
+        'pytest==5.3.4',
+        'pytest-cov==2.8.1',
+        'python-dateutil==2.8.1',
+        'pytz==2019.3',
+        'requests==2.22.0',
+        'retrying==1.3.3',
+        'scipy==1.4.1',
+        'six==1.14.0',
+        'ua-parser==0.8.0',
+        'uncertainties==3.1.2',
+        'urllib3==1.25.8',
+        'wcwidth==0.1.8',
+        'Werkzeug==0.16.0',
+        'wincertstore==0.2'
     ]
 
 )

@@ -25,11 +25,7 @@ from app_helper_functions import generate_model
 from app_helper_functions import check_database_and_get_creds
 
 
-##########################################
-#Load Data
-##########################################
-#eventually add everything in folder and create a dropdown that loads that data sinto data 
-database = 'dQdVDB_NLTTurkey1.db'
+database = 'dQdVDB_NLTTurkey4.db'
 init_db = 'init_database.db'
 assert os.path.exists(init_db)	
 
@@ -60,19 +56,18 @@ Introduction= dcc.Markdown('''
 
 app.layout = html.Div([
 	html.Div([
-		html.H1('Quantitative dQ/dV Analysis and Visualization'),
+		html.H1('Differential Capactiy Analyzer')
 		]),
 
 	html.Div([
-		html.Br(),
-		html.Div([html.H3('Choose existing data: '), 
+		html.Div([html.H5('Choose existing data: '), 
 		html.Div([html.Div([html.H6('Here are the files currently available in the database: ')],
 		style={'width': '90%', 'textAlign': 'left', 'margin-left':'50px'}),
 		html.Div([dcc.Dropdown(id ='available-data', options = [{'label':'options', 'value':'options'}])], style={'width': '80%', 'vertical-align':'center', 'margin-left': '50px'}),
 		html.Div(id = 'gen-desc-confirmation')])], style = {'width':'43%', 'display': 'inline-block', 'vertical-align': 'top'}),
 
-		html.Div([html.H3('Or load in your own data: '),
-		html.Div([html.Div([html.H5('1. Input your datatype: ')],style={'width': '40%', 'textAlign': 'left', 'display': 'inline-block', 'margin-left':'50px'}),
+		html.Div([html.H5('Or load in your own data: '),
+		html.Div([html.Div([html.H6('1. Input your datatype: ')],style={'width': '40%', 'textAlign': 'left', 'display': 'inline-block', 'margin-left':'50px'}),
 				html.Div([dcc.Dropdown(id='input-datatype', 
 					options =[{'label':'Arbin', 'value':'ARBIN'},{'label':'MACCOR', 'value':'MACCOR'}],  
 					placeholder='datatype')], 
@@ -80,7 +75,7 @@ app.layout = html.Div([
 				'margin-right': '10px', 'margin-left': '10px'})],
 				),
 
-		html.Div([html.Div([html.H5('2. Upload your data: ')], style={'width': '40%', 'textAlign': 'left', 'display': 'inline-block', 'margin-left':'50px'}), 
+		html.Div([html.Div([html.H6('2. Upload your data: ')], style={'width': '40%', 'textAlign': 'left', 'display': 'inline-block', 'margin-left':'50px'}), 
 				html.Div([dcc.Upload(
 				id='upload-data',
 				children=html.Div([
@@ -109,7 +104,6 @@ app.layout = html.Div([
 	]),
 
 	html.Div([
-		html.Br(),
 		html.Div([html.H6('Cycle Number')], style ={'textAlign': 'left'}),
 		dcc.Slider(
 			id='cycle--slider',
@@ -120,9 +114,8 @@ app.layout = html.Div([
 			included=True,
 			marks={str(each): str(each) for each in range(15)},
 			),
-		html.Br(),
-		html.Br(),
 		html.Div([html.Br()], style = {'width':'89%', 'display': 'inline-block'}),
+		html.Br(),
 		html.Div([dcc.RadioItems(id = 'show-model-fig1', options = [{'label': 'Show Model', 'value': 'showmodel'}, 
 																	{'label': 'Hide Model', 'value': 'hidemodel'},
 				], labelStyle = {'display': 'inline-block'}, value = 'showmodel')], style ={'width':'10%', 'textAlign': 'left', 'display':'inline-block'}),
@@ -134,7 +127,6 @@ app.layout = html.Div([
 		),
 
 	html.Div([
-		html.Br(),
 		dcc.Graph(id='charge-graph'), 
 		],
 		style={
@@ -145,70 +137,67 @@ app.layout = html.Div([
 		),
 	
 	html.Div([
+		html.Div([
 		html.H4(['Explore Descriptors']),
-	html.Div([
-	html.Div(['Specify charge/discharge, locations/areas/heights, and peak number(s).'], style = {'width':'75%', 'font-style': 'italic'}),
-	html.Br(), 
-	dcc.RadioItems(id = 'cd-to-plot', options=[ # 'sortedloc-c-1'
-			{'label': '(+) dQ/dV', 'value': 'c-'}, 
-			{'label': '(-) dQ/dV', 'value': 'd-'}
+		html.Div([
+		html.Div(['Specify charge/discharge, locations/areas/heights, and peak number(s).'], style = {'width':'75%', 'font-style': 'italic'}), 
+		dcc.RadioItems(id = 'cd-to-plot', options=[ 
+				{'label': '(+) dQ/dV', 'value': 'c-'}, 
+				{'label': '(-) dQ/dV', 'value': 'd-'}
+			],
+			value = 'c-', labelStyle={'display': 'inline-block'}),
+		dcc.RadioItems(id = 'desc-to-plot', options=[
+			{'label': 'Peak Locations', 'value': 'sortedloc-'}, 
+			{'label': 'Peak Areas', 'value': 'sortedarea-'},
+			{'label': 'Peak Height', 'value': 'sortedactheight-'},
 		],
-		value = 'c-', labelStyle={'display': 'inline-block'}),
-	html.Br(),
-	dcc.RadioItems(id = 'desc-to-plot', options=[
-		{'label': 'Peak Locations', 'value': 'sortedloc-'}, 
-		{'label': 'Peak Areas', 'value': 'sortedarea-'},
-		{'label': 'Peak Height', 'value': 'sortedactheight-'},
-	],
-	value = 'sortedloc-', labelStyle={'display': 'inline-block'}),
-	html.Br(), 
-	html.Div([dcc.Checklist(id = 'desc-peaknum-to-plot', 
-		options=[
-			{'label': 'Peak 1', 'value': '1'}, 
-			{'label': 'Peak 2', 'value': '2'},
-			{'label': 'Peak 3', 'value': '3'},
-			{'label': 'Peak 4', 'value': '4'},
-			{'label': 'Peak 5', 'value': '5'}, 
-			{'label': 'Peak 6', 'value': '6'}, 
-			{'label': 'Peak 7', 'value': '7'}, 
-			{'label': 'Peak 8', 'value': '8'}, 
-			{'label': 'Peak 9', 'value': '9'}, 
-			{'label': 'Peak 10', 'value': '10'},
-		],
-		value=['1'], labelStyle={'display': 'inline-block'})], style = {'width':'55%'}), 
-	html.Br(),
-	dcc.Checklist(id = 'show-gauss', 
-	options=[
-		{'label': 'Show Guassian Baseline', 'value': 'show'},
-	],
-	value=['show']),
+		value = 'sortedloc-', labelStyle={'display': 'inline-block'}),
+		html.Div([dcc.Checklist(id = 'desc-peaknum-to-plot', 
+			options=[
+				{'label': 'Peak 1', 'value': '1'}, 
+				{'label': 'Peak 2', 'value': '2'},
+				{'label': 'Peak 3', 'value': '3'},
+				{'label': 'Peak 4', 'value': '4'},
+				{'label': 'Peak 5', 'value': '5'}, 
+				{'label': 'Peak 6', 'value': '6'}, 
+				{'label': 'Peak 7', 'value': '7'}, 
+				{'label': 'Peak 8', 'value': '8'}, 
+				{'label': 'Peak 9', 'value': '9'}, 
+				{'label': 'Peak 10', 'value': '10'},
+			],
+			value=['1'], labelStyle={'display': 'inline-block'})], style = {'width':'80%'}), 
 
-	]),
-	], style = {'display': 'inline-block', 'width':'49%', 'margin':'10px'}), 
-
-	html.Div([
-		html.H4(['Update Model']),
-	html.Div(['New Peak Detection Threshold (default is 0.7, must be between 0 and 1): ']), 
-	html.Div([dcc.Input(id = 'new-peak-threshold', placeholder = 'threshold for peak detection')]),
-	html.Br(), 
-
-	html.Div(['After updating the threshold, you can update the preview of the model'+
-		' and then update the database once the model appears to be optimal.'], style={'font-style':'italic'}), 
-	html.Br(), 
-	html.Div(id = 'update-model-ans'),
-	html.Button('Update Preview of Model', id = 'update-model-button'),
-	html.Button('Update Model in Database', id = 'update-model-indb-button'),
-	], style = {'display':'inline-block', 'width':'49%'}),    
-
-	html.Div([
+		]),
 		html.Br(),
-		dcc.Graph(id='model-graph'), 
-		],style={
-			'columnCount': 1,
-			'width':'98%',
-			'height': '80%',
-			}
-		),
+		html.Br(),
+		], style = {'display': 'inline-block', 'width':'49%', 'margin':'10px'}), 
+
+		html.Div([
+			html.H4(['Update Model']),
+		html.Div(['New Peak Detection Threshold (default is 0.7, must be between 0 and 1): ']), 
+		html.Div([dcc.Input(id = 'new-peak-threshold', placeholder = 'threshold for peak detection')]),
+
+		html.Div(['After updating the threshold, you can update the preview of the model'+
+			' and then update the database once the model appears to be optimal.'], style={'font-style':'italic'}), 
+		html.Div(id = 'update-model-ans'),
+		html.Button('Update Preview of Model', id = 'update-model-button'),
+		html.Button('Update Model in Database', id = 'update-model-indb-button'),
+		html.Div([dcc.Checklist(id = 'show-gauss', 
+			options=[
+				{'label': 'Show Guassian Baseline', 'value': 'show'},
+			],
+			value=['show'])]),
+		], style = {'display':'inline-block', 'width':'49%'}),
+   
+		html.Div([
+			dcc.Graph(id='model-graph'), 
+			],style={
+				'columnCount': 1,
+				'width':'98%',
+				'height': '80%',
+				}
+			),
+		]),
 
 	html.Div([
 		html.A('Download Peak Descriptors CSV', download = "descriptors.csv", id = 'my-link'),
@@ -221,8 +210,6 @@ app.layout = html.Div([
 																		 )], style = {'display': 'inline-block'}),
 		html.Div([dt.DataTable(
 			data = [],
-			# selected_row_ids = [],
-			# filter_action = 'native',
 			id='datatable'
 			)]),
 		html.Div(id='selected-indexes'),
@@ -233,9 +220,6 @@ app.layout = html.Div([
 			},
 		), 
 	html.Div(id='hidden-div', style={'display':'none'}) 
-	#this is so we can have a callback to run the process data function on the raw data inputted
-
-
 ])
 
 ##########################################
@@ -281,7 +265,7 @@ def update_dropdown(children):
 			  [Input('available-data', 'value'), 
 			   Input('update-model-indb-button', 'n_clicks'), 
 			   Input('new-peak-threshold', 'value')])
-def update_model_indb(filename, n_clicks, new_peak_thresh): #new_charge_vals, new_discharge_vals,
+def update_model_indb(filename, n_clicks, new_peak_thresh): 
 	if n_clicks is not None:
 		int_list_c = []
 		int_list_d = []
@@ -309,10 +293,9 @@ def update_slider_max(filename):
 	data, raw_data= pop_with_db(filename, database_sel)
 	datatype = data.loc[0,('datatype')]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
-	# slidmax = data['Cycle_Index'].max()
 	return data['Cycle_Index'].max()
 
-@app.callback(#update slider marks
+@app.callback(
 	Output('cycle--slider', 'marks'), 
 	[Input('available-data', 'value')])
 
@@ -326,7 +309,7 @@ def update_slider_marks(filename):
 	data, raw_data= pop_with_db(filename, database_sel)
 	return {str(each): str(each) for each in data['Cycle_Index'].unique()}
 
-@app.callback( #update slider 
+@app.callback(
 	Output('cycle--slider', 'value'),
 	[Input('available-data', 'value')])
 
@@ -342,23 +325,6 @@ def update_slider_value(filename):
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 
 	return data['Cycle_Index'].max()
-
-
-
-# @app.callback(
-# 		Output('datatable', 'selected_row_ids'),
-# 		[Input('charge-graph','clickData')],
-# 		[State('datatable','selected_row_ids')]
-# 		)
-
-# def update_selected_row_indices(clickData, selected_row_ids):
-# 	if clickData:
-# 		for point in clickData['points']:
-# 			if point['pointNumber'] in selected_row_ids:
-# 				selected_row_ids.remove(point['pointNumber'])
-# 			else:
-# 				selected_row_ids.append(point['pointNumber'])
-# 	return selected_row_ids
 
 @app.callback( 
 		Output('charge-graph','figure'),
@@ -400,9 +366,6 @@ def update_figure1(selected_step,filename, showmodel):
 		if df_model is not None:
 			dff_mod = filt_mod[filt_mod[cycle_ind_col] == i]
 
-		# marker['color'] = '#FF851B'
-		# for i in (selected_row_indices or []):
-		# 	marker['color'][i] = '#FF851B'
 		if data is not None:
 			fig.append_trace({
 				'x': dff[volt_col],
@@ -428,7 +391,6 @@ def update_figure1(selected_step,filename, showmodel):
 				}, 1,2)
 		
 		fig['layout']['showlegend'] = False
-		#fig['layout']['shapes'] = shapes
 		fig['layout']['xaxis1'].update(title = 'Voltage (V)')
 		fig['layout']['xaxis2'].update(title = 'Voltage (V)')
 		fig['layout']['yaxis1'].update(title = 'dQ/dV')
@@ -620,8 +582,8 @@ def update_table1(filename, data_to_show):
 #Customize CSS
 ##########################################
 
-# app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
+app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
 
 if __name__ == '__main__':
 	#server.run(debug=True)
-	app.run_server(debug=True)
+	app.run_server(debug=False)

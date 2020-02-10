@@ -8,7 +8,7 @@ Additionally, some machine learning was done to classify between two different c
 
 ### How to Install (TODO)
 ```
-pip install chachies   
+pip install chachies  
 ```
 ### Software Dependencies 
 - Python3 

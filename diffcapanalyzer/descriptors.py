@@ -282,14 +282,7 @@ def model_gen(V_series, dQdV_series, cd, i, cyc, thresh):
         print(notice)
         base_mod = models.GaussianModel(prefix = 'base_')
         mod = base_mod
-        # changed from PolynomialModel to Gaussian on 10-10-18
-        # Gaussian params are A, mew, and sigma
-        # sets polynomial parameters based on a
-        # guess of a polynomial fit to the data with no peaks
-        #mod.set_param_hint('base_amplitude', min = 0)
-        #mod.set_param_hint('base_sigma', min = 0.001)
         par = mod.make_params()
-    # iterates over all peak indices
     else:
         # have to convert from inputted voltages to indices of peaks within sigx_bot
         user_appended_ind = []
@@ -308,22 +301,13 @@ def model_gen(V_series, dQdV_series, cd, i, cyc, thresh):
             gaus_loop = models.PseudoVoigtModel(prefix=comb)
             if count == 0:
                 mod = gaus_loop 
-                #mod.set_param_hint(amplitude, min = 0.001)
                 par = mod.make_params()
-                #par = mod.guess(sigy_bot_new, x=sigx_bot_new)
                 count = count + 1
             else: 
                 mod = mod + gaus_loop
-                #gaus_loop.set_param_hint(amplitude, min = 0.001)
                 par.update(gaus_loop.make_params())
                 count = count + 1 
-
-            # uses unique parameter strings to generate parameters
-            # with initial guesses
-            # in this model, the center of the peak is locked at the
-            # peak location determined from PeakUtils
             par[center].set(sigx_bot_new[index], vary=False)
-                # don't allow the centers of the peaks found by peakutsils to vary 
             par[sigma].set((np.max(sigx_bot_new)-np.min(sigx_bot_new))/100)
             par[amplitude].set((np.mean(sigy_bot_new))/50, min=0)
             par[fraction].set(.5, min=0, max=1)
@@ -336,17 +320,7 @@ def model_gen(V_series, dQdV_series, cd, i, cyc, thresh):
         # these are initial guesses for the base
         base_par['base_center'].set(np.mean(sigx_bot_new))
         base_par['base_sigma'].set((np.max(sigx_bot_new)-np.min(sigx_bot_new))/2)
-        # changed from PolynomialModel to Gaussian on 10-10-18
-        # Gaussian params are A, mew, and sigma
-        # sets polynomial parameters based on a
-        # guess of a polynomial fit to the data with no peaks
-        #base_mod.set_param_hint('base_amplitude', min = 0)
-        #base_mod.set_param_hint('base_sigma', min = 0.001)
         par.update(base_par)
-    #mod.set_param_hint('base_height', min = 0, max = 0.01) 
-
-    #par = mod.guess(sigy_bot_new, x=sigx_bot_new)
-    #print(cyc)
     return par, mod, i
 
 def model_eval(V_series, dQdV_series, cd, par, mod):
@@ -368,20 +342,8 @@ def model_eval(V_series, dQdV_series, cd, par, mod):
         sigy_bot_new = sigy_bot[::-1]
 
     try: 
-        # set the max of the gaussian to be smaller than the smallest peak 
-        #par['base_sigma'].set(min = float(par[smallest_peak]))
-        # max_height = max(sigy_bot_new) - min(sigy_bot_new)*thresh + min(sigy_bot_new)
-        # #par['base_height'].set(max = float(par[smallest_peak]))
-        # par['base_height']
-        # par['base_amplitude'].set(max = max_height*2.506*par['base_sigma'])
-        # this is a problem because its setting the max not as a relationship but as a float depending 
-        # what each par is at this moment (unoptimiza)
-        #par['base_amplitude'].set(max = ((2*3.14159)**0.5)*float(par[smallest_peak])*par['base_sigma'])
-
-        #par['base_amplitude'].set(max = (((2*3.14159)**0.5)*max_height*par['base_sigma']))
         model = mod.fit(sigy_bot_new, params = par, x=sigx_bot_new)
-    except Exception as E:
-        print(E)
+    except Exception:
         model = None
     return model
 

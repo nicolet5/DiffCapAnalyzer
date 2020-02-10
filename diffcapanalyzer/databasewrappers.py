@@ -19,20 +19,15 @@ def process_data(file_name, database_name, decoded_dataframe,
 	gets the descriptors, saves descriptors for each cycle
 	into database, puts cycles back together, and then saves
 	resulting cleaned data. """
-
 	if not os.path.exists(database_name): 
-		print('That database does not exist-creating it now.')
 		dbfs.init_master_table(database_name)
 	names_list = get_table_names(database_name)
 	core_file_name = get_filename_pref(file_name)
-	if core_file_name + 'Raw' in names_list: 
-		print('That file name has already been uploaded into the database.')
+	if core_file_name + 'CleanSet' in names_list: 
+		return 
 	else:
-		print('Processing that data')	
 		parse_update_master(core_file_name, database_name, 
 							datatype, decoded_dataframe, username)
-		# this takes the info from the filename and updates the master table in the database. 
-		# this also adds the raw data fram into the database
 		cycle_dict = ccf.load_sep_cycles(core_file_name, 
 										 database_name, 
 										 datatype)
@@ -108,7 +103,11 @@ def get_db_filenames(database_name, username):
 		# to sign in 
 		names_list.append(row[0])
 	con.close()
-	return names_list
+	exists_list = []
+	for name in names_list: 
+		if if_file_exists_in_db(database_name, name):
+			exists_list.append(name)
+	return exists_list
 
 
 def my_pseudovoigt(x, cent, amp, fract, sigma): 

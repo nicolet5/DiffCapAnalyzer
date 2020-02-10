@@ -25,8 +25,8 @@ from app_helper_functions import generate_model
 from app_helper_functions import check_database_and_get_creds
 
 
-database = 'dQdVDB_NLTTurkey4.db'
-init_db = 'init_database.db'
+database = '../data/databases/dQdV.db'
+init_db = '../data/databases/init_database.db'
 assert os.path.exists(init_db)	
 
 
@@ -80,8 +80,7 @@ app.layout = html.Div([
 				id='upload-data',
 				children=html.Div([
 					'Drag and Drop or ',
-					html.A('Select Files'),
-					dcc.Loading(id="loading-1", children=[html.Div(id="loading-output-1")], type="default")]),
+					html.A('Select Files')]),
 				style={
 					'width': '98%',
 					'height': '60px',
@@ -93,10 +92,10 @@ app.layout = html.Div([
 					#'margin': '10px'
 				},
 				multiple=False)], style= {'width': '40.2%', 'display': 'inline-block', 'margin-right': '10px', 'margin-left': '10px'}),
-				html.Div(id = 'output-data-upload', style={'margin-left':'50px', 'font-size': '20px'}),
+				html.Div([dcc.Loading(id="loading-1", children=[html.Div(id='output-data-upload')], type="default")], style={'margin-left':'50px', 'font-size': '20px'}),
 				html.Div(['Note: data will be saved in database with the original filename.'],
 					style={'margin-left':'50px', 'font-style':'italic'}), 
-				html.Div(['Once data is uploaded, refresh this page and select the new data from the dropdown menu to the left.'],
+				html.Div(['Once data is uploaded, select the new data from the dropdown menu to the left (refresh the page if necessary).'],
 					style={'margin-left':'50px', 'font-style': 'italic'})],
 				)], style = {'width': '55%', 'display': 'inline-block'}),
 			
@@ -291,7 +290,7 @@ def update_slider_max(filename):
 		filename = filename	
 		database_sel = database
 	data, raw_data= pop_with_db(filename, database_sel)
-	datatype = data.loc[0,('datatype')]
+	datatype = data['datatype'].iloc[0]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	return data['Cycle_Index'].max()
 
@@ -321,7 +320,7 @@ def update_slider_value(filename):
 		filename = filename	
 		database_sel = database
 	data, raw_data = pop_with_db(filename, database_sel)
-	datatype = data.loc[0,('datatype')]
+	datatype = data['datatype'].iloc[0]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 
 	return data['Cycle_Index'].max()
@@ -345,7 +344,7 @@ def update_figure1(selected_step,filename, showmodel):
 	else:
 		database_sel = database
 	data, raw_data= pop_with_db(filename, database_sel)
-	datatype = data.loc[0,('datatype')]
+	datatype = data['datatype'].iloc[0]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, \
 		dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	modset_name = filename.split('.')[0] + '-ModPoints'
@@ -424,7 +423,7 @@ def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd
 	else:
 		database_sel = database
 	data, raw_data= pop_with_db(filename, database_sel)
-	datatype = data.loc[0,('datatype')]
+	datatype = data['datatype'].iloc[0]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, \
 		char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	selected_step = round(data[cycle_ind_col].max()/2) +1 
@@ -469,17 +468,24 @@ def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd
 			filtpeakvals = peak_vals_df[peak_vals_df['c_cycle_number'] == selected_step]
 			filtpeakvals = filtpeakvals.reset_index(drop = True)
 			# grab values for the underlying gaussian in the charge: 
-			c_sigma = filtpeakvals.loc[0,('c_gauss_sigma')]
-			c_center = filtpeakvals.loc[0, ('c_gauss_center')]
-			c_amplitude = filtpeakvals.loc[0, ('c_gauss_amplitude')]
-			c_fwhm = filtpeakvals.loc[0, ('c_gauss_fwhm')]
-			c_height = filtpeakvals.loc[0, ('c_gauss_height')]
+			try: 
+				c_sigma = filtpeakvals['c_gauss_sigma'].iloc[0]
+				c_center = filtpeakvals['c_gauss_center'].iloc[0]
+				c_amplitude = filtpeakvals['c_gauss_amplitude'].iloc[0]
+				c_fwhm = filtpeakvals['c_gauss_fwhm'].iloc[0]
+				c_height = filtpeakvals['c_gauss_height'].iloc[0]
+			except: 
+				# there may not be a model 
+				pass
 			# grab values for the underlying discharge gaussian: 
-			d_sigma = filtpeakvals.loc[0,('d_gauss_sigma')]
-			d_center = filtpeakvals.loc[0, ('d_gauss_center')]
-			d_amplitude = filtpeakvals.loc[0, ('d_gauss_amplitude')]
-			d_fwhm = filtpeakvals.loc[0, ('d_gauss_fwhm')]
-			d_height = filtpeakvals.loc[0, ('d_gauss_height')]
+			try: 
+				d_sigma = filtpeakvals['d_gauss_sigma'].iloc[0]
+				d_center = filtpeakvals['d_gauss_center'].iloc[0]
+				d_amplitude = filtpeakvals['d_gauss_amplitude'].iloc[0]
+				d_fwhm = filtpeakvals['d_gauss_fwhm'].iloc[0]
+				d_height = filtpeakvals['d_gauss_height'].iloc[0]
+			except: 
+				pass
 			
 		fig.append_trace({
 			'x': dff_data[volt_col],
@@ -509,19 +515,25 @@ def update_figure2(filename, peak_thresh, n_clicks, show_gauss, desc_to_plot, cd
 			}, 1,2)
 	   # add if checkbox is selected to show polynomial baseline 
 		if 'show' in show_gauss: 
-			fig.append_trace({
-				'x': dff_mod[volt_col],
-				'y': ((c_amplitude/(c_sigma*((2*3.14159)**0.5)))*np.exp((-(dff_mod[volt_col] - c_center)**2)/(2*c_sigma**2))),
-				'type': 'scatter',
-				'name':'Charge Gaussian Baseline' # plot the poly
-				}, 1,2)
+			try: 
+				fig.append_trace({
+					'x': dff_mod[volt_col],
+					'y': ((c_amplitude/(c_sigma*((2*3.14159)**0.5)))*np.exp((-(dff_mod[volt_col] - c_center)**2)/(2*c_sigma**2))),
+					'type': 'scatter',
+					'name':'Charge Gaussian Baseline' # plot the poly
+					}, 1,2)
+			except: 
+				pass
 			# add the plot of the discharge guassian:
-			fig.append_trace({
-				'x': dff_mod[volt_col],
-				'y': -((d_amplitude/(d_sigma*((2*3.14159)**0.5)))*np.exp((-(dff_mod[volt_col] - d_center)**2)/(2*d_sigma**2))),
-				'type': 'scatter',
-				'name':'Discharge Gaussian Baseline' # plot the poly
-				}, 1,2)
+			try:
+				fig.append_trace({
+					'x': dff_mod[volt_col],
+					'y': -((d_amplitude/(d_sigma*((2*3.14159)**0.5)))*np.exp((-(dff_mod[volt_col] - d_center)**2)/(2*d_sigma**2))),
+					'type': 'scatter',
+					'name':'Discharge Gaussian Baseline' # plot the poly
+					}, 1,2)
+			except: 
+				pass
 
 	fig['layout']['showlegend'] = True
 	fig['layout']['xaxis1'].update(title = 'Cycle Number')
@@ -582,8 +594,8 @@ def update_table1(filename, data_to_show):
 #Customize CSS
 ##########################################
 
-app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
+# app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
+# app.scripts.config.serve_locally = False
 
 if __name__ == '__main__':
-	#server.run(debug=True)
-	app.run_server(debug=False)
+	app.run_server(debug=True)

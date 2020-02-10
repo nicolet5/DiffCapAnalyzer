@@ -64,15 +64,14 @@ def parse_contents(decoded, filename, datatype, database, auth, windowlength = 9
 	else:
 		username = auth._username
 		try:
-			# put decoded contents into df to pass to process_data
 			decoded_dataframe = decoded_to_dataframe(decoded, datatype, filename)
 			dbw.process_data(filename, database, decoded_dataframe, datatype, username, windowlength, polyorder)
 			df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
 			new_peak_thresh = 0.7
 			feedback = generate_model(df_clean, filename, new_peak_thresh, database)
 			return 'New file has been processed: ' + str(dbw.get_filename_pref(filename))
-		except Exception: 
-			return 'There was a problem uploading that file. Check the format of the upload file is as expected.'
+		except Exception as e: 
+			return 'There was a problem uploading that file. Check the format of the upload file is as expected.' + str(e)
 
 def decoded_to_dataframe(decoded, datatype, file_name): 
 	"""Decodes the contents uploaded via the app. Returns 
@@ -119,7 +118,7 @@ def pop_with_db(filename, database):
 		# then the file exists in the database and we can just read it 
 		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
 		df_raw = dbw.dbfs.get_file_from_database(rawset_name, database)
-		datatype = df_clean.loc[0,('datatype')]
+		datatype = df_clean['datatype'].iloc[0]
 		(cycle_ind_col, data_point_col, volt_col, curr_col,\
 		 dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 
@@ -196,7 +195,7 @@ def generate_model(df_clean, filename, peak_thresh, database):
 	and adds them to the database with three new tables 
 	with the suffices: '-ModPoints', 'ModParams', 
 	and '-descriptors'."""
-	datatype = df_clean.loc[0,('datatype')]
+	datatype = df_clean['datatype'].iloc[0]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, \
 		dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
 	chargeloc_dict = {}

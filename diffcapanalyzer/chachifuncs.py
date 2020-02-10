@@ -194,7 +194,7 @@ def sep_char_dis(df_dqdv, datatype):
 def clean_charge_discharge_separately(cd_df, datatype): 
 	(cycle_ind_col, data_point_col, volt_col, curr_col, \
 	dis_cap_col, char_cap_col,charge_or_discharge) = col_variables(datatype)
-	cd_df['dV'].iloc[1:]= cd_df[volt_col].diff()
+	cd_df['dV'].iloc[1:]= cd_df[volt_col].diff().iloc[1:]
 	num_negs_dv = len(cd_df.loc[(cd_df['dV'] < 0)])
 	num_pos_dv = len(cd_df.loc[(cd_df['dV'] > 0)])
 	while (num_negs_dv != 0) and (num_pos_dv != 0): 
@@ -204,7 +204,7 @@ def clean_charge_discharge_separately(cd_df, datatype):
 			cd_df = cd_df.loc[(cd_df['dV'] < 0)]
 		else: 
 			cd_df = cd_df.loc[(cd_df['dV'] >= 0)]
-		cd_df['dV'].iloc[1:]= cd_df[volt_col].diff()
+		cd_df['dV'].iloc[1:]= cd_df[volt_col].diff().iloc[1:]
 		num_negs_dv = len(cd_df.loc[(cd_df['dV'] < 0)])
 		num_pos_dv = len(cd_df.loc[(cd_df['dV'] > 0)])
 	cd_df = cd_df.reset_index(drop=True)

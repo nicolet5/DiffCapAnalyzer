@@ -5,12 +5,12 @@ import pandas as pd
 from pandas import ExcelWriter
 import pandas.io.sql as pd_sql
 import sqlite3 as sql
-import chachifuncs as ccf
-import descriptors
-import databasefuncs as dbfs
 import scipy
 import numpy as np
 
+from diffcapanalyzer.chachifuncs import load_sep_cycles, get_clean_cycles, get_clean_sets, calc_dq_dqdv
+from diffcapanalyzer.descriptors import dfsortpeakvals
+from diffcapanalyzer.databasefuncs import init_master_table, update_database_newtable, update_master_table, get_file_from_database
 
 def process_data(file_name, database_name, decoded_dataframe, 
 				 datatype, username, windowlength = 9,
@@ -20,7 +20,7 @@ def process_data(file_name, database_name, decoded_dataframe,
 	into database, puts cycles back together, and then saves
 	resulting cleaned data. """
 	if not os.path.exists(database_name): 
-		dbfs.init_master_table(database_name)
+		init_master_table(database_name)
 	names_list = get_table_names(database_name)
 	core_file_name = get_filename_pref(file_name)
 	if core_file_name + 'CleanSet' in names_list: 
@@ -28,16 +28,16 @@ def process_data(file_name, database_name, decoded_dataframe,
 	else:
 		parse_update_master(core_file_name, database_name, 
 							datatype, decoded_dataframe, username)
-		cycle_dict = ccf.load_sep_cycles(core_file_name, 
+		cycle_dict = load_sep_cycles(core_file_name, 
 										 database_name, 
 										 datatype)
-		clean_cycle_dict= ccf.get_clean_cycles(cycle_dict,
+		clean_cycle_dict= get_clean_cycles(cycle_dict,
 											   core_file_name, 
 											   database_name, 
 											   datatype,
 											   windowlength, 
 											   polyorder)
-		clean_set_df = ccf.get_clean_sets(clean_cycle_dict,
+		clean_set_df = get_clean_sets(clean_cycle_dict,
 										  core_file_name,
 										  database_name)
 	return
@@ -49,12 +49,12 @@ def parse_update_master(core_file_name, database_name, datatype, decoded_datafra
 	updates the master table with prefixes useful for accessing 
 	that data related to the file uploaded."""
 	# name = get_filename_pref(file_name)
-	dbfs.update_database_newtable(decoded_dataframe,
+	update_database_newtable(decoded_dataframe,
 								  core_file_name + 'UnalteredRaw', 
 								  database_name)
 
-	data = ccf.calc_dq_dqdv(decoded_dataframe, datatype)
-	dbfs.update_database_newtable(data, core_file_name + 'Raw', 
+	data = calc_dq_dqdv(decoded_dataframe, datatype)
+	update_database_newtable(data, core_file_name + 'Raw', 
 								  database_name)
 	update_dict ={'Dataset_Name': core_file_name,
 				  'Raw_Data_Prefix': core_file_name +'Raw',
@@ -65,7 +65,7 @@ def parse_update_master(core_file_name, database_name, datatype, decoded_datafra
 				  'Model_Points_Prefix': core_file_name + '-ModPoints', 
 				  'Raw_Cycle_Prefix': core_file_name + '-Cycle', 
 				  'Original_Data_Prefix': core_file_name + 'UnalteredRaw'}
-	dbfs.update_master_table(update_dict, database_name, username)
+	update_master_table(update_dict, database_name, username)
 	return
 
 def macc_chardis(row):
@@ -122,7 +122,7 @@ def param_dicts_to_df(mod_params_name, database):
 	"""Uses the already generated parameter dictionaries stored in the filename+ModParams 
 	datatable in the database, to add in the dictionary data table with those parameter
 	dictionaries formatted nicely into one table. """
-	mod_params_df = dbfs.get_file_from_database(mod_params_name, database)
+	mod_params_df = get_file_from_database(mod_params_name, database)
 	charge_descript = pd.DataFrame()
 	discharge_descript = pd.DataFrame()
 	for i in range(len(mod_params_df)):
@@ -135,9 +135,7 @@ def param_dicts_to_df(mod_params_name, database):
 		if param_dict_charge is not None:
 			for key, value in param_dict_charge.items(): 
 				if '_amplitude' in key and not 'base_' in key:
-					#print(int(key.split('_')[0].split('a')[1]))
 					charge_keys.append(key.split('_')[0])
-			#print(charge_keys) 
 			new_dict_charge.update({'c_gauss_sigma': param_dict_charge['base_sigma'], # changed from c0- c4  to base_ .. 10-10-18
 							 'c_gauss_center': param_dict_charge['base_center'],
 							 'c_gauss_amplitude': param_dict_charge['base_amplitude'], 
@@ -145,8 +143,6 @@ def param_dicts_to_df(mod_params_name, database):
 							 'c_gauss_height': param_dict_charge['base_height'], 
 							 })
 			new_dict_charge.update({'c_cycle_number': float(mod_params_df.loc[i, ('Cycle')])})
-			#new_dict.update({'charge/discharge': mod_params_df.loc[i, ('C/D')], 
-							 #'cycle_number': float(mod_params_df.loc[i, ('Cycle')])})
 		peaknum = 0
 		for item in charge_keys:
 			peaknum = peaknum +1 
@@ -157,7 +153,6 @@ def param_dicts_to_df(mod_params_name, database):
 			height = param_dict_charge[item + '_height']
 			fwhm = param_dict_charge[item + '_fwhm']
 			raw_peakheight = charge_peak_heights[peaknum-1]
-			#print('center' + str(center))
 			PeakArea, PeakAreaError = scipy.integrate.quad(my_pseudovoigt,
 														   0.0, 
 														   100, 
@@ -165,7 +160,6 @@ def param_dicts_to_df(mod_params_name, database):
 														   	     amp, 
 														   	     fract, 
 														   	     sigma))
-			#print('peak location is : ' + str(center) + ' Peak area is: ' + str(PeakArea))
 			new_dict_charge.update({'c_area_peak_'+str(peaknum): PeakArea, 
 							 'c_center_peak_' +str(peaknum):center, 
 							 'c_amp_peak_' +str(peaknum):amp,
@@ -174,22 +168,17 @@ def param_dicts_to_df(mod_params_name, database):
 							 'c_height_peak_' +str(peaknum):height, 
 							 'c_fwhm_peak_' +str(peaknum):fwhm, 
 							 'c_rawheight_peak_' + str(peaknum):raw_peakheight})      
-		#print(new_dict)
 		new_dict_df = pd.DataFrame(columns = new_dict_charge.keys())
 		for key1, val1 in new_dict_charge.items():
 			new_dict_df.at[0, key1] = new_dict_charge[key1]
 		charge_descript = pd.concat([charge_descript, new_dict_df], sort = True)
 		charge_descript = charge_descript.reset_index(drop = True)
-		charge_descript2 = descriptors.dfsortpeakvals(charge_descript, 'c')
-		# now the discharge
-
+		charge_descript2 = dfsortpeakvals(charge_descript, 'c')
 		discharge_keys =[]
 		if param_dict_discharge is not None:
 			for key, value in param_dict_discharge.items(): 
 				if '_amplitude' in key and not 'base_' in key:
-					#print(int(key.split('_')[0].split('a')[1]))
 					discharge_keys.append(key.split('_')[0])
-			#print(charge_keys) 
 			new_dict_discharge = {}
 			new_dict_discharge.update({'d_gauss_sigma': param_dict_discharge['base_sigma'], # changed 10-10-18
 							 'd_gauss_center': param_dict_discharge['base_center'],
@@ -198,8 +187,6 @@ def param_dicts_to_df(mod_params_name, database):
 							 'd_gauss_height': param_dict_discharge['base_height'], 
 							 })
 			new_dict_discharge.update({'d_cycle_number': float(mod_params_df.loc[i, ('Cycle')])})
-			#new_dict.update({'charge/discharge': mod_params_df.loc[i, ('C/D')], 
-								 #'cycle_number': float(mod_params_df.loc[i, ('Cycle')])})
 			peaknum = 0
 			for item in discharge_keys:
 				peaknum = peaknum +1 
@@ -227,12 +214,12 @@ def param_dicts_to_df(mod_params_name, database):
 				new_dict_df_d.at[0, key1] = new_dict_discharge[key1]
 			discharge_descript = pd.concat([discharge_descript, new_dict_df_d], sort = True)
 			discharge_descript = discharge_descript.reset_index(drop = True)
-			discharge_descript2 = descriptors.dfsortpeakvals(discharge_descript, 'd')
+			discharge_descript2 = dfsortpeakvals(discharge_descript, 'd')
 		else:
 			discharge_descript2 = None
 			# append the two dfs (charge and discharge) before putting them in database
 		full_df_descript = pd.concat([charge_descript2, discharge_descript2], sort = True, axis = 1)
-		dbfs.update_database_newtable(full_df_descript, mod_params_name[:-9] +'-descriptors', database)
+		update_database_newtable(full_df_descript, mod_params_name[:-9] +'-descriptors', database)
 	return
 
 def get_filename_pref(file_name):

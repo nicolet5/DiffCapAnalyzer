@@ -1,23 +1,21 @@
-from chachifuncs import load_sep_cycles
-from chachifuncs import get_clean_cycles
-from chachifuncs import get_clean_sets
-from chachifuncs import clean_calc_sep_smooth
-from chachifuncs import init_columns
-from chachifuncs import calc_dq_dqdv
-from chachifuncs import drop_inf_nan_dqdv
-from chachifuncs import sep_char_dis
-from chachifuncs import my_savgolay
-from chachifuncs import col_variables
-from databasewrappers import parse_update_master
-from databasewrappers import get_filename_pref
-from databasewrappers import get_table_names
-from databasefuncs import init_master_table
-
 import numpy as np
 import os
 import pandas as pd
 
-
+from diffcapanalyzer.chachifuncs import load_sep_cycles
+from diffcapanalyzer.chachifuncs import get_clean_cycles
+from diffcapanalyzer.chachifuncs import get_clean_sets
+from diffcapanalyzer.chachifuncs import clean_calc_sep_smooth
+from diffcapanalyzer.chachifuncs import init_columns
+from diffcapanalyzer.chachifuncs import calc_dq_dqdv
+from diffcapanalyzer.chachifuncs import drop_inf_nan_dqdv
+from diffcapanalyzer.chachifuncs import sep_char_dis
+from diffcapanalyzer.chachifuncs import my_savgolay
+from diffcapanalyzer.chachifuncs import col_variables
+from diffcapanalyzer.databasewrappers import parse_update_master
+from diffcapanalyzer.databasewrappers import get_filename_pref
+from diffcapanalyzer.databasewrappers import get_table_names
+from diffcapanalyzer.databasefuncs import init_master_table
 
 
 def test_load_sep_cycles(): 

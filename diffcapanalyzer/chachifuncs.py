@@ -6,7 +6,8 @@ import pandas as pd
 import requests
 import scipy.io
 import scipy.signal
-import databasefuncs as dbfs
+
+from diffcapanalyzer.databasefuncs import get_file_from_database, update_database_newtable
 
 def load_sep_cycles(core_file_name, database_name, datatype):
 	"""Loads cycles from an existing uploaded file from the 
@@ -15,12 +16,12 @@ def load_sep_cycles(core_file_name, database_name, datatype):
 	(cycle_ind_col, data_point_col, volt_col, curr_col, \
 		dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
 	name = core_file_name + 'Raw'
-	df_single = dbfs.get_file_from_database(name, database_name)
+	df_single = get_file_from_database(name, database_name)
 	gb = df_single.groupby(by=[cycle_ind_col])
 	cycle_dict = dict(iter(gb))
 	for key in cycle_dict.keys(): 
 		cycle_dict[key]['Battery_Label'] = core_file_name
-		dbfs.update_database_newtable(cycle_dict[key], 
+		update_database_newtable(cycle_dict[key], 
 			core_file_name+'-'+'Cycle'+ str(key), database_name)
 	return cycle_dict
 
@@ -45,9 +46,8 @@ def get_clean_cycles(cycle_dict, core_file_name, database_name,
 		clean_data = clean_data.reset_index(drop=True)
 		cyclename = core_file_name + '-CleanCycle' + str(i)
 		clean_cycle_dict.update({cyclename : clean_data})
-		dbfs.update_database_newtable(clean_data, cyclename, 
+		update_database_newtable(clean_data, cyclename, 
 									  database_name)
-	print('All cycles cleaned and saved in database')
 	return clean_cycle_dict
 
 
@@ -58,10 +58,9 @@ def get_clean_sets(clean_cycle_dict, core_file_name, database_name):
 	clean_set_df = pd.DataFrame()
 	for k, v in clean_cycle_dict.items():
 		clean_set_df = clean_set_df.append(v, ignore_index = True)
-	dbfs.update_database_newtable(clean_set_df,
+	update_database_newtable(clean_set_df,
 								  core_file_name + 'CleanSet',
 								  database_name)
-	print('All clean cycles recombined and saved in database')
 	return clean_set_df
 
 ############################
@@ -169,7 +168,6 @@ def sep_char_dis(df_dqdv, datatype):
 	assert 'dQ/dV' in df_dqdv.columns
 	# 01-28-2020: switched from splitting by current col here to splitting by dV. 
 	switch_cd_index = np.where(np.diff(np.sign(df_dqdv['dV'])))
-	#print(switch_cd_index)
 	if len(switch_cd_index[0]) > 1:
 		split = min(switch_cd_index[0], key=lambda x:abs(x-(len(df_dqdv)/2)))
 		# this chooses the split point which is closest to the halfway point of datapoints in the dataframe
@@ -244,5 +242,5 @@ def col_variables(datatype):
 		char_cap_col = 'Cap(Ah)'
 		charge_or_discharge = 'Md'
 	else: 
-		print('that is not a valid')
+		return None
 	return(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge)

@@ -17,11 +17,9 @@ def get_file_from_database(name, database):
 	for row in c.execute("""SELECT name FROM sqlite_master WHERE type='table'""" ): 
 		names_list.append(row[0])
 	if name in names_list: 
-		# print('That file exists in the database')
 		df_from_database = pd.read_sql_query("SELECT * FROM '%s'" % (name),con)
 		con.close()
 	else:
-		print('That file does not exist in the database')
 		df_from_database = None
 	return df_from_database
 

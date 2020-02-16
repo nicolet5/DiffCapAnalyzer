@@ -1,11 +1,12 @@
-from databasefuncs import update_database_newtable
-from databasefuncs import get_file_from_database
-from databasefuncs import update_master_table
-from databasefuncs import init_master_table
-
 import os
 import pandas as pd
 import sqlite3 as sql
+
+from diffcapanalyzer.databasefuncs import update_database_newtable
+from diffcapanalyzer.databasefuncs import get_file_from_database
+from diffcapanalyzer.databasefuncs import update_master_table
+from diffcapanalyzer.databasefuncs import init_master_table
+
 
 def test_update_database_newtable():
 	df = pd.DataFrame({'A': [1, 2, 3], 

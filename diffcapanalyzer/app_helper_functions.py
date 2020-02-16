@@ -1,12 +1,9 @@
-import databasewrappers as dbw
-import dash_html_components as html
-
 import ast 
 import dash
 import dash_auth
 import dash_core_components as dcc
-from dash.dependencies import Input, Output, State
 import dash_html_components as html
+from dash.dependencies import Input, Output, State
 import dash_table_experiments as dt
 import io
 import json
@@ -19,8 +16,10 @@ import plotly
 import urllib
 import urllib.parse
 
-#### parse down these imports as you need them 
-
+from diffcapanalyzer.databasewrappers import get_filename_pref, if_file_exists_in_db, process_data, macc_chardis, param_dicts_to_df
+from diffcapanalyzer.databasefuncs import init_master_table, get_file_from_database, update_database_newtable
+from diffcapanalyzer.chachifuncs import col_variables, sep_char_dis
+from diffcapanalyzer.descriptors import peak_finder, model_gen, model_eval
 
 def check_database_and_get_creds(database):
 	"""This function both serves to initialize the database 
@@ -32,11 +31,10 @@ def check_database_and_get_creds(database):
 	if the database was new there is at least one login credential 
 	created within the init_master_table function - [[Example User, password]] """
 	if not os.path.exists(database): 
-		print('That database does not exist-creating it now.')
-		dbw.dbfs.init_master_table(database)
+		init_master_table(database)
 
 	# we have a previously set up file in the database with acceptable users/password pairs
-	usernames = dbw.dbfs.get_file_from_database('users', database)
+	usernames = get_file_from_database('users', database)
 
 	VALID_USERNAME_PASSWORD_PAIRS = []
 	for i in range(len(usernames)):
@@ -52,24 +50,24 @@ def parse_contents(decoded, filename, datatype, database, auth, windowlength = 9
 	the master table yet. Otherwise will return html.Div that the 
 	file already exists in the database. """
 
-	cleanset_name = dbw.get_filename_pref(filename) + 'CleanSet'
+	cleanset_name = get_filename_pref(filename) + 'CleanSet'
 	#this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database 
 		#check to see if the database exists, and if it does, check if the file exists.
-	ans_p = dbw.if_file_exists_in_db(database, filename)
+	ans_p = if_file_exists_in_db(database, filename)
 	if ans_p == True: 
-		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
+		df_clean = get_file_from_database(cleanset_name, database)
 		new_peak_thresh = 0.7 
 		feedback = generate_model(df_clean, filename, new_peak_thresh, database)
-		return 'That file exists in the database: ' + str(dbw.get_filename_pref(filename))
+		return 'That file exists in the database: ' + str(get_filename_pref(filename))
 	else:
 		username = auth._username
 		try:
 			decoded_dataframe = decoded_to_dataframe(decoded, datatype, filename)
-			dbw.process_data(filename, database, decoded_dataframe, datatype, username, windowlength, polyorder)
-			df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
+			process_data(filename, database, decoded_dataframe, datatype, username, windowlength, polyorder)
+			df_clean = get_file_from_database(cleanset_name, database)
 			new_peak_thresh = 0.7
 			feedback = generate_model(df_clean, filename, new_peak_thresh, database)
-			return 'New file has been processed: ' + str(dbw.get_filename_pref(filename))
+			return 'New file has been processed: ' + str(get_filename_pref(filename))
 		except Exception as e: 
 			return 'There was a problem uploading that file. Check the format of the upload file is as expected.' + str(e)
 
@@ -96,7 +94,7 @@ def decoded_to_dataframe(decoded, datatype, file_name):
 		expected_cols = ['Cycle_Index', 'Voltage(V)', 'Current(A)', 'Charge_Capacity(Ah)', 'Discharge_Capacity(Ah)', 'Step_Index']
 		assert all(item in list(data1.columns) for item in expected_cols)
 	elif datatype == 'MACCOR':
-		data1['MaccCharLab'] = data1.apply(lambda row: dbw.macc_chardis(row), axis = 1)
+		data1['MaccCharLab'] = data1.apply(lambda row: macc_chardis(row), axis = 1)
 		data1['Current(A)'] = data1['Current [A]']*data1['MaccCharLab']
 		data1['datatype'] = 'MACCOR'
 		expected_cols = ['Cycle C', 'Voltage [V]', 'Current [A]', 'Cap. [Ah]', 'Md']
@@ -112,15 +110,15 @@ def pop_with_db(filename, database):
 	Finds the already existing file in the database and returns
 	the cleaned version (as a dataframe) and the raw version 
 	(also as a dataframe)."""
-	cleanset_name = dbw.get_filename_pref(filename) + 'CleanSet'
-	rawset_name = dbw.get_filename_pref(filename) + 'Raw'
-	if dbw.if_file_exists_in_db(database, filename) == True: 
+	cleanset_name = get_filename_pref(filename) + 'CleanSet'
+	rawset_name = get_filename_pref(filename) + 'Raw'
+	if if_file_exists_in_db(database, filename) == True: 
 		# then the file exists in the database and we can just read it 
-		df_clean = dbw.dbfs.get_file_from_database(cleanset_name, database)
-		df_raw = dbw.dbfs.get_file_from_database(rawset_name, database)
+		df_clean = get_file_from_database(cleanset_name, database)
+		df_raw = get_file_from_database(rawset_name, database)
 		datatype = df_clean['datatype'].iloc[0]
 		(cycle_ind_col, data_point_col, volt_col, curr_col,\
-		 dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
+		 dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
 
 	else:
 		df_clean = None
@@ -138,12 +136,12 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
 	dependent on whether any peaks were found in the cycle. 
 	"""
 	(cycle_ind_col, data_point_col, volt_col, curr_col, \
-		dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
-	clean_charge, clean_discharge = dbw.ccf.sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
+		dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
+	clean_charge, clean_discharge = sep_char_dis(df_clean[df_clean[cycle_ind_col] ==cyc], datatype)
 	windowlength = 9
 	polyorder = 3
 
-	i_charge, volts_i_ch, peak_heights_c = dbw.descriptors.peak_finder(clean_charge, 
+	i_charge, volts_i_ch, peak_heights_c = peak_finder(clean_charge, 
 																			   'c', windowlength,
 																			    polyorder, 
 																			    datatype, 
@@ -152,8 +150,8 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
 
 	V_series_c = clean_charge[volt_col]
 	dQdV_series_c = clean_charge['Smoothed_dQ/dV']
-	par_c, mod_c, indices_c = dbw.descriptors.model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, peak_thresh)
-	model_c = dbw.descriptors.model_eval(V_series_c, dQdV_series_c, 'c', par_c, mod_c)			
+	par_c, mod_c, indices_c = model_gen(V_series_c, dQdV_series_c, 'c', i_charge, cyc, peak_thresh)
+	model_c = model_eval(V_series_c, dQdV_series_c, 'c', par_c, mod_c)			
 	if model_c is not None:
 		mod_y_c = mod_c.eval(params = model_c.params, x = V_series_c)
 		myseries_c = pd.Series(mod_y_c)
@@ -165,13 +163,13 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
 		new_df_mody_c = None
 		model_c_vals = None
 	# now the discharge: 
-	i_discharge, volts_i_dc, peak_heights_d= dbw.descriptors.peak_finder(clean_discharge, 'd',
+	i_discharge, volts_i_dc, peak_heights_d= peak_finder(clean_discharge, 'd',
 																			     windowlength, polyorder, 
 																			     datatype, lenmax, peak_thresh)
 	V_series_d = clean_discharge[volt_col]
 	dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
-	par_d, mod_d, indices_d = dbw.descriptors.model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, peak_thresh)
-	model_d = dbw.descriptors.model_eval(V_series_d, dQdV_series_d, 'd', par_d, mod_d)			
+	par_d, mod_d, indices_d = model_gen(V_series_d, dQdV_series_d, 'd', i_discharge, cyc, peak_thresh)
+	model_d = model_eval(V_series_d, dQdV_series_d, 'd', par_d, mod_d)			
 	if model_d is not None:
 		mod_y_d = mod_d.eval(params = model_d.params, x = V_series_d)
 		myseries_d = pd.Series(mod_y_d)
@@ -197,7 +195,7 @@ def generate_model(df_clean, filename, peak_thresh, database):
 	and '-descriptors'."""
 	datatype = df_clean['datatype'].iloc[0]
 	(cycle_ind_col, data_point_col, volt_col, curr_col, \
-		dis_cap_col, char_cap_col, charge_or_discharge) = dbw.ccf.col_variables(datatype)
+		dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
 	chargeloc_dict = {}
 	param_df = pd.DataFrame(columns = ['Cycle','Model_Parameters_charge', 'Model_Parameters_discharge'])
 	if len(df_clean[cycle_ind_col].unique())>1:
@@ -222,15 +220,14 @@ def generate_model(df_clean, filename, peak_thresh, database):
 										'discharge_peak_heights': str(peak_heights_d)}, 
 										ignore_index = True)
 		except Exception as e:
-			print('Model was not generated for Cycle ' + str(cyc))
 			cycles_no_models.append(cyc)
 	# want this outside of for loop to update the db with the complete df of new params 
-	dbw.dbfs.update_database_newtable(mod_pointsdf, filename.split('.')[0]+ '-ModPoints', database)
+	update_database_newtable(mod_pointsdf, filename.split('.')[0]+ '-ModPoints', database)
 	# this will replace the data table in there if it exists already 
-	dbw.dbfs.update_database_newtable(param_df, filename.split('.')[0] + 'ModParams', database)
+	update_database_newtable(param_df, filename.split('.')[0] + 'ModParams', database)
 	# the below also updates the database with the new descriptors after evaluating the spit out 
 	# dictionary and putting those parameters into a nicely formatted datatable. 
-	dbw.param_dicts_to_df(filename.split('.')[0] + 'ModParams', database)		
+	param_dicts_to_df(filename.split('.')[0] + 'ModParams', database)		
 	if len(cycles_no_models) > 0: 
 		return 'That model has been added to the database.' \
 						+ 'No model was generated for Cycle(s) ' + str(cycles_no_models)

@@ -1,21 +1,22 @@
-from app_helper_functions import check_database_and_get_creds
-from app_helper_functions import decoded_to_dataframe
-from app_helper_functions import pop_with_db
-from app_helper_functions import get_model_dfs
-from app_helper_functions import generate_model
-
-from databasewrappers import process_data
-from databasewrappers import get_filename_pref
 import dash_html_components as html
 import pandas as pd
 import sqlite3 as sql
 import numpy as np
 import os
 
-test_db = 'test_data/test_db.db'
-test_filename = 'test_data/test_data.csv'
+from diffcapanalyzer.app_helper_functions import check_database_and_get_creds
+from diffcapanalyzer.app_helper_functions import decoded_to_dataframe
+from diffcapanalyzer.app_helper_functions import pop_with_db
+from diffcapanalyzer.app_helper_functions import get_model_dfs
+from diffcapanalyzer.app_helper_functions import generate_model
+from diffcapanalyzer.databasewrappers import process_data
+from diffcapanalyzer.databasewrappers import get_filename_pref
+
+
+test_db = 'tests/test_data/test_db.db'
+test_filename = 'tests/test_data/test_data.csv'
 test_datatype = 'ARBIN'
-test_filename_mac = 'test_data/test_data_mac.csv'
+test_filename_mac = 'tests/test_data/test_data_mac.csv'
 test_datatype_mac = 'MACCOR'
 test_username = 'Mr. Foo Bar'
 decoded_dataframe = decoded_to_dataframe(None, test_datatype, test_filename)

@@ -3,158 +3,10 @@ import pandas as pd
 import numpy as np
 import peakutils
 from lmfit import models
-import chachifuncs as ccf
 import os
 import glob
-import databasefuncs as dbfs
 
-################################
-# OVERALL Wrapper Function
-################################
-# Import dictionary is format of {batcleancycle-1 : df1, batcleancycle-2: df2 ... and so on }
-# individual clean cycles 
-
-
-# def get_descriptors(import_dictionary, datatype, windowlength, polyorder):
-#     """Generates a dataframe containing charge and discharge
-#     descriptors/error parameters. Also writes descriptors to an
-#     excel spreadsheet 'describe.xlsx' import_filepath = filepath
-#     containing cleaned separated cycles"""
-
-#     # creates dataframe of descriptors for the charge/discharge
-#     # cycles of all batteries
-
-#     print('Generating descriptors from the data set.')
-#     df_ch = process.df_generate(import_dictionary, 'c', datatype, windowlength, polyorder)
-#     #ther eare duplicates coming out of this function - does cycle 1 2 times (different numbers) then cycle 2 2 times 
-#     #does all cycles charge cycle first, then all discharge cycles
-#     df_dc = process.df_generate(import_dictionary, 'd', datatype, windowlength, polyorder)
-
-#     df_final = dflists_to_dfind(pd.concat([df_ch, df_dc], axis=1))
-
-#     df_sorted = dfsortpeakvals(df_final, 'c')
-#     df_sorted_final = dfsortpeakvals(df_sorted, 'd')
-#     return df_sorted_final
-
-############################
-# Sub - Wrapper Functions
-############################
-# data processing that calls from fitting class
-# def dflists_to_dfind(df):
-#     """Takes the df of lists and based on max length of list in each column, 
-#     puts each value into individual columns. This is the df that will be 
-#     written to the database. """
-#     #add if NaN in df replace with [] (an empty list) (this will be a list instead of a float)
-#     df.reset_index(drop = True)
-
-#     #print(df.to_string())
-#     df_new = pd.DataFrame()
-#     for column in df.columns:
-#         #for row in (df.loc[df[column].isnull(), column].index):
-#          #   df.at[row, column] = []
-#         x = int(max(list(df[column].str.len())))
-#         #print(x)
-#         new_cols = []
-#         #print(column)
-#         for i in range(x):
-#             colname = column + str(i)
-#             #print(colname)
-#             new_cols.append(colname)
-#         #print(new_cols)
-#         df_new[new_cols]= pd.DataFrame(df[column].values.tolist())
-#     return(df_new)
-
-# run peak finder first, to feed i (indices of peaks) into this function 
-#     def descriptor_func(df_run, cd, cyc, battery, windowlength, polyorder, datatype, lenmax):
-#         """Generates dictionary of descriptors/error parameters
-#         V_series = Pandas series of voltage data
-#         dQdV_series = Pandas series of differential capacity data
-#         cd = either 'c' for charge and 'd' for discharge.
-#         Output:
-#         dictionary with keys 'coefficients', 'peakLocation(V)',
-#         'peakHeight(dQdV)', 'peakSIGMA', 'errorParams"""
-#         (cycle_ind_col, data_point_col, volt_col, curr_col, \
-#             dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
-
-#         V_series = df_run[volt_col]
-#         dQdV_series = df_run['Smoothed_dQ/dV']
-#         # make sure a single column of the data frame is passed to
-#         # the function
-#         assert isinstance(V_series, pd.core.series.Series)
-#         assert isinstance(dQdV_series, pd.core.series.Series)
-
-#         # appropriately reclassifies data from pandas to numpy
-#         sigx_bot, sigy_bot = fitters.cd_dataframe(V_series, dQdV_series, cd)
-#         peak_thresh = 0.3
-#         # returns the indices of the peaks for the dataset
-#         i, volts_of_i, peak_heights = fitters.peak_finder(df_run, cd, windowlength, polyorder, datatype, lenmax, peak_thresh)
-#         #print('Here are the peak finder fitters - indices of peaks in dataset')
-#         #print(i)
-
-#         # THIS is where we will append whatever user inputted indices - they 
-#         # will be the same for each cycle (but allowed to vary in the model gen section)
-#         # generates the necessary model parameters for the fit calculation
-#         par, mod, indices = fitters.model_gen(
-#             V_series, dQdV_series, cd, i, cyc, thresh)
-
-#         # returns a fitted lmfit model object from the parameters and data
-#         model = fitters.model_eval(V_series, dQdV_series, cd, par, mod)
-# ############################ SPLIT  here - have user evaluate model before adding coefficients into df 
-#         # initiates collection of coefficients
-#         coefficients = []
-
-#         for k in np.arange(1): # this was 4 for polynomial changed 10-10-18
-#             # key calculation for coefficient collection
-#             #coef = 'c' + str(k)
-#             coef1 = 'base_sigma'
-#             coef2 = 'base_center'
-#             coef3 = 'base_amplitude'
-#             coef4 = 'base_fwhm'
-#             coef5 = 'base_height'
-#             # extracting coefficients from model object
-#             coefficients.append(model.best_values[coef1])
-#             coefficients.append(model.best_values[coef2])
-#             coefficients.append(model.best_values[coef3])
-#             coefficients.append(model.best_values[coef4])
-#             coefficients.append(model.best_values[coef5])
-
-
-
-
-#         # creates a dictionary of coefficients
-#         desc = {'coefficients' + '-' +str(cd): list(coefficients)}
-#         sig = []
-#         if len(i) > 0:
-#             # generates numpy array for peak calculation
-#             sigx, sigy = fitters.cd_dataframe(V_series, dQdV_series, cd)
-
-#             # determines peak location and height locations from raw data
-#             desc.update({'peakLocation(V)' +'-' +str(cd): list(sigx[i].tolist(
-#             )), 'peakHeight(dQdV)'+'-' +str(cd): list(sigy[i].tolist())})
-
-#             # initiates loop to extract
-#             #sig = []
-#             for index in i:
-#                 # determines appropriate string to call standard
-#                 # deviation object from model
-#                 center, sigma, amplitude, fraction, comb = fitters.label_gen(index)
-#                 sig.append(model.best_values[sigma])
-#         else:
-#             desc.update({'peakLocation(V)' + '-' + str(cd): list([np.NaN]), 'peakHeight(dQdV)' + '-' + str(cd): list([np.NaN])})
-#             #pass
-
-#             # updates dictionary with sigma key and object
-#         desc.update({'peakSIGMA'+ '-' +str(cd): list(sig)})
-#         # print('Here is the desc within the descriptor_func function: ')
-#         # print(desc)
-#         # adds keys for the error parameters of each fit
-#         desc.update({'errorParams'+'-' +str(cd): list([model.aic, model.bic, model.redchi])})
-
-#         return desc
-
-    ############################
-    # Sub - descriptor_func
-    ############################
+from diffcapanalyzer.chachifuncs import col_variables
 
 def peak_finder(df_run, cd, windowlength, polyorder, datatype, lenmax, peak_thresh):
     """Determines the index of each peak in a dQdV curve
@@ -165,7 +17,7 @@ def peak_finder(df_run, cd, windowlength, polyorder, datatype, lenmax, peak_thre
     Output:
     i = list of indexes for each found peak"""
     (cycle_ind_col, data_point_col, volt_col, curr_col, \
-        dis_cap_col, char_cap_col, charge_or_discharge) = ccf.col_variables(datatype)
+        dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
     V_series = df_run[volt_col]
     # this makes the peak finding smoothing independent of any smoothing that has already occured. 
     dQdV_series = df_run['Smoothed_dQ/dV']
@@ -177,23 +29,13 @@ def peak_finder(df_run, cd, windowlength, polyorder, datatype, lenmax, peak_thre
         windowlength_new = wlint + 1
     else: 
         windowlength_new = wlint
-    ###############################################
     if len(sigy) > windowlength_new and windowlength_new > polyorder:
         #has to be larger than 69 so that windowlength > 3 - necessary for sav golay function  
         sigy_smooth = scipy.signal.savgol_filter(sigy, windowlength_new, polyorder)
     else:
         sigy_smooth = sigy
-    # this used to be sigy_smooth in the .indexes function below -= changed it to just sigy for graphite
-    # change was made on 9.12.18  . also changed min_dist=lenmax/50 to min_dist= 10
-    ###################################################
     peak_thresh_ft = float(peak_thresh)
     i = peakutils.indexes(sigy_smooth, thres=peak_thresh_ft, min_dist=lenmax/50)
-    ###################################################
-    #i = peakutils.indexes(sigy_smooth, thres=0.7, min_dist=50) # used to be 0.25
-    #i = peakutils.indexes(sigy_smooth, thres=.3 /
-    #                      max(sigy_smooth), min_dist=9)
-    #print(i)
-
     if i is not None and len(i)>0:
         sigx_volts = list(sigx[i])
         peak_heights = list(sigy[i])
@@ -210,23 +52,12 @@ def cd_dataframe(V_series, dQdV_series, cd):
     Output:
     sigx = numpy array of signal x values
     sigy = numpy array of signal y values"""
-
-    # converts voltage data to numpy array
-
     sigx = pd.to_numeric(V_series).values
-
     # descriminates between charge and discharge cycle
     if cd == 'c':
         sigy = pd.to_numeric(dQdV_series).values
     elif cd == 'd':
         sigy = -pd.to_numeric(dQdV_series).values
-        # d should have a - on it
-               # check that the ouptut for these fuctions is positive
-    # (with a little wiggle room of 0.5)
-    #threshold = -0.5
-    #min_sigy = np.min(sigy)
-    #assert min_sigy > threshold
-
     return sigx, sigy
 
 def label_gen(index):
@@ -273,13 +104,7 @@ def model_gen(V_series, dQdV_series, cd, i, cyc, thresh):
         for elem in i:
             # append a new index, because now everything is backwards
             newi = np.append(newi, int(len(sigx_bot_new) - elem - 1))
-
-    # creates a polynomial fitting object
-    # prints a notice if no peaks are found
     if all(newi) is False or len(newi) < 1:
-        notice = 'Cycle ' + str(cyc) + cd + \
-            ' in battery ' + ' has no peaks.'
-        print(notice)
         base_mod = models.GaussianModel(prefix = 'base_')
         mod = base_mod
         par = mod.make_params()

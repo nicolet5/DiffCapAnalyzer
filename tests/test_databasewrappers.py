@@ -1,22 +1,22 @@
-from databasewrappers import process_data
-from databasewrappers import parse_update_master
-from databasewrappers import macc_chardis
-from databasewrappers import if_file_exists_in_db
-from databasewrappers import get_db_filenames
-from databasewrappers import my_pseudovoigt
-from databasewrappers import param_dicts_to_df
-from databasewrappers import get_filename_pref
-from databasewrappers import get_table_names
-from app_helper_functions import generate_model
-from app_helper_functions import decoded_to_dataframe
-import databasefuncs as dbfs
-
 import os
 import pandas as pd
 
+from diffcapanalyzer.databasewrappers import process_data
+from diffcapanalyzer.databasewrappers import parse_update_master
+from diffcapanalyzer.databasewrappers import macc_chardis
+from diffcapanalyzer.databasewrappers import if_file_exists_in_db
+from diffcapanalyzer.databasewrappers import get_db_filenames
+from diffcapanalyzer.databasewrappers import my_pseudovoigt
+from diffcapanalyzer.databasewrappers import param_dicts_to_df
+from diffcapanalyzer.databasewrappers import get_filename_pref
+from diffcapanalyzer.databasewrappers import get_table_names
+from diffcapanalyzer.app_helper_functions import generate_model
+from diffcapanalyzer.app_helper_functions import decoded_to_dataframe
+import diffcapanalyzer.databasefuncs as dbfs
 
-test_db = 'test_data/test_db.db'
-test_filename = 'test_data/test_data.csv'
+
+test_db = 'tests/test_data/test_db.db'
+test_filename = 'tests/test_data/test_data.csv'
 test_datatype = 'ARBIN'
 test_username = 'Example User'
 decoded_dataframe = decoded_to_dataframe(None, test_datatype, test_filename)
@@ -188,8 +188,6 @@ def test_get_table_names():
 					 'test_data-descriptors','test_dataCleanSet', 
 					 'test_dataModParams', 'test_dataRaw', 
 					 'test_dataUnalteredRaw','users']
-	print(names_list)
-	print(expected_list)
 	assert set(names_list) == set(expected_list)
 	os.remove(test_db)
 	return

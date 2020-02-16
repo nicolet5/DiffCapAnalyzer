@@ -6,7 +6,6 @@ https://packaging.python.org/en/latest/distributing.html
 https://github.com/pypa/sampleproject
 """
 
-# Always prefer setuptools over distutils
 import setuptools
 
 # Get the long description from the README file
@@ -29,4 +28,8 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
+    tests_require =[
+        'pytest', 
+        'pytest-cov'
+        ]
 )

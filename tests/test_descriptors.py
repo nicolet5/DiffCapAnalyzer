@@ -1,10 +1,3 @@
-from descriptors import peak_finder
-from descriptors import cd_dataframe
-from descriptors import label_gen
-from descriptors import model_gen
-from descriptors import model_eval
-from descriptors import dfsortpeakvals
-
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,7 +6,12 @@ import pandas as pd
 from pandas.testing import assert_frame_equal
 import scipy.signal
 
-from pprint import pprint
+from diffcapanalyzer.descriptors import peak_finder
+from diffcapanalyzer.descriptors import cd_dataframe
+from diffcapanalyzer.descriptors import label_gen
+from diffcapanalyzer.descriptors import model_gen
+from diffcapanalyzer.descriptors import model_eval
+from diffcapanalyzer.descriptors import dfsortpeakvals
 
 test_cycle1_df =  pd.DataFrame({
 					   'Cycle_Index': [1,1,1,1,1, 1, 1],
@@ -221,7 +219,3 @@ def test_dfsortpeakvals_sorting():
 		'sortedactheight-c-3': [None, 6]
 		}).astype('float64')
 	assert_frame_equal(result, expected, check_names=False)
-	# for column in result.columns: 
-	# 	print(column)
-	# 	pprint(result[column])
-	# 	assert list(result.loc[:, (column)]) == list(expected.loc[:,(column)])

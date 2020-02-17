@@ -106,7 +106,7 @@ def get_db_filenames(database_name):
     c = con.cursor()
     names_list = []
     for row in c.execute(
-        """SELECT Dataset_Name FROM master_table""" ):
+            """SELECT Dataset_Name FROM master_table"""):
         names_list.append(row[0])
     con.close()
     exists_list = []

@@ -17,14 +17,14 @@ import plotly
 import urllib
 import urllib.parse
 
-from diffcapanalyzer.app_helper_functions import get_model_dfs
+from diffcapanalyzer.app_helper_functions import check_database_and_get_creds
 from diffcapanalyzer.app_helper_functions import parse_contents
 from diffcapanalyzer.app_helper_functions import pop_with_db
-from diffcapanalyzer.app_helper_functions import generate_model
-from diffcapanalyzer.app_helper_functions import check_database_and_get_creds
+from diffcapanalyzer.chachifuncs import col_variables
 from diffcapanalyzer.databasewrappers import get_db_filenames, get_filename_pref
 from diffcapanalyzer.databasefuncs import get_file_from_database
-from diffcapanalyzer.chachifuncs import col_variables
+from diffcapanalyzer.descriptors import generate_model
+from diffcapanalyzer.descriptors import get_model_dfs
 
 
 database = "data/databases/dQdV.db"

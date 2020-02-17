@@ -6,13 +6,34 @@ import pandas as pd
 from pandas.testing import assert_frame_equal
 import scipy.signal
 
+from diffcapanalyzer.app_helper_functions import decoded_to_dataframe
+from diffcapanalyzer.app_helper_functions import pop_with_db
+from diffcapanalyzer.databasewrappers import get_filename_pref
+from diffcapanalyzer.databasewrappers import process_data
+from diffcapanalyzer.databasewrappers import get_table_names
+from diffcapanalyzer.databasefuncs import get_file_from_database
+from diffcapanalyzer.descriptors import get_model_dfs
+from diffcapanalyzer.descriptors import generate_model
 from diffcapanalyzer.descriptors import peak_finder
 from diffcapanalyzer.descriptors import cd_dataframe
 from diffcapanalyzer.descriptors import label_gen
 from diffcapanalyzer.descriptors import model_gen
 from diffcapanalyzer.descriptors import model_eval
 from diffcapanalyzer.descriptors import dfsortpeakvals
+from diffcapanalyzer.descriptors import my_pseudovoigt
+from diffcapanalyzer.descriptors import param_dicts_to_df
 
+# Test data for wrappers: 
+test_db = 'tests/test_data/test_db.db'
+test_filename = 'tests/test_data/test_data.csv'
+test_datatype = 'ARBIN'
+test_filename_mac = 'tests/test_data/test_data_mac.csv'
+test_datatype_mac = 'MACCOR'
+test_username = 'Mr. Foo Bar'
+decoded_dataframe = decoded_to_dataframe(None, test_datatype, test_filename)
+decoded_dataframe_mac = decoded_to_dataframe(None, test_datatype_mac, test_filename_mac)
+
+# Test data for component functions:
 test_cycle1_df =  pd.DataFrame({
 					   'Cycle_Index': [1,1,1,1,1, 1, 1],
 					   'Data_Point': [0, 1, 2, 3, 4, 5, 6],
@@ -38,7 +59,178 @@ test_cycle2_df = pd.DataFrame({
 
 test_import_dictionary = {'test_battery-CleanCycle1': test_cycle1_df, 
 						  'test_battery-CleanCycle2': test_cycle2_df}
-test_datatype = 'ARBIN'
+
+if os.path.exists(test_db): 
+	os.remove(test_db)
+
+def test_get_model_dfs(): 
+	"""This tests that the model results returned make sense 
+	with respect to each other. First tests types of returned 
+	variables, and also checks that the number of peaks found 
+	in either charge or discharge sections correspond to the
+	number of unique prefixes in the model vals dictionary."""
+
+
+	process_data(test_filename, test_db, decoded_dataframe, 
+					   test_datatype, test_username)
+
+	df_clean, df_raw = pop_with_db(test_filename, test_db)
+	cyc = 1
+	lenmax = len(df_clean)
+	peak_thresh = 0.7
+	new_df_mody, model_c_vals, model_d_vals, \
+	peak_heights_c, peak_heights_d = get_model_dfs(df_clean, 
+												   test_datatype,
+												   cyc, lenmax,
+												   peak_thresh)
+
+	assert type(new_df_mody) == pd.DataFrame
+	assert type(model_c_vals) == dict and type(model_d_vals) == dict
+	assert type(peak_heights_c) == list 
+	assert type(peak_heights_d) == list
+
+	# There should be at least a base_amplitude, base_center, base_fwhm, and base sigma for all cycles
+	for key in ['base_amplitude', 'base_center', 'base_fwhm', 'base_height', 'base_sigma']:
+		assert key in model_c_vals.keys()
+		assert key in model_d_vals.keys()
+		assert type(model_c_vals[key]) in (np.float64, np.float32, float, int)
+		assert type(model_d_vals[key]) in (np.float64, np.float32, float, int)
+		
+	# There should be one peak height in peak_heights_cd for each unique key 
+	for item in [[model_d_vals, peak_heights_d], [model_c_vals, peak_heights_c]]: 
+		pref_list = []
+		for key in item[0].keys():
+			pref = key.split('_')[0]
+			pref_list.append(pref)
+			pref_set = set(pref_list)
+		assert len(pref_set) - 1 == len(item[1])
+		# minus one because of 'base' prefix
+	os.remove(test_db)
+	return 
+
+def test_get_model_dfs_for_maccor(): 
+	"""This tests that the model results returned make sense 
+	with respect to each other. First tests types of returned 
+	variables, and also checks that the number of peaks found 
+	in either charge or discharge sections correspond to the
+	number of unique prefixes in the model vals dictionary."""
+
+
+	process_data(test_filename_mac, test_db, decoded_dataframe_mac, 
+					   test_datatype_mac, test_username)
+
+	df_clean, df_raw = pop_with_db(test_filename_mac, test_db)
+	cyc = 1
+	lenmax = len(df_clean)
+	peak_thresh = 0.7
+	new_df_mody, model_c_vals, model_d_vals, \
+	peak_heights_c, peak_heights_d = get_model_dfs(df_clean, 
+												   test_datatype_mac,
+												   cyc, lenmax,
+												   peak_thresh)
+
+	assert type(new_df_mody) == pd.DataFrame
+	assert type(model_c_vals) == dict and type(model_d_vals) == dict
+	assert type(peak_heights_c) == list 
+	assert type(peak_heights_d) == list
+
+	# There should be at least a base_amplitude, base_center, base_fwhm, and base sigma for all cycles
+	for key in ['base_amplitude', 'base_center', 'base_fwhm', 'base_height', 'base_sigma']:
+		assert key in model_c_vals.keys()
+		assert key in model_d_vals.keys()
+		assert type(model_c_vals[key]) in (np.float64, np.float32, float, int)
+		assert type(model_d_vals[key]) in (np.float64, np.float32, float, int)
+		
+	# There should be one peak height in peak_heights_cd for each unique key 
+	for item in [[model_d_vals, peak_heights_d], [model_c_vals, peak_heights_c]]: 
+		pref_list = []
+		for key in item[0].keys():
+			pref = key.split('_')[0]
+			pref_list.append(pref)
+			pref_set = set(pref_list)
+		assert len(pref_set) - 1 == len(item[1])
+		# minus one because of 'base' prefix
+	os.remove(test_db)
+	return 
+
+def test_generate_model(): 
+	"""Tests that three new tables are generated in the database 
+	in the process of generating the model. Acutal model generation
+	functions are tested further outside of this wrapper."""
+	peak_thresh = 0.7
+	
+	process_data(test_filename, test_db, decoded_dataframe, 
+					   test_datatype, test_username)
+	filename_pref = get_filename_pref(test_filename)
+	df_clean, df_raw = pop_with_db(test_filename, test_db)
+
+	feedback = generate_model(df_clean, filename_pref, 
+							  peak_thresh, test_db)
+	assert type(feedback) == str
+	names_list = get_table_names(test_db)
+
+	list_new_tables =  ['-ModPoints', 'ModParams', '-descriptors']
+	for i in list_new_tables: 
+		assert filename_pref + i in names_list
+	os.remove(test_db)
+	return
+
+def test_generate_model_for_maccor(): 
+	"""Tests that three new tables are generated in the database 
+	in the process of generating the model. Acutal model generation
+	functions are tested further outside of this wrapper."""
+	peak_thresh = 0.7
+	
+	process_data(test_filename_mac, test_db, decoded_dataframe_mac, 
+					   test_datatype_mac, test_username)
+	filename_pref = get_filename_pref(test_filename_mac)
+	df_clean, df_raw = pop_with_db(test_filename_mac, test_db)
+
+	feedback = generate_model(df_clean, filename_pref, 
+							  peak_thresh, test_db)
+	assert type(feedback) == str
+	names_list = get_table_names(test_db)
+
+	list_new_tables =  ['-ModPoints', 'ModParams', '-descriptors']
+	for i in list_new_tables: 
+		assert filename_pref + i in names_list
+	os.remove(test_db)
+	return
+
+# Tests for Component Functions:
+def test_my_pseudovoigt():
+	"""Tests that output of pseudovoigt is as expected"""
+	fit2 = my_pseudovoigt(x = 3, cent = 3, amp = 0 , fract = 0.3, sigma = 0.1)
+	assert fit2 == [0]
+	fit2 = my_pseudovoigt(x = 4, cent = 2, amp = 1, fract = 0.1, sigma = 0.05)
+	assert fit2 != [0]
+	return 
+
+
+def test_param_dicts_to_df(): 
+	"""Tests the parameter dictionaries generated by the model
+	functions are parsed nicely and added to the database in the 
+	modparams table"""
+
+	process_data(test_filename, test_db, decoded_dataframe, test_datatype, test_username)
+	core_test_filename = get_filename_pref(test_filename)
+	new_peak_thresh = 0.7
+	df_clean = get_file_from_database(core_test_filename + 'CleanSet', test_db)
+	feedback = generate_model(df_clean, core_test_filename, new_peak_thresh, test_db)
+	assert core_test_filename + 'ModParams' in get_table_names(test_db)
+	param_dicts_to_df(core_test_filename + 'ModParams', test_db)
+	assert core_test_filename + '-descriptors' in get_table_names(test_db)
+	desc_df = get_file_from_database(core_test_filename + '-descriptors', test_db)
+	expected_cols = ['d_gauss_sigma', 'd_gauss_center', 'd_gauss_amplitude', 
+					 'd_gauss_fwhm', 'd_gauss_height', 'd_cycle_number', 
+					 'c_gauss_sigma', 'c_gauss_center', 'c_gauss_amplitude', 
+					 'c_gauss_fwhm', 'c_gauss_height', 'c_cycle_number']
+	for col in expected_cols: 
+		assert col in desc_df.columns
+	os.remove(test_db)
+	return 
+
+
 
 def test_peak_finder(): 
 	"""Tests that the correct indices, voltage, and dq/dv value 

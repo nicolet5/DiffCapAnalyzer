@@ -13,7 +13,7 @@ from diffcapanalyzer.databasefuncs import init_master_table, update_database_new
 
 
 def process_data(file_name, database_name, decoded_dataframe,
-                 datatype, username, windowlength=9,
+                 datatype, windowlength=9,
                  polyorder=3):
     """Takes raw file, separates cycles, cleans cycles,
     gets the descriptors, saves descriptors for each cycle
@@ -27,7 +27,7 @@ def process_data(file_name, database_name, decoded_dataframe,
         return
     else:
         parse_update_master(core_file_name, database_name,
-                            datatype, decoded_dataframe, username)
+                            datatype, decoded_dataframe)
         cycle_dict = load_sep_cycles(core_file_name,
                                      database_name,
                                      datatype)
@@ -47,8 +47,7 @@ def parse_update_master(
         core_file_name,
         database_name,
         datatype,
-        decoded_dataframe,
-        username):
+        decoded_dataframe):
     """Takes the file and calculates dq/dv from the raw data,
     uploads that ot the database as the raw data, and
     updates the master table with prefixes useful for accessing
@@ -70,7 +69,7 @@ def parse_update_master(
                    'Model_Points_Prefix': core_file_name + '-ModPoints',
                    'Raw_Cycle_Prefix': core_file_name + '-Cycle',
                    'Original_Data_Prefix': core_file_name + 'UnalteredRaw'}
-    update_master_table(update_dict, database_name, username)
+    update_master_table(update_dict, database_name)
     return
 
 
@@ -100,17 +99,14 @@ def if_file_exists_in_db(database_name, file_name):
     return ans
 
 
-def get_db_filenames(database_name, username):
+def get_db_filenames(database_name):
     """ This is used to populate the dropdown menu, so users can only access their data if their
     name is in the user column"""
     con = sql.connect(database_name)
     c = con.cursor()
     names_list = []
     for row in c.execute(
-        """SELECT Dataset_Name, Username FROM master_table WHERE Username = '%s'""" %
-            username):
-        # this chooses the dataset_name and username from the mastertable where the username is equal to the username used
-        # to sign in
+        """SELECT Dataset_Name FROM master_table""" ):
         names_list.append(row[0])
     con.close()
     exists_list = []

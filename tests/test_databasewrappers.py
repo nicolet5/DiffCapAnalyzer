@@ -17,13 +17,12 @@ from diffcapanalyzer.databasefuncs import get_file_from_database
 test_db = 'tests/test_data/test_db.db'
 test_filename = 'tests/test_data/test_data.csv'
 test_datatype = 'ARBIN'
-test_username = 'Example User'
 decoded_dataframe = decoded_to_dataframe(None, test_datatype, test_filename)
 
 def test_process_data():
 	"""Tests the process data function adds the correct
 	datatables to the database."""
-	ans = process_data(test_filename, test_db, decoded_dataframe, test_datatype, test_username)
+	ans = process_data(test_filename, test_db, decoded_dataframe, test_datatype)
 	# shouldn't return anything:
 	assert ans == None 
 	names_list = get_table_names(test_db)
@@ -37,11 +36,10 @@ def test_process_data():
 def test_parse_update_master(): 
 	"""Tests the parse update master function"""
 	process_data(test_filename, test_db, decoded_dataframe, 
-					   test_datatype, test_username)
+					   test_datatype)
 	core_test_filename = get_filename_pref(test_filename)
 	ans = parse_update_master(core_test_filename, test_db, 
-							  test_datatype, decoded_dataframe,
-							  test_username)
+							  test_datatype, decoded_dataframe)
 	assert ans == None 
 	master_table = get_file_from_database('master_table', test_db)
 	name = get_filename_pref(test_filename)
@@ -73,7 +71,7 @@ def test_if_file_exists_in_db():
 	exist in the database, and when there is a database name 
 	given for a database that does not exist."""
 	process_data(test_filename, test_db, decoded_dataframe,
-				 test_datatype, test_username)
+				 test_datatype)
 	answer = if_file_exists_in_db(test_db, test_filename)
 	assert answer == True
 	answer2 = if_file_exists_in_db(test_db, 'ThisFileDoesNotExist.csv')
@@ -84,8 +82,7 @@ def test_if_file_exists_in_db():
 	return 
 
 def test_get_db_filenames(): 
-	"""Tests that the list of table names for one 
-	specific user are returned accurately"""
+	"""Tests that the list of table names are returned accurately"""
 	test_db = 'test_database.db'
 	test_filename1 = 'file1.csv'
 	decoded_dataframe1 = pd.DataFrame({'Cycle_Index': [1, 1, 2], 
@@ -96,7 +93,6 @@ def test_get_db_filenames():
 									  'Charge_Capacity(Ah)': [10, 20, 30], 
 									  'Step_Index': [1, 1, 1]})
 	test_datatype1 =  'ARBIN'
-	test_username1 = 'User1'
 
 	test_filename2 = 'file2.csv'
 	decoded_dataframe2 = pd.DataFrame({'Cycle_Index': [1, 1, 1], 
@@ -107,16 +103,13 @@ def test_get_db_filenames():
 								  'Charge_Capacity(Ah)': [110, 120, 130], 
 								  'Step_Index': [0, 0, 0]})
 	test_datatype2 = 'ARBIN'
-	test_username2 = 'User2'
 
-	process_data(test_filename1, test_db, decoded_dataframe1, test_datatype1, test_username1)
-	process_data(test_filename2, test_db, decoded_dataframe2, test_datatype2, test_username2)
+	process_data(test_filename1, test_db, decoded_dataframe1, test_datatype1)
+	process_data(test_filename2, test_db, decoded_dataframe2, test_datatype2)
 
-	names_list1 = get_db_filenames(test_db, test_username1)
-	assert names_list1 == ['file1']
+	names_list = get_db_filenames(test_db)
+	assert names_list == ['file1', 'file2']
 
-	names_list2 = get_db_filenames(test_db, test_username2)
-	assert names_list2 == ['file2']
 	os.remove("test_database.db")
 	return 
 	
@@ -140,7 +133,7 @@ def test_get_table_names():
 	"""Tests that the correct table names are returned"""
 	# first make sure all data is processed
 	process_data(test_filename, test_db, decoded_dataframe,
-				 test_datatype, test_username)
+				 test_datatype)
 	new_peak_thresh = 0.7
 	core_filename = get_filename_pref(test_filename)
 	df_clean = get_file_from_database(core_filename+'CleanSet', test_db)
@@ -153,7 +146,7 @@ def test_get_table_names():
 					 'test_data-Cycle1', 'test_data-ModPoints',
 					 'test_data-descriptors','test_dataCleanSet', 
 					 'test_dataModParams', 'test_dataRaw', 
-					 'test_dataUnalteredRaw','users']
+					 'test_dataUnalteredRaw']
 	assert set(names_list) == set(expected_list)
 	os.remove(test_db)
 	return

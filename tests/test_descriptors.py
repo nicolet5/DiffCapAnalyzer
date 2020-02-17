@@ -29,7 +29,6 @@ test_filename = 'tests/test_data/test_data.csv'
 test_datatype = 'ARBIN'
 test_filename_mac = 'tests/test_data/test_data_mac.csv'
 test_datatype_mac = 'MACCOR'
-test_username = 'Mr. Foo Bar'
 decoded_dataframe = decoded_to_dataframe(None, test_datatype, test_filename)
 decoded_dataframe_mac = decoded_to_dataframe(None, test_datatype_mac, test_filename_mac)
 
@@ -72,7 +71,7 @@ def test_get_model_dfs():
 
 
 	process_data(test_filename, test_db, decoded_dataframe, 
-					   test_datatype, test_username)
+					   test_datatype)
 
 	df_clean, df_raw = pop_with_db(test_filename, test_db)
 	cyc = 1
@@ -117,7 +116,7 @@ def test_get_model_dfs_for_maccor():
 
 
 	process_data(test_filename_mac, test_db, decoded_dataframe_mac, 
-					   test_datatype_mac, test_username)
+					   test_datatype_mac)
 
 	df_clean, df_raw = pop_with_db(test_filename_mac, test_db)
 	cyc = 1
@@ -160,7 +159,7 @@ def test_generate_model():
 	peak_thresh = 0.7
 	
 	process_data(test_filename, test_db, decoded_dataframe, 
-					   test_datatype, test_username)
+					   test_datatype)
 	filename_pref = get_filename_pref(test_filename)
 	df_clean, df_raw = pop_with_db(test_filename, test_db)
 
@@ -182,7 +181,7 @@ def test_generate_model_for_maccor():
 	peak_thresh = 0.7
 	
 	process_data(test_filename_mac, test_db, decoded_dataframe_mac, 
-					   test_datatype_mac, test_username)
+					   test_datatype_mac)
 	filename_pref = get_filename_pref(test_filename_mac)
 	df_clean, df_raw = pop_with_db(test_filename_mac, test_db)
 
@@ -212,7 +211,7 @@ def test_param_dicts_to_df():
 	functions are parsed nicely and added to the database in the 
 	modparams table"""
 
-	process_data(test_filename, test_db, decoded_dataframe, test_datatype, test_username)
+	process_data(test_filename, test_db, decoded_dataframe, test_datatype)
 	core_test_filename = get_filename_pref(test_filename)
 	new_peak_thresh = 0.7
 	df_clean = get_file_from_database(core_test_filename + 'CleanSet', test_db)

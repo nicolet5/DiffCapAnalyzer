@@ -30,12 +30,11 @@ def test_load_sep_cycles():
 					   'Charge_Capacity(Ah)':  [0, 20, 0, 10, 0],
 					   'Step_Index': [1, 0, 1, 0, 1]})
 	test_datatype = 'ARBIN'
-	username = 'test user'
 	# initialize database: 
 	init_master_table(test_db)
 	core_test_filename = get_filename_pref(test_filename)
 	parse_update_master(core_test_filename, test_db, test_datatype, 
-						test_decoded_df, username)
+						test_decoded_df)
 	# set up by adding raw data frame to database 
 	result = load_sep_cycles(core_test_filename, test_db, test_datatype)
 	# there are two cycles in this test data:
@@ -56,12 +55,11 @@ def test_get_clean_cycles():
 					   'Charge_Capacity(Ah)':  [0, 20, 0, 10, 0],
 					   'Step_Index': [1, 0, 1, 0, 1]})
 	test_datatype = 'ARBIN'
-	username = 'test user'
 	# initialize database: 
 	init_master_table(test_db)
 	core_test_filename = get_filename_pref(test_filename)
 	parse_update_master(core_test_filename, test_db, test_datatype, 
-						test_decoded_df, username)
+						test_decoded_df)
 	# set up by adding raw data frame to database 
 	cycle_dict = load_sep_cycles(core_test_filename, test_db, test_datatype)
 	result = get_clean_cycles(cycle_dict, core_test_filename, test_db, 
@@ -84,12 +82,11 @@ def test_get_clean_sets():
 					   'Charge_Capacity(Ah)':  [0, 20, 0, 10, 0],
 					   'Step_Index': [1, 0, 1, 0, 1]})
 	test_datatype = 'ARBIN'
-	username = 'test user'
 	# initialize database: 
 	init_master_table(test_db)
 	core_test_filename = get_filename_pref(test_filename)
 	parse_update_master(core_test_filename, test_db, test_datatype, 
-						test_decoded_df, username)
+						test_decoded_df)
 	# set up by adding raw data frame to database 
 	cycle_dict = load_sep_cycles(core_test_filename, test_db, test_datatype)
 	clean_cycle_dict = get_clean_cycles(cycle_dict, core_test_filename, test_db, 

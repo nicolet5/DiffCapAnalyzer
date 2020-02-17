@@ -22,36 +22,11 @@ from diffcapanalyzer.chachifuncs import col_variables
 from diffcapanalyzer.descriptors import generate_model
 
 
-def check_database_and_get_creds(database):
-    """This function both serves to initialize the database
-    if it doesn't exist yet, and to get the login credentials
-    from the database.
-    database: string of name of either existing database or
-                    name for new database
-    returns VALID_USERNAME_PASSWORD_PAIRS as a list of lists,
-    if the database was new there is at least one login credential
-    created within the init_master_table function - [[Example User, password]] """
-    if not os.path.exists(database):
-        init_master_table(database)
-
-    # we have a previously set up file in the database with acceptable
-    # users/password pairs
-    usernames = get_file_from_database('users', database)
-
-    VALID_USERNAME_PASSWORD_PAIRS = []
-    for i in range(len(usernames)):
-        VALID_USERNAME_PASSWORD_PAIRS.append(
-            list([usernames.loc[i, ('Username')], usernames.loc[i, ('Password')]]))
-
-    return VALID_USERNAME_PASSWORD_PAIRS
-
-
 def parse_contents(
         decoded,
         filename,
         datatype,
         database,
-        auth,
         windowlength=9,
         polyorder=3):
     """Checks if the uploaded file exists in the database yet. Will
@@ -72,7 +47,6 @@ def parse_contents(
         return 'That file exists in the database: ' + \
             str(get_filename_pref(filename))
     else:
-        username = auth._username
         try:
             decoded_dataframe = decoded_to_dataframe(
                 decoded, datatype, filename)
@@ -81,7 +55,6 @@ def parse_contents(
                 database,
                 decoded_dataframe,
                 datatype,
-                username,
                 windowlength,
                 polyorder)
             df_clean = get_file_from_database(cleanset_name, database)

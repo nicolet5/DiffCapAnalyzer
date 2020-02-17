@@ -45,21 +45,17 @@ def test_update_master_table():
 				   'Cleaned_Data_Prefix': 'clean', 
 				   'Cleaned_Cycles_Prefix': 'cycles', 
 				   'Descriptors_Prefix': 'desc'}
-	user_name = 'fooname'
-	update_master_table(update_dict, 'amazing_database2.db', 
-						user_name)
+	update_master_table(update_dict, 'amazing_database2.db')
 	test_df = get_file_from_database('master_table', 'amazing_database2.db')
 	expected = pd.DataFrame({
 				   'Dataset_Name': ['my_dataset'], 
 				   'Raw_Data_Prefix': ['raw'], 
 				   'Cleaned_Data_Prefix': ['clean'], 
 				   'Cleaned_Cycles_Prefix': ['cycles'], 
-				   'Descriptors_Prefix': ['desc'], 
-				   'Username': ['fooname']})
+				   'Descriptors_Prefix': ['desc']})
 	assert pd.DataFrame.equals(test_df, expected)
 
-	neg_result = update_master_table(None, 'amazing_database2.db', 
-									 user_name)
+	neg_result = update_master_table(None, 'amazing_database2.db', )
 	assert neg_result == [{}]
 
 	os.remove('amazing_database2.db')
@@ -74,8 +70,7 @@ def test_init_master_table():
 				   'Raw_Data_Prefix', 
 				   'Cleaned_Data_Prefix', 
 				   'Cleaned_Cycles_Prefix', 
-				   'Descriptors_Prefix', 
-				   'Username']
+				   'Descriptors_Prefix']
 	assert init_table.empty
 	assert set(expected_cols) == set(init_table.columns)
 	os.remove('new_database.db')

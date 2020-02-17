@@ -1,7 +1,6 @@
 import ast 
 import base64
 import dash
-import dash_auth
 import dash_core_components as dcc
 from dash.dependencies import Input, Output, State
 import dash_html_components as html
@@ -17,7 +16,6 @@ import plotly
 import urllib
 import urllib.parse
 
-from diffcapanalyzer.app_helper_functions import check_database_and_get_creds
 from diffcapanalyzer.app_helper_functions import parse_contents
 from diffcapanalyzer.app_helper_functions import pop_with_db
 from diffcapanalyzer.chachifuncs import col_variables
@@ -32,18 +30,11 @@ init_db = "data/databases/init_database.db"
 assert os.path.exists(init_db)	
 
 
-VALID_USERNAME_PASSWORD_PAIRS = check_database_and_get_creds(database)
 app = dash.Dash(__name__,
 	external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css", 
 							{'href': "https://codepen.io/chriddyp/pen/bWLwgP.css",
 							 'rel': 'stylesheet'}]
 ) 
-
-auth = dash_auth.BasicAuth(
-	app,
-	VALID_USERNAME_PASSWORD_PAIRS
-)
-
 
 ##########################################
 #App Layout 
@@ -240,7 +231,6 @@ def update_output(contents, filename, value):
 											filename, 
 											value,
 											database, 
-											auth, 
 											windowlength, 
 											polyorder)])
 	except Exception as e: 
@@ -250,8 +240,7 @@ def update_output(contents, filename, value):
 @app.callback(Output('available-data', 'options'), 
 			  [Input('output-data-upload', 'children')])
 def update_dropdown(children):
-	username = auth._username
-	options = [{'label':i, 'value':i} for i in get_db_filenames(database, username)]
+	options = [{'label':i, 'value':i} for i in get_db_filenames(database)]
 	return options
 
 @app.callback(Output('update-model-ans', 'children'), 

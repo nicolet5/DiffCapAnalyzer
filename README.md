@@ -6,52 +6,88 @@ Additionally, there is a DASH based visualization app that can be used as the us
 
 Additionally, some machine learning was done to classify between two different cathode chemistries, LiCoO2 and LiFePO4. Data sets for these chemistries were obtained from the CALCE website(https://web.calce.umd.edu/batteries/data.htm). Once this data was cleaned and labelled, a 20-80 test-train split was done and a support vector classifier was utilized, with a final test set accuracy of 77%. 
 
-### How to Install (TODO)
+### How to Install
 ```
-pip install chachies  
+pip install diffcapanalyzer 
 ```
 ### Software Dependencies 
 - Python3 
 - For python packages see requirements.txt
 
-## Organization of the project (TODO)
+## Organization of the project
 ```
-app/
-    data/
-    README.md
-    app.py 
-chachies/ 
-    data/
-    tests/
-        data/
-        README.md
-        __init___.py
-        test_chachifuncs.py
-        test_descriptors.py
-    __init__.py
-    chachies.py 
-    chachifuncs.py
-    descriptors.py 
-    svc_model.sav
-docs/ 
-    design/
-    ppt/
-    README.md
-examples/
-    Images/ 
-    README.md
-LICENSE
-README.md
-requirements.txt
-setup.py
+|   app.py
+|   LICENSE
+|   README.md
+|   requirements.txt
+|   runTests
+|   setup.py
+|   __init__.py
+|
++---data
+|   +---ARBIN
+|   |   |   README.md
+|   |   |
+|   |   +---CS2_33
+|   |   |
+|   |   \---K2_016
+|   |
+|   +---databases
+|   |       dQdV.db
+|   |       init_database.db
+|   |
+|   +---MACCOR
+|   |       example_data.csv
+|   |
+|   \---ML_data
+|           c_descriptors.xlsx
+|           descriptors_without_heights.xlsx
+|           final_descriptors.xlsx
+|           k_descriptors.xlsx
+|           svc_model.sav
+|           svc_results.png
+|
++---diffcapanalyzer
+|       app_helper_functions.py
+|       chachifuncs.py
+|       databasefuncs.py
+|       databasewrappers.py
+|       descriptors.py
+|       __init__.py
+|
++---docs
+|   |   Poster.pdf
+|   |
+|   +---images
+|   |       diagram.png
+|   |
+|   \---paper
+|       |   paper.md
+|       |
+|       \---images
+|               cleaning_dqdv.png
+|               fitting_dqdv.png
+|
++---examples
+|   |   ProcessData_PlotDescriptors_Examples.ipynb
+|   |
+|   \---ML
+|           SVC_Model.ipynb
+|
+\---tests
+    |   test_app_helper_functions.py
+    |   test_chachifuncs.py
+    |   test_databasefuncs.py
+    |   test_databasewrappers.py
+    |   test_descriptors.py
+    |   __init__.py
+    |
+    \---test_data
+            test_data.csv
+            test_data_mac.csv
 ```
 
-## Preview of app 
-![Preview](images/gif3_interactivegraph.gif)
-
-For more see ```app/```
-
-## Data Visualization (TODO)
+## Data Visualization
 Make sure to install the following dash libraries
 ```
 pip install dash==0.21.0  # The core dash backend

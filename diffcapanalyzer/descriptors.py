@@ -492,7 +492,8 @@ def dfsortpeakvals(mydf, cd):
         newdf.columns = ['allpeaks']
         sortdf = newdf.sort_values(by='allpeaks')
         sortdf = sortdf.reset_index(inplace=False)
-        newgroupindex = np.where(np.diff(sortdf['allpeaks']) > 0.01)
+        with np.errstate(invalid='ignore'):
+            newgroupindex = np.where(np.diff(sortdf['allpeaks']) > 0.01)
         listnew = newgroupindex[0].tolist()
         listnew.insert(0, 0)
         listnew.append(len(sortdf))

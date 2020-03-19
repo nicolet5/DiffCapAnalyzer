@@ -7,7 +7,8 @@ import requests
 import scipy.io
 import scipy.signal
 
-from diffcapanalyzer.databasefuncs import get_file_from_database, update_database_newtable
+from diffcapanalyzer.databasefuncs import get_file_from_database
+from diffcapanalyzer.databasefuncs import update_database_newtable
 
 
 def load_sep_cycles(core_file_name, database_name, datatype):
@@ -150,11 +151,8 @@ def calc_dq_dqdv(cycle_df, datatype):
     cycle_df_discharge['Discharge_dQ'] = cycle_df_discharge[dis_cap_col].diff()
     cycle_df_discharge['dQ/dV'] = cycle_df_discharge['Discharge_dQ'] / \
         cycle_df_discharge['dV']
-    cycle_df_discharge[['dQ/dV',
-                        'dV',
-                        'Discharge_dQ']] = cycle_df_discharge[['dQ/dV',
-                                                               'dV',
-                                                               'Discharge_dQ']].fillna(0)
+    cycle_df_discharge[['dQ/dV', 'dV', 'Discharge_dQ']] = \
+        cycle_df_discharge[['dQ/dV', 'dV', 'Discharge_dQ']].fillna(0)
     cycle_df_discharge = cycle_df_discharge[cycle_df_discharge['dQ/dV'] <= 0]
     cycle_df = pd.concat((cycle_df_charge, cycle_df_discharge), sort=True)
     return cycle_df
@@ -268,4 +266,5 @@ def col_variables(datatype):
         charge_or_discharge = 'Md'
     else:
         return None
-    return(cycle_ind_col, data_point_col, volt_col, curr_col, dis_cap_col, char_cap_col, charge_or_discharge)
+    return(cycle_ind_col, data_point_col, volt_col,
+           curr_col, dis_cap_col, char_cap_col, charge_or_discharge)

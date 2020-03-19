@@ -7,8 +7,10 @@ from lmfit import models
 import os
 import glob
 
-from diffcapanalyzer.chachifuncs import col_variables, sep_char_dis
-from diffcapanalyzer.databasefuncs import update_database_newtable, get_file_from_database
+from diffcapanalyzer.chachifuncs import col_variables
+from diffcapanalyzer.chachifuncs import sep_char_dis
+from diffcapanalyzer.databasefuncs import update_database_newtable
+from diffcapanalyzer.databasefuncs import get_file_from_database
 
 # Wrapper Functions
 
@@ -39,14 +41,19 @@ def generate_model(df_clean, filename, peak_thresh, database):
     cycles_no_models = []
     for cyc in df_clean[cycle_ind_col].unique():
         try:
-            new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d = get_model_dfs(
-                df_clean, datatype, cyc, lenmax, peak_thresh)
+            new_df_mody, model_c_vals, model_d_vals, \
+                peak_heights_c, peak_heights_d = get_model_dfs(
+                    df_clean, datatype, cyc, lenmax, peak_thresh)
             mod_pointsdf = mod_pointsdf.append(new_df_mody)
             param_df = param_df.append({'Cycle': cyc,
-                                        'Model_Parameters_charge': str(model_c_vals),
-                                        'Model_Parameters_discharge': str(model_d_vals),
-                                        'charge_peak_heights': str(peak_heights_c),
-                                        'discharge_peak_heights': str(peak_heights_d)},
+                                        'Model_Parameters_charge':
+                                        str(model_c_vals),
+                                        'Model_Parameters_discharge':
+                                        str(model_d_vals),
+                                        'charge_peak_heights':
+                                        str(peak_heights_c),
+                                        'discharge_peak_heights':
+                                        str(peak_heights_d)},
                                        ignore_index=True)
         except Exception as e:
             cycles_no_models.append(cyc)
@@ -63,9 +70,9 @@ def generate_model(df_clean, filename, peak_thresh, database):
         filename.split('.')[0] +
         'ModParams',
         database)
-    # the below also updates the database with the new descriptors after evaluating the spit out
-    # dictionary and putting those parameters into a nicely formatted
-    # datatable.
+    # the below also updates the database with the new descriptors after
+    # evaluating the spit out dictionary and putting those parameters
+    # into a nicely formatted datatable.
     param_dicts_to_df(filename.split('.')[0] + 'ModParams', database)
     if len(cycles_no_models) > 0:
         return 'That model has been added to the database.' \
@@ -106,14 +113,16 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
         myseries_c = myseries_c.rename('Model')
         model_c_vals = model_c.values
         new_df_mody_c = pd.concat(
-            [myseries_c, V_series_c, dQdV_series_c, clean_charge[cycle_ind_col]], axis=1)
+            [myseries_c, V_series_c,
+             dQdV_series_c, clean_charge[cycle_ind_col]], axis=1)
     else:
         mod_y_c = None
         new_df_mody_c = None
         model_c_vals = None
     # now the discharge:
     i_discharge, volts_i_dc, peak_heights_d = peak_finder(
-        clean_discharge, 'd', windowlength, polyorder, datatype, lenmax, peak_thresh)
+        clean_discharge, 'd', windowlength,
+        polyorder, datatype, lenmax, peak_thresh)
     V_series_d = clean_discharge[volt_col]
     dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
     par_d, mod_d, indices_d = model_gen(
@@ -124,7 +133,11 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
         myseries_d = pd.Series(mod_y_d)
         myseries_d = myseries_d.rename('Model')
         new_df_mody_d = pd.concat(
-            [-myseries_d, V_series_d, dQdV_series_d, clean_discharge[cycle_ind_col]], axis=1)
+            [-myseries_d,
+             V_series_d,
+             dQdV_series_d,
+             clean_discharge[cycle_ind_col]],
+            axis=1)
         model_d_vals = model_d.values
     else:
         mod_y_d = None
@@ -136,15 +149,19 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
     else:
         new_df_mody = None
 
-    return new_df_mody, model_c_vals, model_d_vals, peak_heights_c, peak_heights_d
+    return new_df_mody, model_c_vals, model_d_vals,\
+        peak_heights_c, peak_heights_d
 
 
 # Component Functions
 
 def my_pseudovoigt(x, cent, amp, fract, sigma):
-    """This function is from http://cars9.uchicago.edu/software/python/lmfit/builtin_models.html"""
+    """This function is from
+    http://cars9.uchicago.edu/software/python/lmfit/builtin_models.html"""
     sig_g = sigma / \
-        np.sqrt(2 * np.log(2))  # calculate the sigma_g parameter for the gaussian distribution
+        np.sqrt(
+            2 * np.log(2))
+    # calculate the sigma_g parameter for the gaussian distribution
     part1 = (((1 - fract) * amp) / (sig_g * np.sqrt(2 * np.pi))) * \
         np.exp((-(x - cent)**2) / (2 * sig_g**2))
     part2 = ((fract * amp) / np.pi) * (sigma / ((x - cent)**2 + sigma**2))
@@ -153,9 +170,10 @@ def my_pseudovoigt(x, cent, amp, fract, sigma):
 
 
 def param_dicts_to_df(mod_params_name, database):
-    """Uses the already generated parameter dictionaries stored in the filename+ModParams
-    datatable in the database, to add in the dictionary data table with those parameter
-    dictionaries formatted nicely into one table. """
+    """Uses the already generated parameter dictionaries stored in
+    the filename+ModParams datatable in the database, to add in the
+    dictionary data table with those parameter dictionaries
+    formatted nicely into one table. """
     mod_params_df = get_file_from_database(mod_params_name, database)
     charge_descript = pd.DataFrame()
     discharge_descript = pd.DataFrame()
@@ -174,12 +192,18 @@ def param_dicts_to_df(mod_params_name, database):
             for key, value in param_dict_charge.items():
                 if '_amplitude' in key and 'base_' not in key:
                     charge_keys.append(key.split('_')[0])
-            new_dict_charge.update({'c_gauss_sigma': param_dict_charge['base_sigma'],  # changed from c0- c4  to base_ .. 10-10-18
-                                    'c_gauss_center': param_dict_charge['base_center'],
-                                    'c_gauss_amplitude': param_dict_charge['base_amplitude'],
-                                    'c_gauss_fwhm': param_dict_charge['base_fwhm'],
-                                    'c_gauss_height': param_dict_charge['base_height'],
-                                    })
+            c_update_dict = {'c_gauss_sigma':
+                             param_dict_charge['base_sigma'],
+                             'c_gauss_center':
+                             param_dict_charge['base_center'],
+                             'c_gauss_amplitude':
+                             param_dict_charge['base_amplitude'],
+                             'c_gauss_fwhm':
+                             param_dict_charge['base_fwhm'],
+                             'c_gauss_height':
+                             param_dict_charge['base_height'],
+                             }
+            new_dict_charge.update(c_update_dict)
             new_dict_charge.update(
                 {'c_cycle_number': float(mod_params_df.loc[i, ('Cycle')])})
         peaknum = 0
@@ -220,12 +244,18 @@ def param_dicts_to_df(mod_params_name, database):
                 if '_amplitude' in key and 'base_' not in key:
                     discharge_keys.append(key.split('_')[0])
             new_dict_discharge = {}
-            new_dict_discharge.update({'d_gauss_sigma': param_dict_discharge['base_sigma'],  # changed 10-10-18
-                                       'd_gauss_center': param_dict_discharge['base_center'],
-                                       'd_gauss_amplitude': param_dict_discharge['base_amplitude'],
-                                       'd_gauss_fwhm': param_dict_discharge['base_fwhm'],
-                                       'd_gauss_height': param_dict_discharge['base_height'],
-                                       })
+            update_dict = {'d_gauss_sigma':
+                           param_dict_discharge['base_sigma'],
+                           'd_gauss_center':
+                           param_dict_discharge['base_center'],
+                           'd_gauss_amplitude':
+                           param_dict_discharge['base_amplitude'],
+                           'd_gauss_fwhm':
+                           param_dict_discharge['base_fwhm'],
+                           'd_gauss_height':
+                           param_dict_discharge['base_height'],
+                           }
+            new_dict_discharge.update(update_dict)
             new_dict_discharge.update(
                 {'d_cycle_number': float(mod_params_df.loc[i, ('Cycle')])})
             peaknum = 0
@@ -241,13 +271,20 @@ def param_dicts_to_df(mod_params_name, database):
                 PeakArea, PeakAreaError = scipy.integrate.quad(
                     my_pseudovoigt, 0.0, 100, args=(center, amp, fract, sigma))
                 new_dict_discharge.update({'d_area_peak_' +
-                                           str(peaknum): PeakArea, 'd_center_peak_' +
-                                           str(peaknum): center, 'd_amp_peak_' +
-                                           str(peaknum): amp, 'd_fract_peak_' +
-                                           str(peaknum): fract, 'd_sigma_peak_' +
-                                           str(peaknum): sigma, 'd_height_peak_' +
-                                           str(peaknum): height, 'd_fwhm_peak_' +
-                                           str(peaknum): fwhm, 'd_rawheight_peak_' +
+                                           str(peaknum): PeakArea,
+                                           'd_center_peak_' +
+                                           str(peaknum): center,
+                                           'd_amp_peak_' +
+                                           str(peaknum): amp,
+                                           'd_fract_peak_' +
+                                           str(peaknum): fract,
+                                           'd_sigma_peak_' +
+                                           str(peaknum): sigma,
+                                           'd_height_peak_' +
+                                           str(peaknum): height,
+                                           'd_fwhm_peak_' +
+                                           str(peaknum): fwhm,
+                                           'd_rawheight_peak_' +
                                            str(peaknum): raw_peakheight})
         else:
             new_dict_discharge = None
@@ -459,9 +496,11 @@ def model_eval(V_series, dQdV_series, cd, par, mod):
 
 
 def dfsortpeakvals(mydf, cd):
-    """This sorts the peak values based off of all the other values in the df, so that
-    all that belong to peak 1 are in the peak one column etc. Mydf has to be of only charge or
-    discharge data. Filter for that first then feed into this function"""
+    """This sorts the peak values based off of all the other
+    values in the df, so that all that belong to peak 1 are in
+    the peak one column etc. Mydf has to be of only charge or
+    discharge data. Filter for that first then feed into
+    this function"""
 
     filter_col_loc = [
         col for col in mydf if str(col).startswith(
@@ -517,14 +556,15 @@ def dfsortpeakvals(mydf, cd):
             mydf['sortedfraction-' + cd + '-' + str(count)] = None
             mydf['sortedactheight-' + cd + '-' + str(count)] = None
             for j in range(len(filter_col_loc)):
-                # iterate over the names of columns in mydf - ex[peakloc1, peakloc2, peakloc3..]
+                # iterate over the names of columns in mydf
                 # this is where we sort the values in the df based on if they
                 # appear in the group
                 for i in range(len(mydf)):
                     # iterate over rows in the dataframe
-                    if mydf.loc[i,
-                                (filter_col_loc[j])] >= min(list(groupdict[key].allpeaks)) and mydf.loc[i,
-                                                                                                        (filter_col_loc[j])] <= max(list(groupdict[key].allpeaks)):
+                    if mydf.loc[i, (filter_col_loc[j])] >= \
+                            min(list(groupdict[key].allpeaks)) and \
+                            mydf.loc[i, (filter_col_loc[j])] <= \
+                            max(list(groupdict[key].allpeaks)):
                         mydf.loc[i, ('sortedloc-' + cd + '-' + str(count))
                                  ] = mydf.loc[i, (filter_col_loc[j])]
                         mydf.loc[i, ('sortedheight-' + cd + '-' + str(count))
@@ -533,13 +573,15 @@ def dfsortpeakvals(mydf, cd):
                                  ] = mydf.loc[i, (filter_col_area[j])]
                         mydf.loc[i, ('sortedSIGMA-' + cd + '-' + str(count))
                                  ] = mydf.loc[i, (filter_col_sigma[j])]
-                        mydf.loc[i, ('sortedamplitude-' + cd + '-' + \
-                                     str(count))] = mydf.loc[i, (filter_col_ampl[j])]
+                        mydf.loc[i, ('sortedamplitude-' + cd + '-' +
+                                     str(count))] = \
+                            mydf.loc[i, (filter_col_ampl[j])]
                         mydf.loc[i, ('sortedfwhm-' + cd + '-' + str(count))
                                  ] = mydf.loc[i, (filter_col_fwhm[j])]
                         mydf.loc[i, ('sortedfraction-' + cd + '-' + str(count))
                                  ] = mydf.loc[i, (filter_col_fract[j])]
-                        mydf.loc[i, ('sortedactheight-' + cd + '-' + str(count))
+                        mydf.loc[i,
+                                 ('sortedactheight-' + cd + '-' + str(count))
                                  ] = mydf.loc[i, (filter_col_actheight[j])]
                     else:
                         None

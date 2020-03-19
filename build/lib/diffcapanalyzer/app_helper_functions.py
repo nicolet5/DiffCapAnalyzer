@@ -15,8 +15,12 @@ import plotly
 import urllib
 import urllib.parse
 
-from diffcapanalyzer.databasewrappers import get_filename_pref, if_file_exists_in_db, process_data, macc_chardis
-from diffcapanalyzer.databasefuncs import init_master_table, get_file_from_database
+from diffcapanalyzer.databasewrappers import get_filename_pref
+from diffcapanalyzer.databasewrappers import if_file_exists_in_db
+from diffcapanalyzer.databasewrappers import process_data
+from diffcapanalyzer.databasewrappers import macc_chardis
+from diffcapanalyzer.databasefuncs import init_master_table
+from diffcapanalyzer.databasefuncs import get_file_from_database
 from diffcapanalyzer.chachifuncs import col_variables
 from diffcapanalyzer.descriptors import generate_model
 
@@ -34,9 +38,9 @@ def parse_contents(
     file already exists in the database. """
 
     cleanset_name = get_filename_pref(filename) + 'CleanSet'
-    # this gets rid of any filepath in the filename and just leaves the clean set name as it appears in the database
-    # check to see if the database exists, and if it does, check if the file
-    # exists.
+    # this gets rid of any filepath in the filename and just leaves the
+    # clean set name as it appears in the database check to see if the
+    # database exists, and if it does, check if the file exists.
     ans_p = if_file_exists_in_db(database, filename)
     if ans_p:
         df_clean = get_file_from_database(cleanset_name, database)
@@ -63,7 +67,8 @@ def parse_contents(
             return 'New file has been processed: ' + \
                 str(get_filename_pref(filename))
         except Exception as e:
-            return 'There was a problem uploading that file. Check the format of the upload file is as expected.' + \
+            return 'There was a problem uploading that file. ' + \
+                'Check the format of the upload file is as expected.' + \
                 str(e)
 
 

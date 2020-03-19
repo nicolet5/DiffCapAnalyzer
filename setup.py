@@ -14,22 +14,22 @@ with open("README.md", "r") as f:
 
 setuptools.setup(
     name="DiffCapAnalyzer",
-    version="0.0.1", 
+    version="0.0.1",
     author="Nicole Thompson",
-    author_email = "nicole.thompson140@gmail.com",
+    author_email="nicole.thompson140@gmail.com",
     description="A package for the quantitative analysis of differential capacity data!",
-    long_description = long_description, 
-    long_description_content_type ="text/markdown", 
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     url="https://github.com/nicolet5/DiffCapAnalyzer",
-    packages = setuptools.find_packages(),
+    packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
-    tests_require =[
-        'pytest', 
+    tests_require=[
+        'pytest',
         'pytest-cov'
-        ]
+    ]
 )

@@ -106,3 +106,24 @@ Which should return
  * Running on http://someurl/ (Press CTRL+C to quit)
 ```
 Type that URL in browser to launch
+
+
+## Data Requirements
+At the moment, the package can only process CSV files and relies on specific column headers for each type of file (Arbin vs. Maccor). Please reference the `data` directory for example files. The column headers for each data type must include and appear exactly as the following: 
+* Arbin: 
+    * Cycle_Index
+    * Data_Point
+    * Voltage(V)
+    * Current(A)
+    * Discharge_Capacity(Ah)
+    * Charge_Capacity(Ah)
+    * Step_Index
+* MACCOR: 
+    * Rec
+    * Cycle C Step
+    * TestTime
+    * StepTime
+    * Cap. [Ah]
+    * Voltage [V]
+    * Md
+    * Current [A]

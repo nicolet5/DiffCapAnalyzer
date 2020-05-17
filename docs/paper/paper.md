@@ -36,7 +36,7 @@ In order to study long-term degradation and charge storage mechanisms in batteri
 Traditionally, when using differential capacity plots, researchers have drawn conclusions based on an arbitrarily chosen subset of cycles and reported mainly qualitative claims on how peaks shift during cycling, due to the difficulties in analyzing the full amount of data produced in the differential capacity plots. Additionally, although it is known that peak shapes and areas correlate to important electrochemical events, only a few papers report using peak deconvolution as a method to interpret dQ/dV plots [@torai_nakagomi_yoshitake_yamaguchi_oyama_2016; @aihara_ito_omoda_yamada_fujiki_watanabe_park_doo_2016]. Further, there does not exist any standardized method for peak deconvolution of differential capacity plots. 
 The presented software aims to address the drawbacks associated with differential capacity analysis by processing cycling data in a chemistry agnostic manner. This is done by calculating differential capacity from the given raw cycling data using Equation 1, cleaning and smoothing the dQ/dV plots, and performing automatic peak locating and deconvolution for every cycle within the dataset. 
 
-$$(dQ/dV)_i=(Q_i-Q_{(i-1)})/(V_i-V_{(i-1)})$$(1)
+$$(dQ/dV)_i=(Q_i-Q_{(i-1)})/(V_i-V_{(i-1)})\tag*{(1)}$$
 
 In differential capacity curves without any cleaning or smoothing, there  is significant noise and large step-wise changes present. This is a common problem when the denominator of Equation 1 approaches zero [@bloom_jansen_abraham_knuth_jones_battaglia_henriksen_2005]. Therefore, in order to accurately identify peaks, the data was cleaned by removing points such that the voltage difference between datapoints was at least 0.001 V. Subsequently, the curve was smoothed using a Savitzky-Golay filter, which is a moving polynomial of specified order fit over a specified number of data points. At the current state of the software, the polynomial order of the Savitzky-Golay filter is set at 3 with a window length of 9 data points, as these seemed the best parameters on the data tested to preserve important features while removing noise. This cleaning process is summarized in \autoref{Figure 1}:
  
@@ -44,10 +44,10 @@ In differential capacity curves without any cleaning or smoothing, there  is sig
 
 Once the data is clean, the software automatically finds peaks in the dQ/dV curves utilizing the PeakUtils Python package [@peakutils], returning the peak heights and the peak locations, as shown by an example cycle in \autoref{Figure 2}a.  These peak heights and locations are then used to inform the model build, which is individualized to each cycle contained in the dataset. The model consists of Pseudo-Voigt distributions positioned at the identified peak locations and a baseline gaussian distribution that captures the area that is not part of the Psuedo-Voigt distributions. The Pseudo-Voigt distribution described by Equations 2 and 3 is simply the linear combination of a Gaussian and a Lorentzian and is often used in fitting experimental spectral data due to it being a highly generalizable function able to fit a large variety of peak shapes [@wertheim_butler_west_buchanan_1974].
 
-$$f_v(x,A,\mu,\sigma,\alpha)=\frac{(1−\alpha)A}{\sigma_g \sqrt{2 \pi}}\exp{[−{(x− \mu)}^2/2 {\sigma_g}^2]}+\frac{\alpha A}{\pi}[\frac{\sigma}{{(x-\mu)}^2 + \sigma^2}]$$(2)
+$$f_v(x,A,\mu,\sigma,\alpha)=\frac{(1−\alpha)A}{\sigma_g \sqrt{2 \pi}}\exp{[−{(x− \mu)}^2/2 {\sigma_g}^2]}+\frac{\alpha A}{\pi}[\frac{\sigma}{{(x-\mu)}^2 + \sigma^2}]\tag*{(2)}$$
 
 
-$$\sigma_g = \sigma/\sqrt{2 \ln{2}}$$(3)
+$$\sigma_g = \sigma/\sqrt{2 \ln{2}}\tag*{(3)}$$
 
 
 Once the model is generated, an optimized fit is found by allowing all parameters to vary except the center position of the Pseudo-Voigt peaks, which is assigned via the previously identified peak locations. \autoref{Figure 2}b presents an example of an initial model fit and the model fit once optimized specifically for that charge cycle.

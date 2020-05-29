@@ -14,7 +14,7 @@ authors:
   - name: Theodore A. Cohen
     affiliation: "1, 2, 3"
   - name: Grant A. Williamson
-    affiliation: 3
+    affiliation: 2
   - name: Vincent C. Holmberg
     affiliation: 1
   - name: David A. C. Beck
@@ -24,7 +24,7 @@ affiliations:
     index: 1
   - name: Dept. of Molecular Engineering, University of Washington
     index: 2
-  - name: Dept. of Material Science and Engineering, University of Washington
+  - name: Dept. of Materials Science and Engineering, University of Washington
     index: 3
 date: 26 April 2020
 bibliography: paper.bib

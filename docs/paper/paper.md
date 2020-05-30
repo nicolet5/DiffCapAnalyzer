@@ -9,10 +9,10 @@ authors:
   - name: Nicole L. Thompson
     orcid: 0000-0003-3411-7373
     affiliation: 1
-  - name: Sarah Alamdari
-    affiliation: 1
   - name: Theodore A. Cohen
     affiliation: "1, 2, 3"
+  - name: Sarah Alamdari
+    affiliation: 1
   - name: Grant A. Williamson
     affiliation: 2
   - name: Vincent C. Holmberg

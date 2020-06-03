@@ -77,7 +77,7 @@ setuptools.setup(
         "wcwidth>=0.1.8",
         "Werkzeug>=0.16.0",
         "wincertstore>=0.2"
-    ]
+    ],
     tests_require=[
         'pytest',
         'pytest-cov'

@@ -35,6 +35,7 @@ Which should return
 ```
 Type or copy that URL in browser to launch the app locally.
 
+NOTE: Any data you upload via this app remains on your local machine. The app stores the uploaded data in a local database found here: `data/databases/dQdV.db` 
 
 ## Organization of the project
 ```

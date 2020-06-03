@@ -11,21 +11,21 @@ Additionally, some machine learning was done to classify between two different c
 - For python packages see requirements.txt
 
 ### How to Install
-To run the app and fully utilize DiffCapAnalyzer and the corresponding examples, simply clone this repo an from the top directory run: 
+To run the app and fully utilize DiffCapAnalyzer and the corresponding examples, simply clone this repo and from the top directory run: 
 ```
 pip install -Ur requirements.txt
 ```
-This will install all packages necessary for DiffCapAnalyzer.
+This will install all packages necessary for DiffCapAnalyzer. 
 
-To use DiffCapAnalyzer outside of the app, you can also pip install: 
+To use the DiffCapAnalyzer functions without the app, you can pip install instead of cloning the entire repo: 
 ```
 pip install diffcapanalyzer 
 ```
-This will install the DiffCapAnalyzer modules for use in the example notebooks, or for using the core modules outside of the Dash app. 
+This will install the DiffCapAnalyzer modules for use in the example notebooks, or for using the package outside of the Dash app. For example usage of the functions outside of the Dash app, see `examples/ProcessData_PlotDescriptors_Examples.ipynb`. 
 
 
 ## Dash App
-To run the app run the following in terminal:
+After cloning this repo, the Dash app can be used to interact with the underlying DiffCapAnalyer functions to process cycling data and visualize results. To run the app run the following command terminal:
 ```
 python app.py
 ```

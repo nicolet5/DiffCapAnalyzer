@@ -6,13 +6,35 @@ Additionally, there is a DASH based visualization app that can be used as the us
 
 Additionally, some machine learning was done to classify between two different cathode chemistries, LiCoO2 and LiFePO4. Data sets for these chemistries were obtained from the CALCE website(https://web.calce.umd.edu/batteries/data.htm). Once this data was cleaned and labelled, a 20-80 test-train split was done and a support vector classifier was utilized, with a final test set accuracy of 77%. 
 
-### How to Install
-```
-pip install diffcapanalyzer 
-```
 ### Software Dependencies 
 - Python3 
 - For python packages see requirements.txt
+
+### How to Install
+To run the app and fully utilize DiffCapAnalyzer and the corresponding examples, simply clone this repo an from the top directory run: 
+```
+pip install -Ur requirements.txt
+```
+This will install all packages necessary for DiffCapAnalyzer.
+
+To use DiffCapAnalyzer outside of the app, you can also pip install: 
+```
+pip install diffcapanalyzer 
+```
+This will install the DiffCapAnalyzer modules for use in the example notebooks, or for using the core modules outside of the Dash app. 
+
+
+## Dash App
+To run the app run the following in terminal:
+```
+python app.py
+```
+Which should return
+```
+ * Running on http://someurl/ (Press CTRL+C to quit)
+```
+Type or copy that URL in browser to launch the app locally.
+
 
 ## Organization of the project
 ```
@@ -86,27 +108,6 @@ pip install diffcapanalyzer
             test_data.csv
             test_data_mac.csv
 ```
-
-## Data Visualization
-Make sure to install the following dash libraries
-```
-pip install dash==0.21.0  # The core dash backend
-pip install dash-renderer==0.11.3  # The dash front-end
-pip install dash-html-components==0.9.0  # HTML components
-pip install dash-core-components==0.18.1  # Supercharged components
-pip install plotly --upgrade  # Latest Plotly graphing library
-```
-
-To run the app run the following in terminal:
-```
-python app.py
-```
-Which should return
-```
- * Running on http://someurl/ (Press CTRL+C to quit)
-```
-Type that URL in browser to launch
-
 
 ## Data Requirements
 At the moment, the package can only process CSV files and relies on specific column headers for each type of file (Arbin vs. Maccor). Please reference the `data` directory for example files. The column headers for each data type must include and appear exactly as the following: 

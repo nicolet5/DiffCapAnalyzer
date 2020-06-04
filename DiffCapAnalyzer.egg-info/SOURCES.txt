@@ -3,6 +3,7 @@ setup.py
 DiffCapAnalyzer.egg-info/PKG-INFO
 DiffCapAnalyzer.egg-info/SOURCES.txt
 DiffCapAnalyzer.egg-info/dependency_links.txt
+DiffCapAnalyzer.egg-info/requires.txt
 DiffCapAnalyzer.egg-info/top_level.txt
 diffcapanalyzer/__init__.py
 diffcapanalyzer/app_helper_functions.py

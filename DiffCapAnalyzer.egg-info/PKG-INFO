@@ -1,12 +1,13 @@
 Metadata-Version: 2.1
 Name: DiffCapAnalyzer
-Version: 0.0.1
+Version: 0.1.1
 Summary: A package for the quantitative analysis of differential capacity data!
-Home-page: https://github.com/nicolet5/DiffCapAnalyzer
+Home-page: UNKNOWN
 Author: Nicole Thompson
 Author-email: nicole.thompson140@gmail.com
 License: UNKNOWN
-Description: # DiffCapAnalyzer
+Download-URL: https://github.com/nicolet5/DiffCapAnalyzer/archive/v0.1.1.tar.gz
+Description: # DiffCapAnalyzer [![Build Status](https://travis-ci.com/nicolet5/DiffCapAnalyzer.svg?branch=master)](https://travis-ci.com/nicolet5/DiffCapAnalyzer) ![Python status](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-blue)
         ## Package for Battery Cycling Data Visualization and Analysis
         This package is intended to quantitatively analyze raw cycling data by identifying and parameterizing peaks found in the differential capacity plots. Differential capacity plots (dQ/dV) can be very powerful for uncovering battery performance characteristics, as the peaks that appear in these plots correspond to the various electrochemical events. However, because of the large amount of data gathered during cycing experiments, many researchers report subsets of cycles and purely qualitative conclusions. This package adds the ability to quantify this type of analysis by cleaning battery cycling datasets and obtaining peak locations, widths, amplitudes, and other descriptors for every charge/discharge cycle in the data. To this end, this tool develops individualized fitted models for each charge and discharge cycle in the data set, comprised of a gaussian baseline and pseudo-voigt distributions at each peak location. 
         
@@ -14,13 +15,35 @@ Description: # DiffCapAnalyzer
         
         Additionally, some machine learning was done to classify between two different cathode chemistries, LiCoO2 and LiFePO4. Data sets for these chemistries were obtained from the CALCE website(https://web.calce.umd.edu/batteries/data.htm). Once this data was cleaned and labelled, a 20-80 test-train split was done and a support vector classifier was utilized, with a final test set accuracy of 77%. 
         
-        ### How to Install
-        ```
-        pip install diffcapanalyzer 
-        ```
         ### Software Dependencies 
         - Python3 
         - For python packages see requirements.txt
+        
+        ### How to Install
+        To run the app and fully utilize DiffCapAnalyzer and the corresponding examples, simply clone this repo an from the top directory run: 
+        ```
+        pip install -Ur requirements.txt
+        ```
+        This will install all packages necessary for DiffCapAnalyzer.
+        
+        To use DiffCapAnalyzer outside of the app, you can also pip install: 
+        ```
+        pip install diffcapanalyzer 
+        ```
+        This will install the DiffCapAnalyzer modules for use in the example notebooks, or for using the core modules outside of the Dash app. 
+        
+        
+        ## Dash App
+        To run the app run the following in terminal:
+        ```
+        python app.py
+        ```
+        Which should return
+        ```
+         * Running on http://someurl/ (Press CTRL+C to quit)
+        ```
+        Type or copy that URL in browser to launch the app locally.
+        
         
         ## Organization of the project
         ```
@@ -95,25 +118,25 @@ Description: # DiffCapAnalyzer
                     test_data_mac.csv
         ```
         
-        ## Data Visualization
-        Make sure to install the following dash libraries
-        ```
-        pip install dash==0.21.0  # The core dash backend
-        pip install dash-renderer==0.11.3  # The dash front-end
-        pip install dash-html-components==0.9.0  # HTML components
-        pip install dash-core-components==0.18.1  # Supercharged components
-        pip install plotly --upgrade  # Latest Plotly graphing library
-        ```
-        
-        To run the app run the following in terminal:
-        ```
-        python app.py
-        ```
-        Which should return
-        ```
-         * Running on http://someurl/ (Press CTRL+C to quit)
-        ```
-        Type that URL in browser to launch
+        ## Data Requirements
+        At the moment, the package can only process CSV files and relies on specific column headers for each type of file (Arbin vs. Maccor). Please reference the `data` directory for example files. The column headers for each data type must include and appear exactly as the following: 
+        * Arbin: 
+            * Cycle_Index
+            * Data_Point
+            * Voltage(V)
+            * Current(A)
+            * Discharge_Capacity(Ah)
+            * Charge_Capacity(Ah)
+            * Step_Index
+        * MACCOR: 
+            * Rec
+            * Cycle C Step
+            * TestTime
+            * StepTime
+            * Cap. [Ah]
+            * Voltage [V]
+            * Md
+            * Current [A]
         
 Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3

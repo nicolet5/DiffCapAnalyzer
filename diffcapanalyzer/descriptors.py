@@ -157,7 +157,7 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
 
 def my_pseudovoigt(x, cent, amp, fract, sigma):
     """This function is from
-    http://cars9.uchicago.edu/software/python/lmfit/builtin_models.html"""
+    https://lmfit.github.io/lmfit-py/builtin_models.html#lmfit.models.PseudoVoigtModel"""
     sig_g = sigma / \
         np.sqrt(
             2 * np.log(2))

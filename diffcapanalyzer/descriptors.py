@@ -186,6 +186,7 @@ def param_dicts_to_df(mod_params_name, database):
             mod_params_df.loc[i, ('charge_peak_heights')])
         discharge_peak_heights = ast.literal_eval(
             mod_params_df.loc[i, ('discharge_peak_heights')])
+        # Charge first 
         charge_keys = []
         new_dict_charge = {}
         if param_dict_charge is not None:
@@ -238,12 +239,14 @@ def param_dicts_to_df(mod_params_name, database):
         charge_descript = pd.concat([charge_descript, new_dict_df], sort=True)
         charge_descript = charge_descript.reset_index(drop=True)
         charge_descript2 = dfsortpeakvals(charge_descript, 'c')
+
+        # Now the discharge: 
         discharge_keys = []
+        new_dict_discharge = {}
         if param_dict_discharge is not None:
             for key, value in param_dict_discharge.items():
                 if '_amplitude' in key and 'base_' not in key:
                     discharge_keys.append(key.split('_')[0])
-            new_dict_discharge = {}
             update_dict = {'d_gauss_sigma':
                            param_dict_discharge['base_sigma'],
                            'd_gauss_center':
@@ -258,48 +261,43 @@ def param_dicts_to_df(mod_params_name, database):
             new_dict_discharge.update(update_dict)
             new_dict_discharge.update(
                 {'d_cycle_number': float(mod_params_df.loc[i, ('Cycle')])})
-            peaknum = 0
-            for item in discharge_keys:
-                peaknum = peaknum + 1
-                center = param_dict_discharge[item + '_center']
-                amp = param_dict_discharge[item + '_amplitude']
-                fract = param_dict_discharge[item + '_fraction']
-                sigma = param_dict_discharge[item + '_sigma']
-                height = param_dict_discharge[item + '_height']
-                fwhm = param_dict_discharge[item + '_fwhm']
-                raw_peakheight = discharge_peak_heights[peaknum - 1]
-                PeakArea, PeakAreaError = scipy.integrate.quad(
-                    my_pseudovoigt, 0.0, 100, args=(center, amp, fract, sigma))
-                new_dict_discharge.update({'d_area_peak_' +
-                                           str(peaknum): PeakArea,
-                                           'd_center_peak_' +
-                                           str(peaknum): center,
-                                           'd_amp_peak_' +
-                                           str(peaknum): amp,
-                                           'd_fract_peak_' +
-                                           str(peaknum): fract,
-                                           'd_sigma_peak_' +
-                                           str(peaknum): sigma,
-                                           'd_height_peak_' +
-                                           str(peaknum): height,
-                                           'd_fwhm_peak_' +
-                                           str(peaknum): fwhm,
-                                           'd_rawheight_peak_' +
-                                           str(peaknum): raw_peakheight})
-        else:
-            new_dict_discharge = None
-        if new_dict_discharge is not None:
-            new_dict_df_d = pd.DataFrame(columns=new_dict_discharge.keys())
-            for key1, val1 in new_dict_discharge.items():
-                new_dict_df_d.at[0, key1] = new_dict_discharge[key1]
-            discharge_descript = pd.concat(
+        peaknum = 0
+        for item in discharge_keys:
+            peaknum = peaknum + 1
+            center = param_dict_discharge[item + '_center']
+            amp = param_dict_discharge[item + '_amplitude']
+            fract = param_dict_discharge[item + '_fraction']
+            sigma = param_dict_discharge[item + '_sigma']
+            height = param_dict_discharge[item + '_height']
+            fwhm = param_dict_discharge[item + '_fwhm']
+            raw_peakheight = discharge_peak_heights[peaknum - 1]
+            PeakArea, PeakAreaError = scipy.integrate.quad(
+                my_pseudovoigt, 0.0, 100, args=(center, amp, fract, sigma))
+            new_dict_discharge.update({'d_area_peak_' +
+                                        str(peaknum): PeakArea,
+                                        'd_center_peak_' +
+                                        str(peaknum): center,
+                                        'd_amp_peak_' +
+                                        str(peaknum): amp,
+                                        'd_fract_peak_' +
+                                        str(peaknum): fract,
+                                        'd_sigma_peak_' +
+                                        str(peaknum): sigma,
+                                        'd_height_peak_' +
+                                        str(peaknum): height,
+                                        'd_fwhm_peak_' +
+                                        str(peaknum): fwhm,
+                                        'd_rawheight_peak_' +
+                                        str(peaknum): raw_peakheight})
+        new_dict_df_d = pd.DataFrame(columns=new_dict_discharge.keys())
+        for key1, val1 in new_dict_discharge.items():
+            new_dict_df_d.at[0, key1] = new_dict_discharge[key1]
+        discharge_descript = pd.concat(
                 [discharge_descript, new_dict_df_d], sort=True)
-            discharge_descript = discharge_descript.reset_index(drop=True)
-            discharge_descript2 = dfsortpeakvals(discharge_descript, 'd')
-        else:
-            discharge_descript2 = None
-            # append the two dfs (charge and discharge) before putting them in
-            # database
+        discharge_descript = discharge_descript.reset_index(drop=True)
+        discharge_descript2 = dfsortpeakvals(discharge_descript, 'd')
+        # append the two dfs (charge and discharge) before putting them in
+        # database
         full_df_descript = pd.concat(
             [charge_descript2, discharge_descript2], sort=True, axis=1)
         update_database_newtable(

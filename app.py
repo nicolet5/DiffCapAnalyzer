@@ -21,14 +21,18 @@ from diffcapanalyzer.app_helper_functions import pop_with_db
 from diffcapanalyzer.chachifuncs import col_variables
 from diffcapanalyzer.databasewrappers import get_db_filenames, get_filename_pref
 from diffcapanalyzer.databasefuncs import get_file_from_database
+from diffcapanalyzer.databasefuncs import init_master_table
 from diffcapanalyzer.descriptors import generate_model
 from diffcapanalyzer.descriptors import get_model_dfs
 
 
+
 database = "data/databases/dQdV.db"
 init_db = "data/databases/init_database.db"
-assert os.path.exists(init_db)
 
+assert os.path.exists(init_db)
+if not os.path.exists(database):
+    init_master_table(database)
 
 app = dash.Dash(__name__,
                 external_stylesheets=["https://codepen.io/chriddyp/pen/bWLwgP.css",
@@ -282,9 +286,6 @@ def update_dropdown(children):
                Input('new-peak-threshold', 'value')])
 def update_model_indb(filename, n_clicks, new_peak_thresh):
     if n_clicks is not None:
-        int_list_c = []
-        int_list_d = []
-
         cleanset_name = filename.split('.')[0] + 'CleanSet'
         df_clean = get_file_from_database(cleanset_name, database)
         feedback_str = generate_model(

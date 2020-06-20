@@ -588,6 +588,12 @@ def update_link_1(value):
         peak_vals_df = get_file_from_database(
             value.split('.')[0] + '-descriptors', database)
         if peak_vals_df is not None:
+            # only need a subsest of the columns: 
+            cols_to_keep = [col for col in peak_vals_df if col.startswith('sorted')]
+            baseline = [col for col in peak_vals_df if 'gauss' in col]
+            cols_to_keep.extend(baseline)
+            cols_to_keep.extend(['d_cycle_number', 'c_cycle_number'])
+            peak_vals_df = peak_vals_df[cols_to_keep]
             csv_string = peak_vals_df.to_csv(index=False, encoding='utf-8')
         else:
             # return an empty dataframe

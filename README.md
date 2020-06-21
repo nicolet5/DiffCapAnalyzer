@@ -21,7 +21,7 @@ To use the DiffCapAnalyzer functions without the app, you can pip install instea
 ```
 pip install diffcapanalyzer 
 ```
-This will install the DiffCapAnalyzer modules for use in the example notebooks, or for using the package outside of the Dash app. For example usage of the functions outside of the Dash app, see `examples/ProcessData_PlotDescriptors_Examples.ipynb`. 
+This will install the DiffCapAnalyzer modules for use in the example notebooks, or for using the package outside of the Dash app. For example usage of the functions outside of the Dash app, see `examples/ProcessData_PlotDescriptors_Examples.ipynb`, which serves as a guide for processing one file and plotting the results through a jupyter notebook instead of the Dash App. Additionally, `exmaples/Detailed_Steps_Example.ipynb` provides additional insight into data cleaning, peak finding, and model fitting. 
 
 
 ## Dash App Tutorial

@@ -13,6 +13,8 @@ authors:
     affiliation: "1, 2, 3, 4"
   - name: Sarah Alamdari
     affiliation: 1
+  - name: Chih-Wei Hsu
+    affiliation: 1
   - name: Grant A. Williamson
     affiliation: 2
   - name: Vincent C. Holmberg

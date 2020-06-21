@@ -129,6 +129,13 @@ At the very bottom of the page, you can download the descriptors, cleaned cycles
             test_data_mac.csv
 ```
 
+## Running Tests
+From the root directory: 
+```
+./runTests
+```
+
+
 ## Data Requirements
 At the moment, the package can only process CSV files and relies on specific column headers for each type of file (Arbin vs. Maccor). Please reference the `data` directory for example files. The column headers for each data type must include and appear exactly as the following: 
 * Arbin: 

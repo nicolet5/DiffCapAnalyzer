@@ -18,9 +18,9 @@ authors:
   - name: Grant A. Williamson
     affiliation: 2
   - name: David A. C. Beck
-    affiliation: 1
+    affiliation: "1, 5" 
   - name: Vincent C. Holmberg
-    affiliation: 1
+    affiliation: "1, 2, 6" 
 affiliations:
   - name: Dept. of Chemical Engineering, University of Washington
     index: 1
@@ -30,7 +30,11 @@ affiliations:
     index: 3
   - name: Dept. of Chemistry, University of Washington
     index: 4
-date: 26 April 2020
+  - name: eScience Institute, University of Washington
+    index: 5
+  - name: Clean Energy Institute, University of Washington
+    index: 6
+date: 3 July 2020
 bibliography: paper.bib
 ---
 
@@ -39,7 +43,7 @@ In order to study long-term degradation and charge storage mechanisms in batteri
 
 Traditionally, when using differential capacity plots, researchers have drawn conclusions based on an arbitrarily chosen subset of cycles and reported mainly qualitative claims on how peaks shift during cycling, due to the difficulties in analyzing the full amount of data produced in the differential capacity plots. Additionally, although it is known that peak shapes and areas correlate to important electrochemical events, only a few papers report using peak deconvolution as a method to interpret dQ/dV plots [@torai_nakagomi_yoshitake_yamaguchi_oyama_2016; @aihara_ito_omoda_yamada_fujiki_watanabe_park_doo_2016; @bian_model_2019; @huang_incremental_2019; @he_comparative_2020]. Further, there does not exist any standardized method for peak deconvolution of differential capacity plots.
 
-The software described herein, DiffCapAnalyzer, has been developed to address the drawbacks associated with differential capacity analysis by processing cycling data in a chemistry agnostic manner. This is done by calculating differential capacity from the given raw cycling data using Equation 1, cleaning and smoothing the dQ/dV plots, and performing automatic peak locating and deconvolution for every cycle within the dataset. 
+The software described herein, DiffCapAnalyzer, has been developed to address the drawbacks associated with differential capacity analysis by processing cycling data in a chemistry-agnostic manner. This is done by calculating differential capacity from the given raw cycling data using Equation 1, cleaning and smoothing the dQ/dV plots, and performing automatic peak locating and deconvolution for every cycle within the dataset. 
 
 $$(dQ/dV)_i=(Q_i-Q_{(i-1)})/(V_i-V_{(i-1)})\tag*{(1)}$$
 
@@ -47,7 +51,7 @@ In differential capacity curves without any cleaning or smoothing, there  is sig
  
 ![Cleaning process on an example differential capacity curve.\label{Figure 1}](images/cleaning_dqdv.png)
 
-Once the data is clean, the software automatically finds peaks in the dQ/dV curves utilizing the PeakUtils Python package [@peakutils], and returns the peak heights and the peak locations, as shown by an example cycle in \autoref{Figure 2}a.  These peak heights and locations are then used to inform the model build, which is individualized to each cycle contained in the dataset. The model consists of Pseudo-Voigt distributions positioned at the identified peak locations and a baseline gaussian distribution that captures the area that is not part of the Psuedo-Voigt distributions. The Pseudo-Voigt distribution described by Equations 2 and 3 is simply the linear combination of a Gaussian and a Lorentzian. This distribution is often used in fitting experimental spectral data due to it being a highly generalizable function able to fit a large variety of peak shapes [@wertheim_butler_west_buchanan_1974].
+Once the data is clean, the software automatically finds peaks in the dQ/dV curves utilizing the PeakUtils Python package [@peakutils], and returns the peak heights and the peak locations, as shown by an example cycle in \autoref{Figure 2}a.  These peak heights and locations are then used to inform the model build, which is individualized to each cycle contained in the dataset. The model consists of Pseudo-Voigt distributions positioned at the identified peak locations and a baseline Gaussian distribution that captures the area that is not part of the Psuedo-Voigt distributions. The Pseudo-Voigt distribution described by Equations 2 and 3 is simply the linear combination of a Gaussian and a Lorentzian. This distribution is often used in fitting experimental spectral data due to it being a highly generalizable function able to fit a large variety of peak shapes [@wertheim_butler_west_buchanan_1974].
 
 $$f_v(x,A,\mu,\sigma,\alpha)=\frac{(1- \alpha)A}{\sigma_g \sqrt{2 \pi}}\exp{[-{(x- \mu)}^2/2 {\sigma_g}^2]}+\frac{\alpha A}{\pi}[\frac{\sigma}{{(x-\mu)}^2 + \sigma^2}]\tag*{(2)}$$
 
@@ -55,7 +59,7 @@ $$f_v(x,A,\mu,\sigma,\alpha)=\frac{(1- \alpha)A}{\sigma_g \sqrt{2 \pi}}\exp{[-{(
 $$\sigma_g = \sigma/\sqrt{2 \ln{2}}\tag*{(3)}$$
 
 
-Once the model is generated, an optimized fit is found by allowing all parameters to vary except the center position of the Pseudo-Voigt peaks, which is assigned via the previously identified peak locations. \autoref{Figure 2}b presents an example of an initial model fit and the model fit once optimized specifically for that charge cycle.
+Once the model is generated, an optimized fit is found by allowing all parameters to vary except the center position of the Pseudo-Voigt peaks, which are assigned via the previously identified peak locations. \autoref{Figure 2}b presents an example of an initial model fit and the model fit once optimized specifically for that charge cycle.
 
 ![Fitting process on an example differential capacity curve.\label{Figure 2}](images/fitting_dqdv.png)
 
@@ -64,7 +68,7 @@ Further example model fits can be found on [GitHub](https://github.com/nicolet5/
 Currently, an ongoing research project involves using the tool with a variety of different electrode chemistries to demonstrate the power of this type of quantitative analysis of differential capacity plots. This paper will include electrochemical interpretations of the data generated by the tool and showcases further applicability. This includes using the gathered peak descriptors to train and test a machine learning algorithm which can classify between different battery chemistries.
 
 ## Acknowledgments
-This project was supported by: Data Intensive Research Enabling Clean Technology (DIRECT) National Science Foundation (NSF) National Research Traineeship (DGE-1633216), the State of Washington through the UW Clean Energy Institute and the UW eScience Institute, in part upon the work of S.A. and G.A.W. supported by the NSF Graduate Research Fellowship under Grants No. DGE-1762114 and DGE-1256082, respectively, and via funding from the Washington Research Foundation.
+This project was supported by: Data Intensive Research Enabling Clean Technology (DIRECT) National Science Foundation (NSF) National Research Traineeship (DGE-1633216), the State of Washington through the University of Washington (UW) Clean Energy Institute and the UW eScience Institute, in part upon the work of S.A. and G.A.W. supported by the NSF Graduate Research Fellowship under Grants No. DGE-1762114 and DGE-1256082, respectively, and via funding from the Washington Research Foundation.
 
 ## References
 

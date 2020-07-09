@@ -134,6 +134,11 @@ From the root directory:
 ```
 ./runTests
 ```
+If the executable file does not work, you can run the tests with the command: 
+
+```
+pytest --cov-report term --cov=diffcapanalyzer tests/
+```
 
 
 ## Data Requirements

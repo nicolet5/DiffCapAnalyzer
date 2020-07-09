@@ -10,7 +10,7 @@ authors:
     orcid: 0000-0003-3411-7373
     affiliation: 1
   - name: Theodore A. Cohen
-    affiliation: "1, 2, 3, 4"
+    affiliation: "2, 3, 4"
   - name: Sarah Alamdari
     affiliation: 1
   - name: Chih-Wei Hsu

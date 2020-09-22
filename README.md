@@ -4,7 +4,7 @@ This package is intended to quantitatively analyze raw cycling data by identifyi
 
 Additionally, there is a DASH based visualization app that can be used as the user interface. Users can upload raw cycling data, either collected via a MACCOR or an Arbin cycler. The app will then process the data and add a few files to the database: the raw data, the cleaned data, and the peak descriptors for every cycle. The app also allows users to scroll through cycles and better understand the differential capacity curves. Additionally, there is a section to evaluate the fit of the gaussian baseline, and tailor the peak finding process. The user can also download the peak descriptors using the "Download CSV" file button in the app. 
 
-Additionally, some machine learning was done to classify between two different cathode chemistries, LiCoO2 and LiFePO4. Data sets for these chemistries were obtained from the CALCE website(https://web.calce.umd.edu/batteries/data.htm). Once this data was cleaned and labelled, a 20-80 test-train split was done and a support vector classifier was utilized, with a final test set accuracy of 77%. 
+Additionally, some machine learning was done to classify between two different cathode chemistries, LiCoO2 and LiFePO4. Data sets for these chemistries were obtained from the [CALCE website](https://web.calce.umd.edu/batteries/data.htm). Once this data was cleaned and labelled, a 20-80 test-train split was done and a support vector classifier was utilized, with a final test set accuracy of 77%. 
 
 ### Software Dependencies 
 - Python3 
@@ -160,3 +160,6 @@ At the moment, the package can only process CSV files and relies on specific col
     * Voltage [V]
     * Md
     * Current [A]
+
+## Have Any Issues? Want to Contribute?
+Please do so! Input and contributions from users is invaluable in shaping DiffCapAnalyzer to be the most useful for the community. If you use the software and notice a bug, issue, or think of a feature that would be great to have, report it via a [Github issue](https://github.com/nicolet5/DiffCapAnalyzer/issues). If you have modifications or new feature contributions to the DiffCapAnalyzer code, awesome! Submit a [pull request](https://github.com/nicolet5/DiffCapAnalyzer/pulls) with sufficient documentation on the changes, unit tests, and instructions on how to validate your changes/additions. For support with the tool, feel free to open a [Github issue](https://github.com/nicolet5/DiffCapAnalyzer/issues) or contact me via email at <nicole.thompson140@gmail.com>. 

@@ -10,16 +10,22 @@ authors:
     orcid: 0000-0003-3411-7373
     affiliation: 1
   - name: Theodore A. Cohen
+    orcid: 0000-0001-7170-3211
     affiliation: "2, 3, 4"
   - name: Sarah Alamdari
+    orcid: 0000-0002-4515-1262
     affiliation: 1
   - name: Chih-Wei Hsu
+    orcid: 0000-0002-7328-5452
     affiliation: 1
   - name: Grant A. Williamson
+    orcid: 0000-0003-2778-8304
     affiliation: 2
   - name: David A. C. Beck
+    orcid: 0000-0002-5371-7035
     affiliation: "1, 5" 
   - name: Vincent C. Holmberg
+    orcid: 0000-0002-9591-8951
     affiliation: "1, 2, 6" 
 affiliations:
   - name: Dept. of Chemical Engineering, University of Washington

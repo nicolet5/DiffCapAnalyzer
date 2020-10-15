@@ -14,7 +14,7 @@ with open("README.md", "r") as f:
 
 setuptools.setup(
     name="DiffCapAnalyzer",
-    version="0.1.1",
+    version="1.0",
     author="Nicole Thompson",
     author_email="nicole.thompson140@gmail.com",
     description="A package for the quantitative analysis of differential capacity data!",

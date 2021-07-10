@@ -240,7 +240,7 @@ def test_param_dicts_to_df():
 def test_peak_finder():
     """Tests that the correct indices, voltage, and dq/dv value 
     are returned for peaks found with peak_finder"""
-    result = peak_finder(test_cycle1_df, 'c', 5, 3, test_datatype, 5, 0.4)
+    result = peak_finder(test_cycle1_df, 'c', 3, test_datatype, 5, 0.4)
     assert len(result) == 3
     peak_indices = result[0]
     peak_sigx_volts = result[1]

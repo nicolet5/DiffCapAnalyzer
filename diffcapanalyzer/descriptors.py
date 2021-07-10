@@ -92,11 +92,11 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
      dis_cap_col, char_cap_col, charge_or_discharge) = col_variables(datatype)
     clean_charge, clean_discharge = sep_char_dis(
         df_clean[df_clean[cycle_ind_col] == cyc], datatype)
-    windowlength = 9
+    
     polyorder = 3
 
     i_charge, volts_i_ch, peak_heights_c = peak_finder(clean_charge,
-                                                       'c', windowlength,
+                                                       'c',
                                                        polyorder,
                                                        datatype,
                                                        lenmax,
@@ -121,8 +121,8 @@ def get_model_dfs(df_clean, datatype, cyc, lenmax, peak_thresh):
         model_c_vals = None
     # now the discharge:
     i_discharge, volts_i_dc, peak_heights_d = peak_finder(
-        clean_discharge, 'd', windowlength,
-        polyorder, datatype, lenmax, peak_thresh)
+        clean_discharge, 'd', polyorder, datatype, lenmax, 
+        peak_thresh)
     V_series_d = clean_discharge[volt_col]
     dQdV_series_d = clean_discharge['Smoothed_dQ/dV']
     par_d, mod_d, indices_d = model_gen(
@@ -308,11 +308,11 @@ def param_dicts_to_df(mod_params_name, database):
 def peak_finder(
         df_run,
         cd,
-        windowlength,
         polyorder,
         datatype,
         lenmax,
-        peak_thresh):
+        peak_thresh, 
+        windowlength=None):
     """Determines the index of each peak in a dQdV curve
     V_series = Pandas series of voltage data
     dQdV_series = Pandas series of differential capacity data
@@ -329,17 +329,18 @@ def peak_finder(
     sigx, sigy = cd_dataframe(V_series, dQdV_series, cd)
     # the below is to make sure the window length ends up an odd number - even
     # though we are basing it on the length of the df
-    wl = lenmax / 20
-    wlint = int(round(wl))
-    if wlint % 2 == 0:
-        windowlength_new = wlint + 1
-    else:
-        windowlength_new = wlint
-    if len(sigy) > windowlength_new and windowlength_new > polyorder:
+    if not windowlength: 
+        wl = lenmax / 20
+        wlint = int(round(wl))
+        if wlint % 2 == 0:
+            windowlength = wlint + 1
+        else:
+            windowlength = wlint
+    if len(sigy) > windowlength and windowlength > polyorder:
         # has to be larger than 69 so that windowlength > 3 - necessary for sav
         # golay function
         sigy_smooth = scipy.signal.savgol_filter(
-            sigy, windowlength_new, polyorder)
+            sigy, windowlength, polyorder)
     else:
         sigy_smooth = sigy
     peak_thresh_ft = float(peak_thresh)
